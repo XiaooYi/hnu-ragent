@@ -1,4 +1,5 @@
 import { api } from "./api";
+import { getErrorMessage } from "@/utils/error";
 
 export interface KnowledgeBase {
   id: string;
@@ -109,6 +110,19 @@ export interface KnowledgeDocumentUploadPayload {
   chunkConfig?: string | null;
   pipelineId?: string | null;
 }
+
+export interface KnowledgeDocumentUploadResult {
+  fileName: string;
+  success: boolean;
+  document?: KnowledgeDocument;
+  message?: string;
+}
+
+export type UploadProgressHandler = (
+  index: number,
+  status: "uploading" | "success" | "failed",
+  result?: KnowledgeDocumentUploadResult
+) => void;
 
 export interface KnowledgeChunkPageParams {
   current?: number;
@@ -234,6 +248,32 @@ export const uploadDocument = async (
       "Content-Type": "multipart/form-data"
     }
   });
+};
+
+export const uploadDocuments = async (
+  kbId: string,
+  payloads: KnowledgeDocumentUploadPayload[],
+  onProgress?: UploadProgressHandler
+): Promise<KnowledgeDocumentUploadResult[]> => {
+  const results: KnowledgeDocumentUploadResult[] = new Array(payloads.length);
+  let nextIndex = 0;
+  const worker = async () => {
+    while (nextIndex < payloads.length) {
+      const index = nextIndex++;
+      const payload = payloads[index];
+      const fileName = payload.file?.name || payload.sourceLocation || "";
+      onProgress?.(index, "uploading");
+      try {
+        const document = await uploadDocument(kbId, payload);
+        results[index] = { fileName, success: true, document };
+      } catch (error) {
+        results[index] = { fileName, success: false, message: getErrorMessage(error, "上传失败") };
+      }
+      onProgress?.(index, results[index].success ? "success" : "failed", results[index]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(3, payloads.length) }, worker));
+  return results;
 };
 
 export const getDocument = async (docId: string): Promise<KnowledgeDocument> => {

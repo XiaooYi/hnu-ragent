@@ -133,35 +133,43 @@ public class KnowledgeDocumentServiceImpl implements KnowledgeDocumentService {
 
         SourceType sourceType = SourceType.normalize(requestParam.getSourceType());
         validateSourceAndSchedule(sourceType, requestParam);
-        StoredFileDTO stored = resolveStoredFile(kbDO.getCollectionName(), sourceType, requestParam.getSourceLocation(), file);
-        // 前置拦截：与分块阶段同一套 MIME 路由，无解析器的类型直接拒绝，不落库不发 MQ
-        if (parserSelector.selectByMimeType(stored.getMimeType()) == null) {
-            fileStorageService.deleteByUrl(stored.getUrl());
-            throw new ClientException("暂不支持的文件类型：" + stored.getDetectedType());
-        }
         ProcessModeConfig modeConfig = resolveProcessModeConfig(requestParam);
-
-        KnowledgeDocumentDO documentDO = KnowledgeDocumentDO.builder()
-                .kbId(kbId)
-                .docName(stored.getOriginalFilename())
-                .enabled(1)
-                .chunkCount(0)
-                .fileUrl(stored.getUrl())
-                .fileType(stored.getDetectedType())
-                .fileSize(stored.getSize())
-                .status(DocumentStatus.PENDING.getCode())
-                .sourceType(sourceType.getValue())
-                .sourceLocation(SourceType.URL == sourceType ? StrUtil.trimToNull(requestParam.getSourceLocation()) : null)
-                .scheduleEnabled(isScheduleEnabled(sourceType, requestParam) ? 1 : 0)
-                .scheduleCron(isScheduleEnabled(sourceType, requestParam) ? StrUtil.trimToNull(requestParam.getScheduleCron()) : null)
-                .processMode(modeConfig.processMode().getValue())
-                .chunkStrategy(modeConfig.chunkingMode() != null ? modeConfig.chunkingMode().getValue() : null)
-                .chunkConfig(modeConfig.chunkConfig())
-                .pipelineId(modeConfig.pipelineId())
-                .createdBy(UserContext.getUsername())
-                .updatedBy(UserContext.getUsername())
-                .build();
-        documentMapper.insert(documentDO);
+        StoredFileDTO stored = resolveStoredFile(kbDO.getCollectionName(), sourceType, requestParam.getSourceLocation(), file);
+        KnowledgeDocumentDO documentDO;
+        try {
+            // 与分块阶段使用相同的 MIME 路由，拒绝没有解析器的文件。
+            if (parserSelector.selectByMimeType(stored.getMimeType()) == null) {
+                throw new ClientException("暂不支持的文件类型：" + stored.getDetectedType());
+            }
+            documentDO = KnowledgeDocumentDO.builder()
+                    .kbId(kbId)
+                    .docName(stored.getOriginalFilename())
+                    .enabled(1)
+                    .chunkCount(0)
+                    .fileUrl(stored.getUrl())
+                    .fileType(stored.getDetectedType())
+                    .fileSize(stored.getSize())
+                    .status(DocumentStatus.PENDING.getCode())
+                    .sourceType(sourceType.getValue())
+                    .sourceLocation(SourceType.URL == sourceType ? StrUtil.trimToNull(requestParam.getSourceLocation()) : null)
+                    .scheduleEnabled(isScheduleEnabled(sourceType, requestParam) ? 1 : 0)
+                    .scheduleCron(isScheduleEnabled(sourceType, requestParam) ? StrUtil.trimToNull(requestParam.getScheduleCron()) : null)
+                    .processMode(modeConfig.processMode().getValue())
+                    .chunkStrategy(modeConfig.chunkingMode() != null ? modeConfig.chunkingMode().getValue() : null)
+                    .chunkConfig(modeConfig.chunkConfig())
+                    .pipelineId(modeConfig.pipelineId())
+                    .createdBy(UserContext.getUsername())
+                    .updatedBy(UserContext.getUsername())
+                    .build();
+            documentMapper.insert(documentDO);
+        } catch (RuntimeException error) {
+            try {
+                fileStorageService.deleteByUrl(stored.getUrl());
+            } catch (RuntimeException cleanupError) {
+                log.warn("上传失败后清理存储文件失败, fileUrl={}", stored.getUrl(), cleanupError);
+            }
+            throw error;
+        }
 
         return BeanUtil.toBean(documentDO, KnowledgeDocumentVO.class);
     }
