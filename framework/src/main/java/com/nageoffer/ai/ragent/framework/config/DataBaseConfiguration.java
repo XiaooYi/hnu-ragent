@@ -39,7 +39,9 @@ public class DataBaseConfiguration {
     @Bean
     public MybatisPlusInterceptor mybatisPlusInterceptor() {
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
-        interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.POSTGRE_SQL));
+        PaginationInnerInterceptor paginationInterceptor = new PaginationInnerInterceptor(DbType.POSTGRE_SQL);
+        paginationInterceptor.setMaxLimit(100L);
+        interceptor.addInnerInterceptor(paginationInterceptor);
         return interceptor;
     }
 

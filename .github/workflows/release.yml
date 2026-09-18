@@ -1,0 +1,41 @@
+name: Create semantic release
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: semantic-release-master
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Publish release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install release dependencies
+        run: npm ci
+
+      - name: Create GitHub release from conventional commits
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run release

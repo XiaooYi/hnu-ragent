@@ -48,8 +48,8 @@ import {
 import { getSystemSettings } from "@/services/settingsService";
 import { getErrorMessage } from "@/utils/error";
 import { RelativeTime } from "@/components/RelativeTime";
-const PIPELINE_PAGE_SIZE = 10;
-const TASK_PAGE_SIZE = 10;
+import { PageSizeSelect } from "@/components/admin/PageSizeSelect";
+import { usePageSize, type PageSize } from "@/hooks/usePageSize";
 
 const STATUS_OPTIONS = [
   { value: "pending", label: "pending" },
@@ -215,6 +215,7 @@ export function IngestionPage() {
   const [pipelineKeyword, setPipelineKeyword] = useState("");
   const [pipelineSearch, setPipelineSearch] = useState("");
   const [pipelinePageNo, setPipelinePageNo] = useState(1);
+  const [pipelinePageSize, setPipelinePageSize] = usePageSize("ingestion-pipelines");
   const [pipelineLoading, setPipelineLoading] = useState(false);
   const [pipelineDialog, setPipelineDialog] = useState<{
     open: boolean;
@@ -232,6 +233,7 @@ export function IngestionPage() {
   const [taskPage, setTaskPage] = useState<PageResult<IngestionTask> | null>(null);
   const [taskStatus, setTaskStatus] = useState<string | undefined>();
   const [taskPageNo, setTaskPageNo] = useState(1);
+  const [taskPageSize, setTaskPageSize] = usePageSize("ingestion-tasks");
   const [taskLoading, setTaskLoading] = useState(false);
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
@@ -246,7 +248,7 @@ export function IngestionPage() {
   const loadPipelines = async (pageNo = pipelinePageNo, keyword = pipelineKeyword) => {
     setPipelineLoading(true);
     try {
-      const data = await getIngestionPipelines(pageNo, PIPELINE_PAGE_SIZE, keyword || undefined);
+      const data = await getIngestionPipelines(pageNo, pipelinePageSize, keyword || undefined);
       setPipelinePage(data);
     } catch (error) {
       toast.error(getErrorMessage(error, "加载流水线失败"));
@@ -258,8 +260,13 @@ export function IngestionPage() {
 
   const loadPipelineOptions = async () => {
     try {
-      const data = await getIngestionPipelines(1, 200);
-      setPipelineOptions(data.records || []);
+      const firstPage = await getIngestionPipelines(1, 100);
+      const options = [...(firstPage.records || [])];
+      for (let pageNo = 2; pageNo <= (firstPage.pages || 1); pageNo += 1) {
+        const page = await getIngestionPipelines(pageNo, 100);
+        options.push(...(page.records || []));
+      }
+      setPipelineOptions(options);
     } catch (error) {
       console.error(error);
     }
@@ -268,7 +275,7 @@ export function IngestionPage() {
   const loadTasks = async (pageNo = taskPageNo, status = taskStatus) => {
     setTaskLoading(true);
     try {
-      const data = await getIngestionTasks(pageNo, TASK_PAGE_SIZE, status);
+      const data = await getIngestionTasks(pageNo, taskPageSize, status);
       setTaskPage(data);
     } catch (error) {
       toast.error(getErrorMessage(error, "加载任务失败"));
@@ -280,11 +287,11 @@ export function IngestionPage() {
 
   useEffect(() => {
     loadPipelines();
-  }, [pipelinePageNo, pipelineKeyword]);
+  }, [pipelinePageNo, pipelinePageSize, pipelineKeyword]);
 
   useEffect(() => {
     loadTasks();
-  }, [taskPageNo, taskStatus]);
+  }, [taskPageNo, taskPageSize, taskStatus]);
 
   useEffect(() => {
     loadPipelineOptions();
@@ -467,6 +474,11 @@ export function IngestionPage() {
               current={pipelinePage?.current || 1}
               pages={pipelinePage?.pages || 1}
               total={pipelinePage?.total || 0}
+              pageSize={pipelinePageSize}
+              onPageSizeChange={(value) => {
+                setPipelinePageSize(value);
+                setPipelinePageNo(1);
+              }}
               onPrev={() => setPipelinePageNo((prev) => Math.max(1, prev - 1))}
               onNext={() =>
                 setPipelinePageNo((prev) => Math.min(pipelinePage?.pages || 1, prev + 1))
@@ -571,6 +583,11 @@ export function IngestionPage() {
               current={taskPage?.current || 1}
               pages={taskPage?.pages || 1}
               total={taskPage?.total || 0}
+              pageSize={taskPageSize}
+              onPageSizeChange={(value) => {
+                setTaskPageSize(value);
+                setTaskPageNo(1);
+              }}
               onPrev={() => setTaskPageNo((prev) => Math.max(1, prev - 1))}
               onNext={() => setTaskPageNo((prev) => Math.min(taskPage?.pages || 1, prev + 1))}
             />
@@ -663,16 +680,19 @@ interface PaginationProps {
   current: number;
   pages: number;
   total: number;
+  pageSize: PageSize;
+  onPageSizeChange: (value: number) => void;
   onPrev: () => void;
   onNext: () => void;
 }
 
-function Pagination({ current, pages, total, onPrev, onNext }: PaginationProps) {
+function Pagination({ current, pages, total, pageSize, onPageSizeChange, onPrev, onNext }: PaginationProps) {
   if (total === 0) return null;
   return (
     <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-500">
       <span>共 {total} 条</span>
       <div className="flex items-center gap-2">
+        <PageSizeSelect value={pageSize} onValueChange={onPageSizeChange} />
         <Button variant="outline" size="sm" onClick={onPrev} disabled={current <= 1}>
           上一页
         </Button>

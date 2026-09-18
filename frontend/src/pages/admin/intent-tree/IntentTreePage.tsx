@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import type { KnowledgeBase } from "@/services/knowledgeService";
-import { getKnowledgeBases } from "@/services/knowledgeService";
+import { getAllKnowledgeBases } from "@/services/knowledgeService";
 import { getErrorMessage } from "@/utils/error";
 import type {
   IntentNodeCreatePayload,
@@ -200,7 +200,7 @@ export function IntentTreePage() {
 
   const loadKnowledgeBases = async () => {
     try {
-      const data = await getKnowledgeBases();
+      const data = await getAllKnowledgeBases();
       setKnowledgeBases(data);
     } catch (error) {
       console.error(error);

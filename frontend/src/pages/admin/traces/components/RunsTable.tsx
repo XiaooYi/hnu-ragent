@@ -13,6 +13,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { CheckCircle2, Copy, Eye, LayoutPanelTop, Loader2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { RelativeTime } from "@/components/RelativeTime";
+import { PageSizeSelect } from "@/components/admin/PageSizeSelect";
+import type { PageSize } from "@/hooks/usePageSize";
 import {
   getRagTraceNodes,
   type RagTraceNode,
@@ -37,6 +39,8 @@ interface RunsTableProps {
   onOpenRun: (traceId: string) => void;
   onPrevPage: () => void;
   onNextPage: () => void;
+  pageSize: PageSize;
+  onPageSizeChange: (value: number) => void;
 }
 
 const renderEmptyPlaceholder = () => (
@@ -362,7 +366,9 @@ export function RunsTable({
   total,
   onOpenRun,
   onPrevPage,
-  onNextPage
+  onNextPage,
+  pageSize,
+  onPageSizeChange
 }: RunsTableProps) {
   const [briefRun, setBriefRun] = useState<RagTraceRun | null>(null);
 
@@ -445,6 +451,7 @@ export function RunsTable({
             第 {current} / {pages} 页，共 {total.toLocaleString("zh-CN")} 条
           </span>
           <div className="trace-list-pagination">
+            <PageSizeSelect value={pageSize} onValueChange={onPageSizeChange} disabled={loading} />
             <Button
               className="trace-list-pagination-btn"
               variant="outline"

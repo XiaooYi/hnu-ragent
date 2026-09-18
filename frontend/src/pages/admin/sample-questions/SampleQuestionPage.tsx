@@ -34,8 +34,8 @@ import {
 } from "@/services/sampleQuestionService";
 import { getErrorMessage } from "@/utils/error";
 import { RelativeTime } from "@/components/RelativeTime";
-
-const PAGE_SIZE = 10;
+import { PageSizeSelect } from "@/components/admin/PageSizeSelect";
+import { usePageSize } from "@/hooks/usePageSize";
 
 const emptyForm = {
   title: "",
@@ -48,6 +48,7 @@ export function SampleQuestionPage() {
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<SampleQuestion | null>(null);
   const [pageNo, setPageNo] = useState(1);
+  const [pageSize, setPageSize] = usePageSize("sample-questions");
   const [searchKeyword, setSearchKeyword] = useState("");
   const [keyword, setKeyword] = useState("");
   const [dialogState, setDialogState] = useState<{
@@ -60,7 +61,7 @@ export function SampleQuestionPage() {
   const loadQuestions = async (current = pageNo, keywordValue = keyword) => {
     try {
       setLoading(true);
-      const data = await getSampleQuestionsPage(current, PAGE_SIZE, keywordValue || undefined);
+      const data = await getSampleQuestionsPage(current, pageSize, keywordValue || undefined);
       setPageData(data);
     } catch (error) {
       toast.error(getErrorMessage(error, "加载示例问题失败"));
@@ -72,7 +73,7 @@ export function SampleQuestionPage() {
 
   useEffect(() => {
     loadQuestions();
-  }, [pageNo, keyword]);
+  }, [pageNo, pageSize, keyword]);
 
   useEffect(() => {
     if (!dialogState.open) {
@@ -248,6 +249,13 @@ export function SampleQuestionPage() {
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-500">
           <span>共 {pageData.total} 条</span>
           <div className="flex items-center gap-2">
+            <PageSizeSelect
+              value={pageSize}
+              onValueChange={(value) => {
+                setPageSize(value);
+                setPageNo(1);
+              }}
+            />
             <Button
               variant="outline"
               size="sm"

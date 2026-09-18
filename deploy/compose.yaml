@@ -93,14 +93,20 @@ services:
     networks: [ragent-internal]
 
   mcp-server:
-    image: ${RAGENT_MCP_IMAGE}
+    build:
+      context: ..
+      dockerfile: deploy/mcp-server.Dockerfile
+    image: ragent-mcp-server:local
     restart: unless-stopped
     environment:
       TZ: ${TZ}
     networks: [ragent-internal]
 
   backend:
-    image: ${RAGENT_BACKEND_IMAGE}
+    build:
+      context: ..
+      dockerfile: deploy/backend.Dockerfile
+    image: ragent-backend:local
     restart: unless-stopped
     environment:
       TZ: ${TZ}
@@ -142,7 +148,12 @@ services:
     networks: [ragent-internal]
 
   frontend:
-    image: ${RAGENT_FRONTEND_IMAGE}
+    build:
+      context: ..
+      dockerfile: deploy/frontend.Dockerfile
+      args:
+        VITE_API_BASE_URL: /api/ragent
+    image: ragent-frontend:local
     restart: unless-stopped
     depends_on:
       backend:

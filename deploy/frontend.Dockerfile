@@ -1,10 +1,10 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1.7
 
 FROM node:22-alpine AS build
 
 WORKDIR /app
 COPY frontend/package*.json ./
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci
 
 COPY frontend/ ./
 ARG VITE_API_BASE_URL=/api/ragent

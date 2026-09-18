@@ -43,10 +43,11 @@ import {
   type IntentNodeTree
 } from "@/services/intentTreeService";
 import { getErrorMessage } from "@/utils/error";
+import { PageSizeSelect } from "@/components/admin/PageSizeSelect";
+import { usePageSize } from "@/hooks/usePageSize";
 
 const ALL_VALUE = "__ALL__";
 const ROOT_VALUE = "__ROOT__";
-const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
 const LEVEL_OPTIONS = [
   { value: 0, label: "DOMAIN" },
@@ -170,7 +171,7 @@ export function IntentListPage() {
   const [parentFilter, setParentFilter] = useState(ALL_VALUE);
   const [keyword, setKeyword] = useState("");
   const [pageNo, setPageNo] = useState(1);
-  const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
+  const [pageSize, setPageSize] = usePageSize("intent-list");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [batchSubmitting, setBatchSubmitting] = useState<null | "enable" | "disable" | "delete">(null);
 
@@ -710,25 +711,13 @@ export function IntentListPage() {
             共 {total} 条，显示 {rangeStart}-{rangeEnd}
           </span>
           <div className="flex flex-wrap items-center gap-2">
-            <span>每页</span>
-            <Select
-              value={String(pageSize)}
+            <PageSizeSelect
+              value={pageSize}
               onValueChange={(value) => {
-                setPageSize(Number(value));
+                setPageSize(value);
                 setPageNo(1);
               }}
-            >
-              <SelectTrigger className="h-8 w-[92px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PAGE_SIZE_OPTIONS.map((size) => (
-                  <SelectItem key={size} value={String(size)}>
-                    {size} 条
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            />
             <Button
               variant="outline"
               size="sm"

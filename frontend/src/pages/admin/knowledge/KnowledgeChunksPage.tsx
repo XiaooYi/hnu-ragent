@@ -14,6 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { RelativeTime } from "@/components/RelativeTime";
+import { PageSizeSelect } from "@/components/admin/PageSizeSelect";
+import { usePageSize } from "@/hooks/usePageSize";
 
 import type { KnowledgeChunk, KnowledgeDocument, PageResult } from "@/services/knowledgeService";
 import {
@@ -27,8 +29,6 @@ import {
   updateChunk
 } from "@/services/knowledgeService";
 import { getErrorMessage } from "@/utils/error";
-
-const PAGE_SIZE = 10;
 
 const truncateText = (value?: string | null, max = 120) => {
   if (!value) return "-";
@@ -45,6 +45,7 @@ export function KnowledgeChunksPage() {
   const [kbName, setKbName] = useState("");
   const [pageData, setPageData] = useState<PageResult<KnowledgeChunk> | null>(null);
   const [pageNo, setPageNo] = useState(1);
+  const [pageSize, setPageSize] = usePageSize("knowledge-chunks");
   const [loading, setLoading] = useState(false);
   const [enabledFilter, setEnabledFilter] = useState<number | undefined>();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -75,7 +76,7 @@ export function KnowledgeChunksPage() {
     try {
       const data = await getChunksPage(docId, {
         current,
-        size: PAGE_SIZE,
+        size: pageSize,
         enabled
       });
       setPageData(data);
@@ -99,7 +100,7 @@ export function KnowledgeChunksPage() {
 
   useEffect(() => {
     loadChunks();
-  }, [docId, pageNo, enabledFilter]);
+  }, [docId, pageNo, pageSize, enabledFilter]);
 
   useEffect(() => {
     setSelectedIds(new Set());
@@ -331,6 +332,13 @@ export function KnowledgeChunksPage() {
             <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-500">
               <span>共 {pageData.total} 条</span>
               <div className="flex items-center gap-2">
+                <PageSizeSelect
+                  value={pageSize}
+                  onValueChange={(value) => {
+                    setPageSize(value);
+                    setPageNo(1);
+                  }}
+                />
                 <Button variant="outline" size="sm" onClick={() => setPageNo((prev) => Math.max(1, prev - 1))} disabled={pageData.current <= 1}>
                   上一页
                 </Button>

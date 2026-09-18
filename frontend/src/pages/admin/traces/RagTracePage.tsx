@@ -9,8 +9,8 @@ import { getRagTraceRuns, type PageResult, type RagTraceRun } from "@/services/r
 import { getErrorMessage } from "@/utils/error";
 import { RunsTable } from "@/pages/admin/traces/components/RunsTable";
 import { StatCard, type StatCardTone } from "@/pages/admin/traces/components/StatCard";
+import { usePageSize } from "@/hooks/usePageSize";
 import {
-  PAGE_SIZE,
   normalizeStatus,
 } from "@/pages/admin/traces/traceUtils";
 
@@ -36,6 +36,7 @@ export function RagTracePage() {
   const [traceIdFilter, setTraceIdFilter] = useState("");
   const [queryTraceId, setQueryTraceId] = useState("");
   const [pageNo, setPageNo] = useState(1);
+  const [pageSize, setPageSize] = usePageSize("rag-traces");
   const [pageData, setPageData] = useState<PageResult<RagTraceRun> | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -47,7 +48,7 @@ export function RagTracePage() {
     try {
       const result = await getRagTraceRuns({
         current,
-        size: PAGE_SIZE,
+        size: pageSize,
         traceId: nextTraceId.trim() || undefined
       });
       if (runsRequestRef.current !== requestId) return;
@@ -64,7 +65,7 @@ export function RagTracePage() {
 
   useEffect(() => {
     loadRuns();
-  }, [pageNo, queryTraceId]);
+  }, [pageNo, pageSize, queryTraceId]);
 
   const handleSearch = () => {
     setPageNo(1);
@@ -204,6 +205,11 @@ export function RagTracePage() {
           onOpenRun={(traceId) => navigate(`/admin/traces/${encodeURIComponent(traceId)}`)}
           onPrevPage={() => setPageNo((prev) => Math.max(1, prev - 1))}
           onNextPage={() => setPageNo((prev) => prev + 1)}
+          pageSize={pageSize}
+          onPageSizeChange={(value) => {
+            setPageSize(value);
+            setPageNo(1);
+          }}
         />
       </div>
     </div>

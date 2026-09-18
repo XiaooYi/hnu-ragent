@@ -1,0 +1,38 @@
+name: Validate commit messages
+
+on:
+  pull_request:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  commitlint:
+    name: Commitlint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install commit validation dependencies
+        run: npm ci
+
+      - name: Validate commits in this change
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            BASE_SHA="$(git rev-list --max-parents=0 HEAD)"
+          fi
+          npx --no -- commitlint --from "$BASE_SHA" --to "$GITHUB_SHA" --verbose

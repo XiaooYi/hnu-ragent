@@ -30,6 +30,8 @@
         <okhttp.version>4.12.0</okhttp.version>
         <mcp-sdk.version>1.1.2</mcp-sdk.version>
         <spotless-maven-plugin.version>2.22.1</spotless-maven-plugin.version>
+        <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
+        <maven.surefire.plugin.version>3.2.5</maven.surefire.plugin.version>
     </properties>
 
     <modules>
@@ -208,6 +210,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven.compiler.plugin.version}</version>
                 <configuration>
                     <source>${java.version}</source>
                     <target>${java.version}</target>
@@ -231,6 +234,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
+                <version>${maven.surefire.plugin.version}</version>
                 <configuration>
                     <argLine>-javaagent:${org.mockito:mockito-core:jar}</argLine>
                 </configuration>
@@ -248,14 +252,6 @@
                         </licenseHeader>
                     </java>
                 </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>apply</goal>
-                        </goals>
-                        <phase>compile</phase>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>

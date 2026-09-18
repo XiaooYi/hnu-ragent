@@ -1,0 +1,19 @@
+{
+  "name": "ragent-repository-tools",
+  "version": "0.0.0-development",
+  "private": true,
+  "scripts": {
+    "prepare": "husky",
+    "commitlint": "commitlint --edit",
+    "release": "semantic-release"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.2",
+    "@commitlint/config-conventional": "^21.2.2",
+    "@semantic-release/commit-analyzer": "^13.0.1",
+    "@semantic-release/github": "^12.0.9",
+    "@semantic-release/release-notes-generator": "^14.1.1",
+    "husky": "^9.1.7",
+    "semantic-release": "^25.0.9"
+  }
+}

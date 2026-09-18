@@ -1,7 +1,5 @@
 import type { RagTraceNode } from "@/services/ragTraceService";
 
-export const PAGE_SIZE = 10;
-
 export type BadgeVariant = "default" | "secondary" | "destructive" | "outline";
 
 export type TraceStatus = "" | "success" | "failed" | "running";

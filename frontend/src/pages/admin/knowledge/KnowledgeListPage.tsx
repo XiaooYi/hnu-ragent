@@ -27,6 +27,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { PageSizeSelect } from "@/components/admin/PageSizeSelect";
+import { usePageSize } from "@/hooks/usePageSize";
 
 import type { KnowledgeBase, PageResult } from "@/services/knowledgeService";
 import { deleteKnowledgeBase, getKnowledgeBasesPage, renameKnowledgeBase } from "@/services/knowledgeService";
@@ -34,8 +36,7 @@ import { CreateKnowledgeBaseDialog } from "@/components/admin/CreateKnowledgeBas
 import { getErrorMessage } from "@/utils/error";
 import { cn } from "@/lib/utils";
 
-const PAGE_SIZE = 10;
-const STATS_PAGE_SIZE = 200;
+const STATS_PAGE_SIZE = 100;
 
 export function KnowledgeListPage() {
   const navigate = useNavigate();
@@ -48,6 +49,7 @@ export function KnowledgeListPage() {
   const [searchName, setSearchName] = useState(nameFromQuery);
   const [keyword, setKeyword] = useState(nameFromQuery);
   const [pageNo, setPageNo] = useState(1);
+  const [pageSize, setPageSize] = usePageSize("knowledge-bases");
   const [renameDialog, setRenameDialog] = useState<{ open: boolean; kb: KnowledgeBase | null }>({
     open: false,
     kb: null
@@ -67,7 +69,7 @@ export function KnowledgeListPage() {
   const loadKnowledgeBases = async (current = pageNo, name = keyword) => {
     try {
       setLoading(true);
-      const data = await getKnowledgeBasesPage(current, PAGE_SIZE, name || undefined);
+      const data = await getKnowledgeBasesPage(current, pageSize, name || undefined);
       setPageData(data);
     } catch (error) {
       toast.error(getErrorMessage(error, "加载知识库列表失败"));
@@ -138,7 +140,7 @@ export function KnowledgeListPage() {
 
   useEffect(() => {
     loadKnowledgeBases();
-  }, [pageNo, keyword]);
+  }, [pageNo, pageSize, keyword]);
 
   useEffect(() => {
     loadStats(keyword);
@@ -424,6 +426,13 @@ export function KnowledgeListPage() {
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-500">
           <span>共 {pageData.total} 条</span>
           <div className="flex items-center gap-2">
+            <PageSizeSelect
+              value={pageSize}
+              onValueChange={(value) => {
+                setPageSize(value);
+                setPageNo(1);
+              }}
+            />
             <Button
               variant="outline"
               size="sm"

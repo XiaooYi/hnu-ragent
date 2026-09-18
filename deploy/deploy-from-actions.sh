@@ -40,9 +40,12 @@ echo "Deploying commit ${GITHUB_SHA:-unknown} from ${GITHUB_REPOSITORY:-local ch
 
 # Build sequentially: backend and mcp-server both compile Maven modules, and
 # concurrent builds are slower and less stable on the 2-core production CVM.
-compose build --pull backend
-compose build --pull mcp-server
-compose build --pull frontend
+# BuildKit is required for the persistent Maven and npm cache mounts declared
+# in the application Dockerfiles.
+export DOCKER_BUILDKIT=1
+compose build backend
+compose build mcp-server
+compose build frontend
 
 # Source-code releases only replace application containers. Stateful middleware
 # and its Docker volumes remain online and are never removed by this workflow.

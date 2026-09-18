@@ -19,6 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { RelativeTime } from "@/components/RelativeTime";
+import { PageSizeSelect } from "@/components/admin/PageSizeSelect";
+import { usePageSize } from "@/hooks/usePageSize";
 import { formatFullDateTime } from "@/utils/time";
 
 import type { KnowledgeBase, KnowledgeDocument, KnowledgeDocumentUploadPayload, KnowledgeDocumentUploadResult, UploadProgressHandler, KnowledgeDocumentChunkLog, PageResult, ChunkStrategyOption } from "@/services/knowledgeService";
@@ -47,8 +49,6 @@ const SpreadsheetPreview = lazy(() =>
   import("@/components/admin/SpreadsheetPreview").then(m => ({ default: m.SpreadsheetPreview }))
 );
 import { getErrorMessage } from "@/utils/error";
-
-const PAGE_SIZE = 10;
 
 const STATUS_OPTIONS = [
   { value: "pending", label: "pending" },
@@ -202,6 +202,7 @@ export function KnowledgeDocumentsPage() {
   const navigate = useNavigate();
   const [kb, setKb] = useState<KnowledgeBase | null>(null);
   const [pageData, setPageData] = useState<PageResult<KnowledgeDocument> | null>(null);
+  const [pageSize, setPageSize] = usePageSize("knowledge-documents");
   // 页码塞进 history state（不进 URL，保持 RESTful 路径），离开分块页 navigate(-1) 返回时自动恢复
   const location = useLocation();
   const current = Math.max(1, Number((location.state as { page?: number } | null)?.page) || 1);
@@ -327,7 +328,7 @@ export function KnowledgeDocumentsPage() {
     try {
       const data = await getDocumentsPage(kbId, {
         current: page,
-        size: PAGE_SIZE,
+        size: pageSize,
         status,
         keyword: keywordValue || undefined
       });
@@ -346,7 +347,7 @@ export function KnowledgeDocumentsPage() {
 
   useEffect(() => {
     loadDocuments();
-  }, [kbId, current, statusFilter, keyword]);
+  }, [kbId, current, pageSize, statusFilter, keyword]);
 
   useEffect(() => {
     if (detailTarget) {
@@ -876,6 +877,13 @@ export function KnowledgeDocumentsPage() {
             <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-500">
               <span>共 {pageData.total} 条</span>
               <div className="flex items-center gap-2">
+                <PageSizeSelect
+                  value={pageSize}
+                  onValueChange={(value) => {
+                    setPageSize(value);
+                    setCurrent(1);
+                  }}
+                />
                 <Button variant="outline" size="sm" onClick={() => setCurrent((prev) => Math.max(1, prev - 1))} disabled={pageData.current <= 1}>
                   上一页
                 </Button>

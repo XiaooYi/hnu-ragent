@@ -41,8 +41,8 @@ import {
 } from "@/services/queryTermMappingService";
 import { getErrorMessage } from "@/utils/error";
 import { RelativeTime } from "@/components/RelativeTime";
-
-const PAGE_SIZE = 10;
+import { PageSizeSelect } from "@/components/admin/PageSizeSelect";
+import { usePageSize } from "@/hooks/usePageSize";
 
 const MATCH_TYPE_OPTIONS = [
   { value: 1, label: "精确匹配" },
@@ -69,6 +69,7 @@ export function QueryTermMappingPage() {
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<QueryTermMapping | null>(null);
   const [pageNo, setPageNo] = useState(1);
+  const [pageSize, setPageSize] = usePageSize("query-term-mappings");
   const [searchKeyword, setSearchKeyword] = useState("");
   const [keyword, setKeyword] = useState("");
   const [dialogState, setDialogState] = useState<{
@@ -81,7 +82,7 @@ export function QueryTermMappingPage() {
   const loadData = async (current = pageNo, keywordValue = keyword) => {
     try {
       setLoading(true);
-      const data = await getQueryTermMappingsPage(current, PAGE_SIZE, keywordValue || undefined);
+      const data = await getQueryTermMappingsPage(current, pageSize, keywordValue || undefined);
       setPageData(data);
     } catch (error) {
       toast.error(getErrorMessage(error, "加载映射规则失败"));
@@ -93,7 +94,7 @@ export function QueryTermMappingPage() {
 
   useEffect(() => {
     loadData();
-  }, [pageNo, keyword]);
+  }, [pageNo, pageSize, keyword]);
 
   useEffect(() => {
     if (!dialogState.open) {
@@ -296,6 +297,13 @@ export function QueryTermMappingPage() {
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-500">
           <span>共 {pageData.total} 条</span>
           <div className="flex items-center gap-2">
+            <PageSizeSelect
+              value={pageSize}
+              onValueChange={(value) => {
+                setPageSize(value);
+                setPageNo(1);
+              }}
+            />
             <Button
               variant="outline"
               size="sm"

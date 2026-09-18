@@ -39,6 +39,7 @@ scripts/logs/
 
 ### Frontend ###
 node_modules/
+.npm-cache/
 dist/
 .vite/
 .env.local

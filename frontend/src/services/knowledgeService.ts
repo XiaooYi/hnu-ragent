@@ -141,11 +141,21 @@ export const getChunkStrategies = async (): Promise<ChunkStrategyOption[]> => {
   return api.get<ChunkStrategyOption[], ChunkStrategyOption[]>("/knowledge-base/chunk-strategies");
 };
 
-export const getKnowledgeBases = async (current = 1, size = 200, name?: string): Promise<KnowledgeBase[]> => {
+export const getKnowledgeBases = async (current = 1, size = 100, name?: string): Promise<KnowledgeBase[]> => {
   const page = await api.get<PageResult<KnowledgeBase>, PageResult<KnowledgeBase>>("/knowledge-base", {
-    params: { current, size, name: name || undefined }
+    params: { current, size: Math.min(size, 100), name: name || undefined }
   });
   return page?.records || [];
+};
+
+export const getAllKnowledgeBases = async (name?: string): Promise<KnowledgeBase[]> => {
+  const firstPage = await getKnowledgeBasesPage(1, 100, name);
+  const records = [...(firstPage.records || [])];
+  for (let current = 2; current <= (firstPage.pages || 1); current += 1) {
+    const page = await getKnowledgeBasesPage(current, 100, name);
+    records.push(...(page.records || []));
+  }
+  return records;
 };
 
 export const getKnowledgeBasesPage = async (
