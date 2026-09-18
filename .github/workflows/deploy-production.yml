@@ -1,0 +1,29 @@
+name: Deploy production
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: hnu-ragent-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Build and deploy to Tencent CVM
+    runs-on: [self-hosted, linux, x64, ragent-prod]
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out the pushed commit
+        uses: actions/checkout@v4
+
+      - name: Build images and update application containers
+        env:
+          RAGENT_DEPLOY_ENV_FILE: /home/ubuntu/ragent-secrets/ragent.env
+        run: bash deploy/deploy-from-actions.sh
