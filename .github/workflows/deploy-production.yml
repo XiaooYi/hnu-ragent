@@ -20,10 +20,34 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - name: Check out the pushed commit
-        uses: actions/checkout@v4
+      # This CVM cannot establish HTTPS connections to github.com, while the
+      # GitHub REST API is reachable. Download the exact pushed private-repo
+      # archive through the API instead of actions/checkout, which would invoke
+      # git against github.com and hang.
+      - name: Download the pushed source archive
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          archive="$RUNNER_TEMP/ragent-source.zip"
+          source_root="$RUNNER_TEMP/ragent-source"
+
+          mkdir -p "$source_root"
+          curl --fail --location --retry 5 --retry-all-errors \
+            --header "Authorization: Bearer $GITHUB_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            --output "$archive" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/zipball/${GITHUB_SHA}"
+          unzip -q "$archive" -d "$source_root"
+
+          source_dir="$(find "$source_root" -mindepth 1 -maxdepth 1 -type d -print -quit)"
+          test -n "$source_dir"
+          test -f "$source_dir/deploy/deploy-from-actions.sh"
+          echo "RAGENT_SOURCE_DIR=$source_dir" >> "$GITHUB_ENV"
 
       - name: Build images and update application containers
+        working-directory: ${{ env.RAGENT_SOURCE_DIR }}
         env:
           RAGENT_DEPLOY_ENV_FILE: /home/ubuntu/ragent-secrets/ragent.env
         run: bash deploy/deploy-from-actions.sh
