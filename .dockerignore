@@ -1,0 +1,11 @@
+.git
+.idea
+.claude
+.mvn/wrapper/maven-wrapper.jar
+**/target
+frontend/node_modules
+frontend/dist
+deploy/.env
+*.log
+*.tar
+

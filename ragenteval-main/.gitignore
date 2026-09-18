@@ -1,0 +1,28 @@
+# OS / editor local files
+.DS_Store
+.idea
+.claude/settings.local.json
+
+# Python generated files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments and local env files
+.venv/
+venv/
+env/
+.env
+.env.*
+
+# Eval runtime outputs
+eval/runs/
+eval/reports/
+
+# Runtime-generated ragent ids
+eval/rag/init/kb_ids.json
+eval/rag/dataset/doc_id_map.json
+eval/rag/init/intent_ids.json

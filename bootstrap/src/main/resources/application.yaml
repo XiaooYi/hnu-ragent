@@ -1,0 +1,250 @@
+server:
+  port: 9090
+  servlet:
+    context-path: /api/ragent
+
+spring:
+  application:
+    name: ragent${unique-name:}-service
+
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 100MB
+
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    type: com.zaxxer.hikari.HikariDataSource
+    username: postgres
+    password: postgres
+    url: jdbc:postgresql://192.168.227.128:5432/ragent?client_encoding=UTF8
+    hikari:
+      connection-timeout: 5000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      maximum-pool-size: 10
+      minimum-idle: 5
+      pool-name: RagentHikariPool
+
+  data:
+    redis:
+      host: 192.168.227.128
+      port: 6379
+      password: 123456
+
+rocketmq:
+  name-server: 192.168.227.128:9876
+  producer:
+    group: ragent-producer${unique-name:}_pg
+    send-message-timeout: 2000
+
+milvus:
+  uri: http://192.168.227.128:19530
+
+rag:
+  vector:
+    type: pg  # 可选 milvus / pg
+
+  default:
+    collection-name: rag_default_store
+    dimension: 1536
+    metric-type: COSINE
+    sse-timeout-ms: 300000  # SSE 全局超时（毫秒），默认 5 分钟
+
+  query-rewrite:
+    enabled: true
+
+  rerank:
+    enabled: true
+
+  rate-limit:
+    global:
+      enabled: true
+      max-concurrent: 10
+      max-wait-seconds: 15
+      lease-seconds: 30
+      poll-interval-ms: 200
+
+  memory:
+    history-keep-turns: 4
+    summary-start-turns: 5
+    summary-enabled: true
+    summary-max-chars: 200
+    title-max-length: 30
+
+  semaphore:
+    document-upload:
+      name: rag:document:upload
+      max-concurrent: 10
+      max-wait-seconds: 5
+      lease-seconds: 300
+
+  knowledge:
+    schedule:
+      scan-delay-ms: 10000
+      lock-seconds: 900
+      batch-size: 20
+      min-interval-seconds: 60
+
+  mcp:
+    servers:
+      - name: default
+        url: http://192.168.227.128:9099
+
+  search:
+    channels:
+      vector-global:
+        confidence-threshold: 0.6
+        top-k-multiplier: 3
+      intent-directed:
+        enabled: true
+        min-intent-score: 0.4
+        top-k-multiplier: 2
+
+  trace:
+    enabled: true
+    max-error-length: 1000
+
+  # 图片解析（图生文）配置
+  # 产出一段自包含的知识文本：既说清"图是什么"，又完整保留所有文字与层级
+  image-parse:
+    description-prompt: |-
+      请把这张图片的内容转写成一段自包含的知识文本，用于知识库检索与问答，不要描述颜色、布局、字体等视觉样式。要求：
+      1. 开头用一两句话说明这张图是什么（主题、类型、用途），让人不看图也能明白讲的是什么。
+      2. 随后按图中的分组、层级、流程关系，完整转写所有文字内容（OCR），保留每个分组标题与其下属条目的归属关系，不要遗漏任何文字。
+      3. 若是图表、架构图或流程图，请补充说明各部分之间的关系（如包含、调用、先后顺序），而不只是罗列文字。
+      4. 保持术语准确完整，表述贴近用户可能的提问方式。
+      5. 最后另起一行，用一句话自然引出图片（例如"下方为该内容对应的原始图片："），以便在这段文字后紧接着展示图片。
+    max-output-tokens: 4096
+
+ai:
+  providers:
+    ollama:
+      url: http://localhost:11434
+      endpoints:
+        chat: /v1/chat/completions
+        embedding: /v1/embeddings
+    bailian:
+      url: https://dashscope.aliyuncs.com
+      api-key: sk-ws-H.RYXEYMP.e8JH.MEUCIFP8iCvcKiAKaJ9gdOIjvHhDB64375YSFhvwlRMlnEEHAiEAjpo34waqzk9hWwRR9wBKVG1dYPym9CbHAd-JKgMuh8o
+      endpoints:
+        chat: /compatible-mode/v1/chat/completions
+        rerank: /api/v1/services/rerank/text-rerank/text-rerank
+    aihubmix:
+      url: https://aihubmix.com
+      api-key: ${AIHUBMIX_API_KEY:}
+      endpoints:
+        chat: /v1/chat/completions
+        embedding: /v1/embeddings
+    siliconflow:
+      url: https://api.siliconflow.cn
+      api-key: sk-uiewylrvhdhvbxzrptealdjgitakaqanscgrcnwxpljjnhtr
+      endpoints:
+        chat: /v1/chat/completions
+        embedding: /v1/embeddings
+
+  selection:
+    failure-threshold: 2
+    open-duration-ms: 30000
+
+  stream:
+    message-chunk-size: 1
+
+  chat:
+    default-model: qwen-plus
+    deep-thinking-model: qwen3-max
+    candidates:
+      - id: qwen-plus
+        provider: bailian
+        model: qwen-plus-latest
+        priority: 1
+      - id: qwen3-local
+        provider: ollama
+        model: qwen3:8b-fp16
+        priority: 2
+      - id: qwen3-max
+        provider: bailian
+        model: qwen3-max
+        supports-thinking: true
+        priority: 3
+      - id: glm-4.7
+        provider: siliconflow
+        model: Pro/zai-org/GLM-4.7
+        supports-thinking: true
+        priority: 4
+      - id: gpt-5.4
+        provider: aihubmix
+        model: gpt-5.4
+        priority: 5
+
+  embedding:
+    default-model: qwen-emb-8b
+    candidates:
+      - id: qwen-emb-8b
+        provider: siliconflow
+        model: Qwen/Qwen3-Embedding-8B
+        dimension: ${rag.default.dimension}
+        priority: 1
+      - id: qwen-emb-local
+        provider: ollama
+        model: qwen3-embedding:8b-fp16
+        dimension: ${rag.default.dimension}
+        priority: 2
+      - id: text-embedding-3-large
+        provider: aihubmix
+        model: text-embedding-3-large
+        dimension: ${rag.default.dimension}
+        priority: 3
+
+  rerank:
+    default-model: qwen3-rerank
+    candidates:
+      - id: qwen3-rerank
+        provider: bailian
+        model: qwen3-rerank
+        priority: 1
+      - id: rerank-noop
+        provider: noop
+        model: noop
+        priority: 100
+
+  vlm:
+    default-model: qwen-vl-max
+    candidates:
+      - id: qwen-vl-max
+        provider: bailian
+        model: qwen-vl-max
+
+rustfs:
+  url: http://192.168.227.128:9000
+  access-key-id: rustfsadmin
+  secret-access-key: rustfsadmin
+  # 多模态解析产物 bucket（PDF 抽出来的图片、未来 PNG 原图等）
+  # 与用户上传的原始文档 bucket 隔离
+  asset-bucket: ragent-assets
+
+# MinerU SaaS API 配置（PDF / Word / PPT 走 MinerU 解析）
+mineru:
+  api-url: https://mineru.net/api/v4
+  api-key: eyJ0eXBlIjoiSldUIiwiYWxnIjoiSFM1MTIifQ.eyJqdGkiOiI2MzUwMDcyOSIsInJvbCI6IlJPTEVfUkVHSVNURVIiLCJpc3MiOiJPcGVuWExhYiIsImlhdCI6MTc4MzE4NjQ4MSwiY2xpZW50SWQiOiJsa3pkeDU3bnZ5MjJqa3BxOXgydyIsInBob25lIjoiIiwib3BlbklkIjpudWxsLCJ1dWlkIjoiNzk5MDkxNzgtM2EyMC00YzcyLTg5MTgtODk3Y2Q0MGY0NDVkIiwiZW1haWwiOiIiLCJleHAiOjE3OTA5NjI0ODF9.Ue9o435pVcTRGR3dEMV9ResUM6cCiP0kGUCyYNeSqg6XCj4umN5Vi8fv935cprFgzxE6Qp6ozi2cfS06BhZKBQ
+  poll-interval-seconds: 5
+  timeout-seconds: 300
+  enable-table: true
+  enable-formula: true
+  ocr: false
+  language: ch
+  concurrency-limit: 5
+
+sa-token:
+  token-name: Authorization
+  timeout: 2592000
+  is-concurrent: true
+  is-share: false
+  token-style: simple-uuid
+  is-log: false
+  is-print: false
+
+app:
+  demo-mode: false
+  eval:
+    enabled: true

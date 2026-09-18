@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Zhishu AI">
+  <defs>
+    <linearGradient id="mark" x1="10" y1="8" x2="54" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0F766E" />
+      <stop offset="1" stop-color="#2563EB" />
+    </linearGradient>
+  </defs>
+  <rect x="6" y="6" width="52" height="52" rx="12" fill="#ffffff" />
+  <rect x="8" y="8" width="48" height="48" rx="10" fill="url(#mark)" />
+  <path
+    d="M20 23.5C20 20.5 22.5 18 25.5 18H44V24H26C25.45 24 25 24.45 25 25V29H42V35H25V46H20V23.5Z"
+    fill="#ffffff"
+  />
+  <circle cx="43" cy="44" r="4" fill="#BBF7D0" />
+</svg>

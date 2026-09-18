@@ -1,0 +1,193 @@
+name: ragent
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: ${TZ}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ../resources/database/schema_pg.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ../resources/database/init_data_pg.sql:/docker-entrypoint-initdb.d/02-init-data.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks: [ragent-internal]
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      TZ: ${TZ}
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [ragent-internal]
+
+  rmqnamesrv:
+    image: apache/rocketmq:5.2.0
+    restart: unless-stopped
+    environment:
+      JAVA_OPT_EXT: "-Xms128m -Xmx256m"
+      TZ: ${TZ}
+    command: sh mqnamesrv
+    healthcheck:
+      test: ["CMD-SHELL", "grep -q 'The Name Server boot success' /home/rocketmq/logs/rocketmqlogs/namesrv.log || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks: [ragent-internal]
+
+  rmqbroker:
+    image: apache/rocketmq:5.2.0
+    restart: unless-stopped
+    environment:
+      NAMESRV_ADDR: rmqnamesrv:9876
+      JAVA_OPT_EXT: "-Xms256m -Xmx512m -Xmn128m"
+      TZ: ${TZ}
+    command: ["sh", "mqbroker", "-c", "/home/rocketmq/rocketmq-5.2.0/conf/broker.conf"]
+    volumes:
+      - ./rocketmq/broker.conf:/home/rocketmq/rocketmq-5.2.0/conf/broker.conf:ro
+      - rocketmq-store:/home/rocketmq/store
+      - rocketmq-logs:/home/rocketmq/logs
+    depends_on:
+      rmqnamesrv:
+        condition: service_healthy
+    networks: [ragent-internal]
+
+  rustfs:
+    image: rustfs/rustfs:1.0.0-alpha.72
+    restart: unless-stopped
+    environment:
+      RUSTFS_VOLUMES: /data
+      RUSTFS_ADDRESS: 0.0.0.0:9000
+      RUSTFS_CONSOLE_ADDRESS: 0.0.0.0:9001
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_REGION: us-east-1
+      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY}
+      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY}
+      TZ: ${TZ}
+    volumes:
+      - rustfs-data:/data
+      - rustfs-logs:/logs
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9000/health >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks: [ragent-internal]
+
+  mcp-server:
+    build:
+      context: ..
+      dockerfile: deploy/mcp-server.Dockerfile
+    image: ragent-mcp-server:local
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+    networks: [ragent-internal]
+
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/backend.Dockerfile
+    image: ragent-backend:local
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}?client_encoding=UTF8
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: "6379"
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      ROCKETMQ_NAME_SERVER: rmqnamesrv:9876
+      RUSTFS_URL: http://rustfs:9000
+      RUSTFS_PUBLIC_URL: ${RAGENT_PUBLIC_BASE_URL}
+      RUSTFS_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY}
+      RUSTFS_SECRET_ACCESS_KEY: ${RUSTFS_SECRET_KEY}
+      RAG_MCP_SERVERS_0_NAME: default
+      RAG_MCP_SERVERS_0_URL: http://mcp-server:9099
+      AI_PROVIDERS_BAILIAN_API_KEY: ${BAILIAN_API_KEY}
+      AI_PROVIDERS_AIHUBMIX_API_KEY: ${AIHUBMIX_API_KEY}
+      AI_PROVIDERS_SILICONFLOW_API_KEY: ${SILICONFLOW_API_KEY}
+      MINERU_API_KEY: ${MINERU_API_KEY}
+      RAGENT_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      RAGENT_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      RAGENT_BAILIAN_API_KEY: ${BAILIAN_API_KEY}
+      RAGENT_AIHUBMIX_API_KEY: ${AIHUBMIX_API_KEY}
+      RAGENT_SILICONFLOW_API_KEY: ${SILICONFLOW_API_KEY}
+      RAGENT_RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY}
+      RAGENT_MINERU_API_KEY: ${MINERU_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rmqnamesrv:
+        condition: service_healthy
+      rustfs:
+        condition: service_healthy
+      mcp-server:
+        condition: service_started
+    networks: [ragent-internal]
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: deploy/frontend.Dockerfile
+      args:
+        VITE_API_BASE_URL: /api/ragent
+    image: ragent-frontend:local
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      - "80:80"
+    networks: [ragent-internal]
+
+  rocketmq-dashboard:
+    image: apacherocketmq/rocketmq-dashboard:2.1.0
+    profiles: ["ops"]
+    restart: unless-stopped
+    environment:
+      JAVA_OPTS: >-
+        -Xms128m -Xmx256m
+        -XX:MaxMetaspaceSize=128m
+        -Drocketmq.config.enableDashBoardCollect=false
+        -Drocketmq.namesrv.addr=rmqnamesrv:9876
+      TZ: ${TZ}
+    depends_on:
+      rmqnamesrv:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8082:8080"
+    networks: [ragent-internal]
+
+networks:
+  ragent-internal:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  rocketmq-store:
+  rocketmq-logs:
+  rustfs-data:
+  rustfs-logs:
