@@ -47,6 +47,12 @@ if [[ -r "$LAST_SUCCESSFUL_RELEASE_FILE" ]]; then
   done
 fi
 
+# Services left out of this release take their image from the release record.
+# Sourcing that file only assigns shell variables, and Compose runs as a child
+# process, so export all three explicitly or the unchanged services reach it
+# as empty and Compose rejects the project.
+export RAGENT_BACKEND_IMAGE RAGENT_MCP_SERVER_IMAGE RAGENT_FRONTEND_IMAGE
+
 for required_variable in RAGENT_BACKEND_IMAGE RAGENT_MCP_SERVER_IMAGE RAGENT_FRONTEND_IMAGE; do
   if [[ -z "${!required_variable:-}" ]]; then
     echo "Required deployment image variable is empty: ${required_variable}" >&2

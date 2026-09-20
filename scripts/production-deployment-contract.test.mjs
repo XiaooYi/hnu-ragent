@@ -34,7 +34,35 @@ async function readRepositoryFile(relativePath) {
   return readFile(path.join(repositoryRoot, relativePath), 'utf8');
 }
 
-async function runSelectiveDeployment(targetServices, { imageVariables, lastSuccessfulRelease } = {}) {
+const IMAGE_VARIABLE_BY_SERVICE = {
+  backend: 'RAGENT_BACKEND_IMAGE',
+  'mcp-server': 'RAGENT_MCP_SERVER_IMAGE',
+  frontend: 'RAGENT_FRONTEND_IMAGE',
+};
+
+const RELEASE_RECORD = [
+  'RAGENT_BACKEND_IMAGE=ccr.ccs.tencentyun.com/hnu-ragent/ragent-backend@sha256:oldbackend',
+  'RAGENT_MCP_SERVER_IMAGE=ccr.ccs.tencentyun.com/hnu-ragent/ragent-mcp-server@sha256:oldmcp',
+  'RAGENT_FRONTEND_IMAGE=ccr.ccs.tencentyun.com/hnu-ragent/ragent-frontend@sha256:oldfrontend',
+  '',
+].join('\n');
+
+// Mirrors the workflow, which exports an image variable only for the services
+// selected for this release. Exporting the omitted ones here would hide the
+// very bug these tests exist to catch.
+function workflowImageVariables(targetServices) {
+  const variables = {};
+  for (const rawService of targetServices.split(',')) {
+    const service = rawService.trim();
+    const variable = IMAGE_VARIABLE_BY_SERVICE[service];
+    if (variable) {
+      variables[variable] = `ccr.ccs.tencentyun.com/hnu-ragent/ragent-${service}:test`;
+    }
+  }
+  return variables;
+}
+
+async function runSelectiveDeployment(targetServices, { lastSuccessfulRelease } = {}) {
   const fixtureDirectory = await mkdtemp(path.join(tmpdir(), 'ragent-selective-deploy-'));
   const dockerLogPath = path.join(fixtureDirectory, 'docker.log');
   const dockerPath = path.join(fixtureDirectory, 'docker');
@@ -54,6 +82,9 @@ async function runSelectiveDeployment(targetServices, { imageVariables, lastSucc
     `#!/usr/bin/env bash
 set -Eeuo pipefail
 printf '%s\\n' "$*" >> "$FAKE_DOCKER_LOG"
+printf 'RAGENT_BACKEND_IMAGE=%s\\n' "\${RAGENT_BACKEND_IMAGE:-<unset>}" >> "$FAKE_DOCKER_LOG"
+printf 'RAGENT_MCP_SERVER_IMAGE=%s\\n' "\${RAGENT_MCP_SERVER_IMAGE:-<unset>}" >> "$FAKE_DOCKER_LOG"
+printf 'RAGENT_FRONTEND_IMAGE=%s\\n' "\${RAGENT_FRONTEND_IMAGE:-<unset>}" >> "$FAKE_DOCKER_LOG"
 if [[ "$1" == image ]]; then
   printf 'ccr.ccs.tencentyun.com/hnu-ragent/test@sha256:fixture\\n'
   exit 0
@@ -73,15 +104,12 @@ fi
     ...process.env,
     PATH: `${fixtureDirectory};${process.env.PATH}`,
     FAKE_DOCKER_LOG: dockerLogPath,
-    RAGENT_BACKEND_IMAGE: 'ccr.ccs.tencentyun.com/hnu-ragent/ragent-backend:test',
-    RAGENT_MCP_SERVER_IMAGE: 'ccr.ccs.tencentyun.com/hnu-ragent/ragent-mcp-server:test',
-    RAGENT_FRONTEND_IMAGE: 'ccr.ccs.tencentyun.com/hnu-ragent/ragent-frontend:test',
     RAGENT_TARGET_SERVICES: targetServices,
     RAGENT_DEPLOY_ENV_FILE: envPath,
     RAGENT_COMPOSE_FILE: composePath,
     RAGENT_DEPLOY_LOCK_FILE: path.join(fixtureDirectory, 'deploy.lock'),
     RAGENT_LAST_SUCCESSFUL_RELEASE_FILE: releasePath,
-    ...imageVariables,
+    ...workflowImageVariables(targetServices),
   };
 
   try {
@@ -132,7 +160,9 @@ test('CVM deployment pulls prebuilt images and retains a rollback release record
 });
 
 test('frontend-only releases pull and recreate only the frontend container', async () => {
-  const dockerLog = await runSelectiveDeployment('frontend');
+  const dockerLog = await runSelectiveDeployment('frontend', {
+    lastSuccessfulRelease: RELEASE_RECORD,
+  });
 
   assert.match(dockerLog, /pull frontend/);
   assert.match(dockerLog, /up -d --no-deps --force-recreate frontend/);
@@ -142,21 +172,16 @@ test('frontend-only releases pull and recreate only the frontend container', asy
 
 test('frontend-only releases reuse the last successful digests for unchanged services', async () => {
   const dockerLog = await runSelectiveDeployment('frontend', {
-    imageVariables: {
-      RAGENT_BACKEND_IMAGE: '',
-      RAGENT_MCP_SERVER_IMAGE: '',
-      RAGENT_FRONTEND_IMAGE: 'ccr.ccs.tencentyun.com/hnu-ragent/ragent-frontend:new',
-    },
-    lastSuccessfulRelease: [
-      'RAGENT_BACKEND_IMAGE=ccr.ccs.tencentyun.com/hnu-ragent/ragent-backend@sha256:oldbackend',
-      'RAGENT_MCP_SERVER_IMAGE=ccr.ccs.tencentyun.com/hnu-ragent/ragent-mcp-server@sha256:oldmcp',
-      'RAGENT_FRONTEND_IMAGE=ccr.ccs.tencentyun.com/hnu-ragent/ragent-frontend@sha256:oldfrontend',
-      '',
-    ].join('\n'),
+    lastSuccessfulRelease: RELEASE_RECORD,
   });
 
   assert.match(dockerLog, /pull frontend/);
   assert.doesNotMatch(dockerLog, /pull backend|pull mcp-server/);
+
+  // Compose runs as a child process, so the images of services left out of this
+  // release must reach it through the environment, not just the shell.
+  assert.match(dockerLog, /RAGENT_BACKEND_IMAGE=ccr\.ccs\.tencentyun\.com\/hnu-ragent\/ragent-backend@sha256:oldbackend/);
+  assert.match(dockerLog, /RAGENT_MCP_SERVER_IMAGE=ccr\.ccs\.tencentyun\.com\/hnu-ragent\/ragent-mcp-server@sha256:oldmcp/);
 });
 
 test('changed paths select only the application services that must be rebuilt and deployed', async () => {
