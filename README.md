@@ -121,9 +121,9 @@ docker compose --env-file deploy/.env -f deploy/compose.yaml ps
 
 ### 自动部署
 
-当前生产发布流程为：本地推送 `master` 分支后，GitHub-hosted Runner 先将本次提交同步到私有 Gitee 镜像；腾讯云 CVM 上的 self-hosted Runner 在持久工作目录中通过 `git fetch` 增量更新该提交，在服务器本机构建 `backend`、`mcp-server`、`frontend` 镜像，并更新这三个应用容器。
+当前生产发布流程为：本地推送 `master` 分支后，GitHub-hosted Runner 挑选变更涉及的服务，构建镜像并推送到腾讯云 TCR；腾讯云 CVM 上的 self-hosted Runner 从 TCR 拉取不可变镜像，只重建对应的应用容器。服务器本身不执行 Maven / npm 构建。
 
-该流程不是 GitHub-hosted Runner 构建镜像后由服务器拉取。完整的部署链路、Runner 配置和排障说明见 [GitHub Actions 自动部署交接说明](docs/github-actions-auto-deployment.md)。
+应用镜像按 Spring Boot 层拆分，只改业务代码时只需上传约 5 MB 的 `application` 层。完整的部署链路、Runner 配置、镜像分层说明和排障手册见 [GitHub Actions 自动部署交接说明](docs/github-actions-auto-deployment.md)。
 
 ## 项目结构
 
