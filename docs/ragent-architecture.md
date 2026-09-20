@@ -243,6 +243,109 @@ IntentNode {
 }
 ```
 
+### 3.7 意图树批量导入脚本
+
+意图树原本只能在管理后台逐个节点手工创建。`scripts/` 下提供了一组 PowerShell 脚本，用于把**本地语料目录**映射成「知识库 → 领域 → 分类 → 主题」的三级意图树，并通过 REST 接口批量创建节点。
+
+#### 3.7.1 脚本清单
+
+| 文件 | 作用 |
+|------|------|
+| `scripts/huda-intent-tree.psm1` | 核心模块：意图定义表、语料盘点、意图计划生成、知识库映射、节点导入 |
+| `scripts/import-huda-intent-tree.ps1` | 命令行入口：解析参数、加载知识库映射、打印计划、执行导入 |
+| `scripts/tests/huda-intent-tree.Tests.ps1` | 断言脚本：校验计划节点数、intentCode 唯一性、根节点数、TOPIC 必须绑定 kbId、语料盘点结果 |
+
+模块导出 4 个函数：
+
+| 函数 | 说明 |
+|------|------|
+| `Get-HudaCorpusInventory` | 盘点语料目录：总文件数、可用文件数、被忽略的元数据/媒体文件数、待复核文件数，以及每个知识库目录下的文件数 |
+| `Get-HudaIntentPlan` | 按意图定义表生成节点列表（含层级、父节点、排序、sourceFolders 元数据） |
+| `Get-HudaKnowledgeBaseMap` | 调用 `GET /knowledge-base` 拉取「知识库名称 → ID」映射 |
+| `Invoke-HudaIntentTreeImport` | 拉取现有意图树，对计划节点执行 CREATE / UPDATE / SKIP |
+
+#### 3.7.2 生成的树形结构
+
+每个领域根节点固定生成三级结构，`level` / `kind` 取值与 `IntentLevel`（DOMAIN=0 / CATEGORY=1 / TOPIC=2）、`IntentKind`（KB=0）枚举一致：
+
+```
+<领域名> (DOMAIN, level=0, 无 kbId)
+└── <领域名>主题 (CATEGORY, level=1, 无 kbId)
+    └── <主题名> (TOPIC, level=2, kind=KB, kbId=<按名称匹配的知识库ID>, topK=指定值)
+```
+
+只有 level=2 的 TOPIC 节点会绑定 `kbId` 且携带 `examples` 示例问法——这与 §3.1 中「只有叶子节点参与分类」的设计一致：`examples` 直接进入 `prompt/intent-classifier.st` 的意图列表，用于提升 LLM 分类准确率。
+
+当前内置 5 个领域，共 38 个节点（5 DOMAIN + 5 CATEGORY + 28 TOPIC）：
+
+| 领域（intentCode 前缀） | 分类数 | 语料来源目录 |
+|------------------------|--------|-------------|
+| 湖大通用概况与校园生活（`hnu-general-life`） | 7 | `1.湖大概况介绍`、`2.湖大新生关注汇总-生活篇` |
+| 湖大本科教学与学业制度（`hnu-undergraduate-rules`） | 8 | `3.湖大新生重点文件汇总-学业篇` |
+| 湖大本科专业培养方案（`hnu-undergraduate-programs`） | 1 | `4.湖大所有专业培养方案汇总` |
+| 湖大奖助学金资助（`hnu-undergraduate-funding`） | 5 | `5.湖大奖、助学金篇` |
+| 湖大研究生新生与研究生管理（`hnu-graduate-management`） | 7 | `6.湖大研究生新生专属-核心篇` |
+
+节点的 `intentCode` 命名规则为 `<领域Code>`、`<领域Code>-topics`、`<领域Code>-<主题Suffix>`；`sortOrder` 按定义表顺序全局自增，保证管理后台树形展示顺序稳定。
+
+#### 3.7.3 语料盘点规则
+
+`Get-HudaCorpusInventory` 会遍历语料根目录，并按扩展名分类：
+
+- **忽略**（不计入可用节点）：`.ini`、`.mp3`、`.mp4`，以及任意层级的 `desktop.ini`
+- **待复核**：`.zip`、`.doc`、`.xls`——这些格式无法被现有解析链路稳定处理，会单独列出路径供人工确认
+- 若意图定义中的任一 `SourceDirs` 目录不存在，脚本直接报错，避免生成指向空目录的意图节点
+
+#### 3.7.4 依赖的接口
+
+脚本只使用既有的管理端 REST 接口，不引入新的服务端逻辑：
+
+| 接口 | 用途 |
+|------|------|
+| `GET /knowledge-base?current=1&size=100` | 拉取知识库列表，构建「名称 → kbId」映射 |
+| `GET /intent-tree/trees` | 拉取完整意图树，用于判断节点是否已存在（按 `intentCode` 匹配） |
+| `POST /intent-tree` | 创建节点，请求体对应 `IntentNodeCreateRequest` |
+| `PUT /intent-tree/{id}` | 更新已存在的节点，请求体对应 `IntentNodeUpdateRequest` |
+
+注意：`intentCode` 与 `kbId` 只在创建时写入、更新接口不可变更，因此**领域/分类/主题必须按父节点在前的顺序创建**（子节点依赖父节点的 `parentCode` 已存在），计划列表已按此顺序生成。
+
+#### 3.7.5 使用方式
+
+```powershell
+# 1) 预演：只拉取现有树并打印计划，不发送任何写请求
+$env:RAGENT_AUTHORIZATION = '<前端 Authorization 头>'
+pwsh -File scripts/import-huda-intent-tree.ps1 `
+  -BaseUrl 'http://localhost:9090/api/ragent' `
+  -SourceRoot 'D:\study\研一资料\湖大新生文件' `
+  -DryRun
+
+# 2) 确认节点列表无误后执行写入
+pwsh -File scripts/import-huda-intent-tree.ps1 `
+  -SourceRoot 'D:\study\研一资料\湖大新生文件' `
+  -Apply
+
+# 3) 需要覆盖已存在节点的名称/描述/示例时，追加 -UpdateExisting
+```
+
+主要参数：
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `-BaseUrl` | `http://localhost:9090/api/ragent` | 对应 `server.servlet.context-path` |
+| `-SourceRoot` | 本地语料根目录 | 必须包含意图定义中声明的所有子目录 |
+| `-Authorization` | `$env:RAGENT_AUTHORIZATION` | 必填，作为前端 Authorization 头透传，脚本不会打印其值 |
+| `-KnowledgeBaseMapPath` | 空 | 传入 JSON 文件可跳过 `GET /knowledge-base`，用于离线演练 |
+| `-TopK` | `8` | 写入 TOPIC 节点的 `topK`，覆盖全局 `defaultTopK` |
+| `-DryRun` / `-Apply` | 都未指定时等同 DryRun | 两者互斥；未加 `-Apply` 时不会发送任何写请求 |
+| `-UpdateExisting` | 关闭 | 默认对已存在节点输出 SKIP，保证脚本可重复执行 |
+
+#### 3.7.6 注意事项
+
+- 脚本按**知识库名称精确匹配** kbId。若管理后台里知识库名称与意图定义表不一致，`Get-HudaIntentPlan` 会直接抛出「缺少知识库 ID」错误，不会静默创建无绑定节点。
+- 导入完成后意图树缓存在 Redis（`ragent:intent:tree`，7 天 TTL）。若发现新节点未生效，需先清理该缓存再重试，参见 §3.3 的 `loadIntentTreeData()` 流程。
+- TOPIC 节点绑定的是 `kbId`，因此对应的知识库必须先建好并完成文档灌库，否则节点参与分类后仍检索不到内容。
+- `scripts/hnu-kb-intent-tree.test.mjs` 是同一批工作的 Node 版本测试，但其依赖的 `scripts/hnu-kb-intent-tree.mjs` 未纳入仓库，当前无法执行；可执行版本是 `scripts/tests/huda-intent-tree.Tests.ps1`。
+
 ---
 
 ## 4. 检索引擎（Retrieval Engine）
