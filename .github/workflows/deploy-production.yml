@@ -1,4 +1,4 @@
-name: Deploy production
+name: Build and deploy to Tencent CVM
 
 on:
   push:
@@ -14,46 +14,147 @@ permissions:
   contents: read
 
 jobs:
-  deploy:
-    name: Build and deploy to Tencent CVM
-    runs-on: [self-hosted, linux, x64, ragent-prod]
-    timeout-minutes: 60
+  detect-changes:
+    name: Detect affected application services
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.affected.outputs.services }}
+      matrix: ${{ steps.affected.outputs.matrix }}
+      has_changes: ${{ steps.affected.outputs.has_changes }}
 
     steps:
-      # This CVM cannot establish HTTPS connections to github.com, while the
-      # GitHub REST API is reachable. Download the exact pushed private-repo
-      # archive through the API instead of actions/checkout, which would invoke
-      # git against github.com and hang.
-      - name: Download the pushed source archive
+      - name: Check out history for the pushed range
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Select affected services
+        id: affected
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          changed_paths="$RUNNER_TEMP/ragent-changed-paths.txt"
+
+          # A manual release is deliberately a complete release: unlike push
+          # events, it has no trustworthy before/after range to classify.
+          if [[ "${{ github.event_name }}" == 'workflow_dispatch' ]]; then
+            printf '%s\n' 'deploy/compose.yaml' > "$changed_paths"
+          else
+            before_sha='${{ github.event.before }}'
+            if [[ -z "$before_sha" || "$before_sha" =~ ^0+$ ]] || ! git cat-file -e "${before_sha}^{commit}" 2>/dev/null; then
+              # First pushes and rewritten history must not omit services.
+              printf '%s\n' 'deploy/compose.yaml' > "$changed_paths"
+            else
+              git diff --name-only "$before_sha" "$GITHUB_SHA" > "$changed_paths"
+            fi
+          fi
+
+          node scripts/detect-affected-services.mjs --github-output "$GITHUB_OUTPUT" < "$changed_paths"
+
+  build-and-push:
+    name: Build and push ${{ matrix.service }} image
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.detect-changes.outputs.matrix) }}
+
+    steps:
+      - name: Check out the pushed commit
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Tencent TCR
+        uses: docker/login-action@v3
+        with:
+          registry: ccr.ccs.tencentyun.com
+          username: ${{ secrets.TCR_USERNAME }}
+          password: ${{ secrets.TCR_PASSWORD }}
+
+      - name: Build and push immutable image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ccr.ccs.tencentyun.com/hnu-ragent/ragent-${{ matrix.service }}:${{ github.sha }}
+          cache-from: type=gha,scope=ragent-${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=ragent-${{ matrix.service }}
+
+  deploy:
+    name: Pull affected images and update application containers
+    needs: [detect-changes, build-and-push]
+    if: >-
+      always() &&
+      needs.detect-changes.outputs.has_changes == 'true' &&
+      needs.build-and-push.result == 'success'
+    runs-on: [self-hosted, linux, x64, ragent-prod]
+    timeout-minutes: 20
+
+    steps:
+      # github.com is unreachable from this CVM, but api.github.com is. Fetch
+      # only the exact deployment files; compilation happens above.
+      - name: Fetch deployment files, pull affected images, and restart affected applications
         shell: bash
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          TCR_USERNAME: ${{ secrets.TCR_USERNAME }}
+          TCR_PASSWORD: ${{ secrets.TCR_PASSWORD }}
+          RAGENT_DEPLOY_ENV_FILE: /home/ubuntu/ragent-secrets/ragent.env
+          RAGENT_TARGET_SERVICES: ${{ join(fromJSON(needs.detect-changes.outputs.services), ',') }}
         run: |
           set -Eeuo pipefail
-          archive="$RUNNER_TEMP/ragent-source.zip"
-          source_root="$RUNNER_TEMP/ragent-source"
+          deploy_root="$RUNNER_TEMP/ragent-deploy/$GITHUB_SHA"
           auth_config="$RUNNER_TEMP/ragent-curl-auth.config"
 
           umask 077
-          mkdir -p "$source_root"
+          mkdir -p "$deploy_root/deploy/rocketmq" "$deploy_root/resources/database"
           printf '%s\n' \
             "header = \"Authorization: Bearer $GITHUB_TOKEN\"" \
-            'header = "Accept: application/vnd.github+json"' \
+            'header = "Accept: application/vnd.github.raw+json"' \
             > "$auth_config"
-          trap 'rm -f "$auth_config"' EXIT
-          curl --fail --location --retry 5 --retry-all-errors \
-            --config "$auth_config" \
-            --output "$archive" \
-            "https://api.github.com/repos/${GITHUB_REPOSITORY}/zipball/${GITHUB_SHA}"
-          unzip -q "$archive" -d "$source_root"
+          trap 'docker logout ccr.ccs.tencentyun.com >/dev/null 2>&1 || true; rm -f "$auth_config"' EXIT
 
-          source_dir="$(find "$source_root" -mindepth 1 -maxdepth 1 -type d -print -quit)"
-          test -n "$source_dir"
-          test -f "$source_dir/deploy/deploy-from-actions.sh"
-          echo "RAGENT_SOURCE_DIR=$source_dir" >> "$GITHUB_ENV"
+          fetch_file() {
+            local repository_path="$1"
+            local output_path="$2"
+            curl --fail --silent --show-error --location --retry 5 --retry-all-errors \
+              --config "$auth_config" \
+              --output "$output_path" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/contents/${repository_path}?ref=${GITHUB_SHA}"
+          }
 
-      - name: Build images and update application containers
-        working-directory: ${{ env.RAGENT_SOURCE_DIR }}
-        env:
-          RAGENT_DEPLOY_ENV_FILE: /home/ubuntu/ragent-secrets/ragent.env
-        run: bash deploy/deploy-from-actions.sh
+          fetch_file deploy/compose.yaml "$deploy_root/deploy/compose.yaml"
+          fetch_file deploy/deploy-from-actions.sh "$deploy_root/deploy/deploy-from-actions.sh"
+          fetch_file deploy/rocketmq/broker.conf "$deploy_root/deploy/rocketmq/broker.conf"
+          fetch_file resources/database/schema_pg.sql "$deploy_root/resources/database/schema_pg.sql"
+          fetch_file resources/database/init_data_pg.sql "$deploy_root/resources/database/init_data_pg.sql"
+          chmod 700 "$deploy_root/deploy/deploy-from-actions.sh"
+
+          printf '%s' "$TCR_PASSWORD" | docker login ccr.ccs.tencentyun.com \
+            --username "$TCR_USERNAME" --password-stdin
+
+          contains_target() {
+            case ",$RAGENT_TARGET_SERVICES," in
+              *",$1,"*) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+
+          if contains_target backend; then
+            export RAGENT_BACKEND_IMAGE="ccr.ccs.tencentyun.com/hnu-ragent/ragent-backend:$GITHUB_SHA"
+          fi
+          if contains_target mcp-server; then
+            export RAGENT_MCP_SERVER_IMAGE="ccr.ccs.tencentyun.com/hnu-ragent/ragent-mcp-server:$GITHUB_SHA"
+          fi
+          if contains_target frontend; then
+            export RAGENT_FRONTEND_IMAGE="ccr.ccs.tencentyun.com/hnu-ragent/ragent-frontend:$GITHUB_SHA"
+          fi
+          export RAGENT_COMPOSE_FILE="$deploy_root/deploy/compose.yaml"
+
+          bash "$deploy_root/deploy/deploy-from-actions.sh"

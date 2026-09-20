@@ -8,12 +8,13 @@
 D:\code\IdeaProjects\ragent
   → git commit
   → git push origin master
-  → GitHub Actions
+  → GitHub-hosted Runner 同步到私有 Gitee 镜像
   → 腾讯云 CVM 上的 self-hosted runner
+  → git fetch 增量更新 /home/ubuntu/ragent-deploy/source
   → 构建镜像并更新应用容器
 ```
 
-生产服务器不会对旧的 `/home/ubuntu/ragent` 目录执行 `git pull` 或 `git reset --hard`。Runner 会把每次 push 的准确提交检出到自己的工作目录，以避免覆盖服务器上的历史上传文件或私密配置。
+生产服务器只操作由部署 Runner 专用的 `/home/ubuntu/ragent-deploy/source`，不会操作旧的 `/home/ubuntu/ragent` 目录或私密配置目录。该目录保留 `.git` 元数据，因此后续发布只会从国内 Gitee 镜像传输新增 Git 对象，而不是从 GitHub 下载完整源码压缩包。
 
 工作流定义在 `.github/workflows/deploy-production.yml`，仅在 `master` 分支 push 或手工触发时运行。
 
@@ -30,7 +31,62 @@ sudo install -m 600 -o ubuntu -g ubuntu \
 
 工作流通过 `RAGENT_DEPLOY_ENV_FILE=/home/ubuntu/ragent-secrets/ragent.env` 使用这个文件。它包含数据库密码、Redis 密码、RustFS 密钥和第三方 AI API Key，绝不能输出到 GitHub Actions 日志。
 
-## 3. 安装 GitHub self-hosted runner
+## 3. 配置私有 Gitee 部署镜像
+
+在 Gitee 创建一个**空的私有仓库**，不要初始化 README、`.gitignore` 或许可证。该仓库只用于生产部署同步，工作流只会强制更新其 `master` 分支。
+
+需要两组彼此独立的 SSH 密钥：
+
+- GitHub-hosted Runner 使用可写密钥，将当前提交推送到 Gitee。
+- CVM 上的 `ubuntu` 用户使用只读密钥，从 Gitee 增量拉取提交。
+
+为 GitHub-hosted Runner 生成第一组密钥，并将公钥添加为该 Gitee 仓库具有写权限的 Deploy Key：
+
+```bash
+ssh-keygen -t ed25519 -C "ragent-github-mirror" -f ./ragent-gitee-mirror
+cat ./ragent-gitee-mirror.pub
+```
+
+将 `ragent-gitee-mirror` 的私钥完整内容保存为 GitHub Repository Secret `GITEE_MIRROR_SSH_PRIVATE_KEY`。再创建 Repository Secret `GITEE_MIRROR_SSH_URL`，值为镜像仓库 SSH 地址，例如：
+
+```text
+git@gitee.com:your-gitee-account/ragent-deployment.git
+```
+
+在 CVM 上生成第二组密钥，将其公钥添加为同一仓库的只读 Deploy Key，并配置 `ubuntu` 用户使用该密钥：
+
+```bash
+sudo -u ubuntu mkdir -p /home/ubuntu/.ssh
+sudo -u ubuntu ssh-keygen -t ed25519 -C "ragent-cvm-readonly" \
+  -f /home/ubuntu/.ssh/ragent-gitee-readonly
+sudo -u ubuntu chmod 700 /home/ubuntu/.ssh
+sudo -u ubuntu chmod 600 /home/ubuntu/.ssh/ragent-gitee-readonly
+sudo -u ubuntu cat /home/ubuntu/.ssh/ragent-gitee-readonly.pub
+```
+
+将上面输出的公钥添加为同一仓库的只读 Deploy Key。在 `/home/ubuntu/.ssh/config` 添加以下配置；如果该文件已有其他主机配置，只追加此块：
+
+```sshconfig
+Host gitee.com
+  HostName gitee.com
+  User git
+  IdentityFile /home/ubuntu/.ssh/ragent-gitee-readonly
+  IdentitiesOnly yes
+```
+
+预置 Gitee 的 SSH 主机指纹，随后以 `ubuntu` 验证只读访问，并创建部署专用父目录：
+
+```bash
+sudo -u ubuntu sh -c 'ssh-keyscan -H gitee.com >> /home/ubuntu/.ssh/known_hosts'
+sudo -u ubuntu chmod 600 /home/ubuntu/.ssh/known_hosts
+sudo -u ubuntu git ls-remote \
+  git@gitee.com:your-gitee-account/ragent-deployment.git HEAD
+sudo install -d -m 755 -o ubuntu -g ubuntu /home/ubuntu/ragent-deploy
+```
+
+不要复用 GitHub 镜像推送私钥到 CVM，也不要将任何私钥或 Gitee 地址中的令牌写入仓库。
+
+## 4. 安装 GitHub self-hosted runner
 
 在 GitHub 仓库 `XiaooYi/hnu-ragent` 中依次打开：
 
@@ -61,19 +117,26 @@ id -nG ubuntu
 
 输出中应包含 `docker`。
 
-## 4. 自动部署执行内容
+## 5. 自动部署执行内容
 
-每次 push 到 `master` 时，Runner 会在独立工作目录中依次执行：
+每次 push 到 `master` 时，GitHub-hosted Runner 先将准确的 `GITHUB_SHA` 推送到 Gitee 私有镜像。CVM Runner 随后在 `/home/ubuntu/ragent-deploy/source` 执行等价的增量同步：
+
+```bash
+git fetch --prune origin +refs/heads/master:refs/remotes/origin/master
+git checkout --detach --force "$GITHUB_SHA"
+```
+
+完成源码同步后，CVM 仍在本机构建并部署：
 
 ```bash
 docker compose --env-file /home/ubuntu/ragent-secrets/ragent.env \
-  -f deploy/compose.yaml build --pull backend
+  -f deploy/compose.yaml build backend
 
 docker compose --env-file /home/ubuntu/ragent-secrets/ragent.env \
-  -f deploy/compose.yaml build --pull mcp-server
+  -f deploy/compose.yaml build mcp-server
 
 docker compose --env-file /home/ubuntu/ragent-secrets/ragent.env \
-  -f deploy/compose.yaml build --pull frontend
+  -f deploy/compose.yaml build frontend
 
 docker compose --env-file /home/ubuntu/ragent-secrets/ragent.env \
   -f deploy/compose.yaml up -d --no-deps --force-recreate \
@@ -86,13 +149,13 @@ docker compose --env-file /home/ubuntu/ragent-secrets/ragent.env \
 
 ```bash
 docker compose --env-file /home/ubuntu/ragent-secrets/ragent.env \
-  -f /home/ubuntu/ragent/deploy/compose.yaml pull \
+  -f /home/ubuntu/ragent-deploy/source/deploy/compose.yaml pull \
   postgres redis rmqnamesrv rmqbroker rustfs
 ```
 
 不要在日常部署中执行 `docker compose down -v`。
 
-## 5. 安全约束
+## 6. 安全约束
 
 - GitHub 仓库应保持私有，或至少保证只有可信协作者能修改 `master` 和 Actions 工作流。
 - 工作流只由 `push` 到 `master` 触发；不要添加不受信任 PR 触发器。
