@@ -17,15 +17,23 @@ RUN --mount=type=cache,target=/root/.m2 \
 COPY . .
 RUN --mount=type=cache,target=/root/.m2 \
     chmod +x mvnw \
-    && ./mvnw -B -ntp -Dmaven.test.skip=true -pl mcp-server -am package
+    && ./mvnw -B -ntp -Dmaven.test.skip=true -pl mcp-server -am package \
+    && java -Djarmode=tools -jar mcp-server/target/mcp-server-*.jar \
+        extract --layers --launcher --destination mcp-server/target/extracted
 
 FROM eclipse-temurin:17-jre-jammy AS runtime
 
 RUN groupadd --system ragent && useradd --system --gid ragent --home-dir /app ragent
 WORKDIR /app
-COPY --from=build /workspace/mcp-server/target/mcp-server-*.jar /app/app.jar
+
+# One COPY per Spring Boot layer. Pure code changes leave the dependency layers
+# byte-identical, so their digests stay the same and TCR skips re-uploading them.
+COPY --from=build /workspace/mcp-server/target/extracted/dependencies/ ./
+COPY --from=build /workspace/mcp-server/target/extracted/spring-boot-loader/ ./
+COPY --from=build /workspace/mcp-server/target/extracted/snapshot-dependencies/ ./
+COPY --from=build /workspace/mcp-server/target/extracted/application/ ./
 
 USER ragent
 EXPOSE 9099
 
-ENTRYPOINT ["java", "-Xms128m", "-Xmx256m", "-XX:MaxMetaspaceSize=128m", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java", "-Xms128m", "-Xmx256m", "-XX:MaxMetaspaceSize=128m", "org.springframework.boot.loader.launch.JarLauncher"]

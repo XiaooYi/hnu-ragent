@@ -56,7 +56,9 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Pushing to TCR is cross-border and slow; the backend image alone can take
+    # well over 30 minutes on a cold cache.
+    timeout-minutes: 90
 
     strategy:
       fail-fast: false

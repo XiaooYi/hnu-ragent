@@ -30,16 +30,23 @@ RUN --mount=type=cache,target=/root/.m2 \
     && sed -i '/^rustfs:/,/^# MinerU/ s|^  secret-access-key:.*|  secret-access-key: ${RAGENT_RUSTFS_SECRET_KEY}|' bootstrap/src/main/resources/application.yaml \
     && sed -i '/^mineru:/,/^sa-token:/ s|^  api-key:.*|  api-key: ${RAGENT_MINERU_API_KEY}|' bootstrap/src/main/resources/application.yaml \
     && chmod +x mvnw \
-    && ./mvnw -B -ntp -Dmaven.test.skip=true -pl bootstrap -am package
+    && ./mvnw -B -ntp -Dmaven.test.skip=true -pl bootstrap -am package \
+    && java -Djarmode=tools -jar bootstrap/target/bootstrap-*.jar \
+        extract --layers --launcher --destination bootstrap/target/extracted
 
 FROM eclipse-temurin:17-jre-jammy AS runtime
 
 RUN groupadd --system ragent && useradd --system --gid ragent --home-dir /app ragent
 WORKDIR /app
 
-COPY --from=build /workspace/bootstrap/target/bootstrap-*.jar /app/app.jar
+# One COPY per Spring Boot layer. Pure code changes leave the dependency layers
+# byte-identical, so their digests stay the same and TCR skips re-uploading them.
+COPY --from=build /workspace/bootstrap/target/extracted/dependencies/ ./
+COPY --from=build /workspace/bootstrap/target/extracted/spring-boot-loader/ ./
+COPY --from=build /workspace/bootstrap/target/extracted/snapshot-dependencies/ ./
+COPY --from=build /workspace/bootstrap/target/extracted/application/ ./
 
 USER ragent
 EXPOSE 9090
 
-ENTRYPOINT ["java", "-Xms256m", "-Xmx1536m", "-XX:MaxMetaspaceSize=256m", "-Djava.security.egd=file:/dev/./urandom", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java", "-Xms256m", "-Xmx1536m", "-XX:MaxMetaspaceSize=256m", "-Djava.security.egd=file:/dev/./urandom", "org.springframework.boot.loader.launch.JarLauncher"]
