@@ -50,6 +50,7 @@ public class BlockAwareChunkerDispatcher {
     private final ImageChunker imageChunker;
     private final CodeChunker codeChunker;
     private final ListChunker listChunker;
+    private final StructuredChunkAggregator structuredChunkAggregator;
 
     /**
      * 把 Block 列表分发到对应 chunker,返回有序 VectorChunk 列表
@@ -78,7 +79,7 @@ public class BlockAwareChunkerDispatcher {
             result.addAll(chunks);
             chunkIndex += chunks.size();
         }
-        return result;
+        return structuredChunkAggregator.aggregate(result, config);
     }
 
     private List<VectorChunk> chunkOne(Block b, ChunkContext ctx) {

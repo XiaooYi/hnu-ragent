@@ -30,6 +30,15 @@ public record FixedSizeOptions(
         int overlapSize
 ) implements ChunkingOptions {
 
+    public FixedSizeOptions {
+        if (overlapSize < 0) {
+            throw new IllegalArgumentException("overlapSize must be >= 0, got " + overlapSize);
+        }
+        if (chunkSize != -1 && (chunkSize <= 0 || overlapSize >= chunkSize)) {
+            throw new IllegalArgumentException("chunkSize must be > 0 and overlapSize < chunkSize");
+        }
+    }
+
     @Override
     public Map<String, Integer> toConfigMap() {
         return Map.of("chunkSize", chunkSize, "overlapSize", overlapSize);

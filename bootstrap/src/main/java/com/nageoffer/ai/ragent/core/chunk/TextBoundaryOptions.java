@@ -35,6 +35,22 @@ public record TextBoundaryOptions(
         int minChars
 ) implements ChunkingOptions {
 
+    public TextBoundaryOptions {
+        if (overlapChars < 0) {
+            throw new IllegalArgumentException("overlapChars must be >= 0, got " + overlapChars);
+        }
+        if (targetChars == -1) {
+            if (minChars <= 0 || maxChars <= 0) {
+                throw new IllegalArgumentException("minChars and maxChars must be > 0 for whole-document mode");
+            }
+        } else if (minChars <= 0 || targetChars <= 0 || maxChars <= 0
+                || minChars > targetChars || targetChars > maxChars
+                || overlapChars >= maxChars) {
+            throw new IllegalArgumentException(
+                    "chunk sizes must satisfy 0 < minChars <= targetChars <= maxChars and overlapChars < maxChars");
+        }
+    }
+
     @Override
     public Map<String, Integer> toConfigMap() {
         return Map.of("targetChars", targetChars, "overlapChars", overlapChars,

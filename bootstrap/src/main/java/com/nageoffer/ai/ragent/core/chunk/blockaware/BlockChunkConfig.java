@@ -29,6 +29,8 @@ package com.nageoffer.ai.ragent.core.chunk.blockaware;
  * @param listItemsPerChunk 长列表每个 chunk 的列表项数
  */
 public record BlockChunkConfig(
+        int minChars,
+        int targetChars,
         int maxChars,
         int overlapChars,
         int rowsPerChunk,
@@ -40,12 +42,14 @@ public record BlockChunkConfig(
      * 默认配置（用于测试 / 早期未配置场景）
      */
     public static BlockChunkConfig defaults() {
-        return new BlockChunkConfig(512, 64, 5, 15, 10);
+        return new BlockChunkConfig(1, 512, 512, 64, 5, 15, 10);
     }
 
     public BlockChunkConfig {
-        if (maxChars <= 0) {
-            throw new IllegalArgumentException("maxChars must be > 0, got " + maxChars);
+        if (minChars <= 0 || targetChars <= 0 || maxChars <= 0
+                || minChars > targetChars || targetChars > maxChars) {
+            throw new IllegalArgumentException("chunk sizes must satisfy 0 < minChars <= targetChars <= maxChars, got "
+                    + minChars + ", " + targetChars + ", " + maxChars);
         }
         if (overlapChars < 0 || overlapChars >= maxChars) {
             throw new IllegalArgumentException("overlapChars must be in [0, maxChars), got " + overlapChars);

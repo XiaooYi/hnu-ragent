@@ -91,7 +91,8 @@ public class StructuredChunkingService {
             return wholeDocumentChunk(blocks, fallbackText);
         }
         if (blocks != null && !blocks.isEmpty()) {
-            return blockAwareChunkerDispatcher.dispatch(blocks, toBlockChunkConfig(options, rowsPerChunk));
+            return blockAwareChunkerDispatcher.dispatch(
+                    blocks, toBlockChunkConfig(mode, options, rowsPerChunk));
         }
         if (!StringUtils.hasText(fallbackText)) {
             return List.of();
@@ -147,41 +148,27 @@ public class StructuredChunkingService {
      * maxChars 预算优先取 chunkSize（固定大小）/ targetChars（语义感知）；overlap 同理
      * rowsPerChunk 由调用方透传，缺省取硬上限默认值
      */
-    private BlockChunkConfig toBlockChunkConfig(ChunkingOptions options, Integer rowsPerChunk) {
-        Map<String, Integer> cfg = options == null ? Map.of() : options.toConfigMap();
-        int maxChars = firstPositive(cfg);
-        int overlap = firstNonNegative(cfg);
-        // 防御：overlap 必须 < maxChars，否则 BlockChunkConfig 校验会抛错
-        if (overlap >= maxChars) {
-            overlap = Math.max(0, maxChars - 1);
+    private BlockChunkConfig toBlockChunkConfig(ChunkingMode mode, ChunkingOptions options, Integer rowsPerChunk) {
+        ChunkingOptions effective = options != null ? options : mode.createOptions(Map.of());
+        int minChars;
+        int targetChars;
+        int maxChars;
+        int overlap;
+        if (effective instanceof TextBoundaryOptions text) {
+            minChars = text.minChars();
+            targetChars = text.targetChars();
+            maxChars = text.maxChars();
+            overlap = text.overlapChars();
+        } else if (effective instanceof FixedSizeOptions fixed) {
+            minChars = fixed.chunkSize();
+            targetChars = fixed.chunkSize();
+            maxChars = fixed.chunkSize();
+            overlap = fixed.overlapSize();
+        } else {
+            throw new IllegalArgumentException("Unsupported chunking options: " + effective.getClass().getName());
         }
         int rows = (rowsPerChunk != null && rowsPerChunk > 0) ? rowsPerChunk : DEFAULT_ROWS_PER_CHUNK;
-        return new BlockChunkConfig(maxChars, overlap, rows, DEFAULT_MAX_LIST_ITEMS, DEFAULT_LIST_ITEMS_PER_CHUNK);
-    }
-
-    /**
-     * 按 keys 顺序取第一个存在且为正的值，否则返回默认
-     */
-    private static int firstPositive(Map<String, Integer> cfg) {
-        for (String key : new String[]{"chunkSize", "targetChars", "maxChars"}) {
-            Integer v = cfg.get(key);
-            if (v != null && v > 0) {
-                return v;
-            }
-        }
-        return StructuredChunkingService.DEFAULT_MAX_CHARS;
-    }
-
-    /**
-     * 按 keys 顺序取第一个存在且非负的值（重叠允许为 0），否则返回默认
-     */
-    private static int firstNonNegative(Map<String, Integer> cfg) {
-        for (String key : new String[]{"overlapSize", "overlapChars"}) {
-            Integer v = cfg.get(key);
-            if (v != null && v >= 0) {
-                return v;
-            }
-        }
-        return StructuredChunkingService.DEFAULT_OVERLAP;
+        return new BlockChunkConfig(minChars, targetChars, maxChars, overlap,
+                rows, DEFAULT_MAX_LIST_ITEMS, DEFAULT_LIST_ITEMS_PER_CHUNK);
     }
 }
