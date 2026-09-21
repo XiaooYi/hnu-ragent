@@ -721,12 +721,16 @@ html.dark *::-webkit-scrollbar-thumb:hover {
   .admin-layout .trace-list-table-card {
     display: flex;
     flex-direction: column;
+    flex: 1;
+    min-height: 0;
   }
 
   .admin-layout .trace-list-table-card .ui-card-content,
   .admin-layout .trace-list-table-content {
     display: flex;
     flex-direction: column;
+    flex: 1;
+    min-height: 0;
   }
 
   .admin-layout .trace-list-header-card {
@@ -1336,8 +1340,10 @@ html.dark *::-webkit-scrollbar-thumb:hover {
   /* 表格各列的最小宽度之和在多数桌面尺寸下超过容器宽度，必须在所有宽度下
      允许横向滚动，否则最右侧的「操作」列（概览 / 详情按钮）会被裁掉且无法触达。 */
   .admin-layout .trace-list-table-wrap {
+    flex: 1;
+    min-height: 0;
     overflow-x: auto;
-    overflow-y: visible;
+    overflow-y: auto;
   }
 
   .admin-layout .trace-list-table-wrap .ui-table-wrap {

@@ -129,6 +129,7 @@ ai:
       api-key: sk-ws-H.RYXEYMP.e8JH.MEUCIFP8iCvcKiAKaJ9gdOIjvHhDB64375YSFhvwlRMlnEEHAiEAjpo34waqzk9hWwRR9wBKVG1dYPym9CbHAd-JKgMuh8o
       endpoints:
         chat: /compatible-mode/v1/chat/completions
+        embedding: /compatible-mode/v1/embeddings
         rerank: /api/v1/services/rerank/text-rerank/text-rerank
     aihubmix:
       url: https://aihubmix.com
@@ -178,23 +179,28 @@ ai:
         priority: 5
 
   embedding:
-    default-model: qwen-emb-8b
+    default-model: qwen3.7-text-embedding
     candidates:
+      - id: qwen3.7-text-embedding
+        provider: bailian
+        model: qwen3.7-text-embedding
+        dimension: ${rag.default.dimension}
+        priority: 1
       - id: qwen-emb-8b
         provider: siliconflow
         model: Qwen/Qwen3-Embedding-8B
         dimension: ${rag.default.dimension}
-        priority: 1
+        priority: 2
       - id: qwen-emb-local
         provider: ollama
         model: qwen3-embedding:8b-fp16
         dimension: ${rag.default.dimension}
-        priority: 2
+        priority: 3
       - id: text-embedding-3-large
         provider: aihubmix
         model: text-embedding-3-large
         dimension: ${rag.default.dimension}
-        priority: 3
+        priority: 4
 
   rerank:
     default-model: qwen3-rerank

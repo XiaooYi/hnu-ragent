@@ -47,3 +47,5 @@ deploy/.env
 
 ### Tmp Out ###
 .output/
+
+/docs/assets/cvm.md
