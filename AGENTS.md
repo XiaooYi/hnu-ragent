@@ -116,3 +116,16 @@ All config lives in `bootstrap/src/main/resources/application.yaml`, root prefix
 - `core/` — domain logic independent of HTTP/web layer
 - `config/` — `@Configuration` + `@ConfigurationProperties` classes
 - Prompt templates as `.st` (StringTemplate4) files in `resources/prompt/`
+
+## Git 与验证规范
+
+### 提交信息
+
+- 提交信息使用 Conventional Commits 格式：`<type>(<scope>): 中文说明`。
+- 冒号前的 `type` 和可选 `scope` 使用英文；冒号后的提交说明使用中文。
+- 常用 `type`：`feat`、`fix`、`refactor`、`docs`、`test`、`chore`。
+
+### 改动验证
+
+- 小改动不强制执行测试；完成必要的代码检查即可。
+- 大改动必须执行与改动范围匹配的测试或构建，并在提交前确认通过。
