@@ -133,7 +133,7 @@ bootstrap/src/main/java/com/nageoffer/ai/ragent/
 
 意图识别使用 **树形结构 + LLM 分类** 的混合方案：
 
-- **意图树**（Intent Tree）：3 级层次结构，存储在 MySQL `t_intent_node` 表 + Redis 缓存
+- **意图树**（Intent Tree）：3 级层次结构，存储在 PostgreSQL `t_intent_node` 表 + Redis 缓存
 - **意图类型**（IntentKind）：`KB`（知识库检索）、`MCP`（工具调用）、`SYSTEM`（系统对话）
 - **意图层级**（IntentLevel）：`DOMAIN`（领域）→ `CATEGORY`（分类）→ `TOPIC`（主题）
 - **叶子节点**：只有叶子节点参与分类，包含知识库 collection、MCP toolId、自定义 Prompt 等信息
@@ -177,7 +177,7 @@ DefaultIntentClassifier.classifyTargets(question)
   │
   ├── 1. loadIntentTreeData()
   │      Redis "ragent:intent:tree" (7天 TTL)
-  │      └── miss → IntentNodeMapper 查 MySQL → 构建树(fillFullPath) → 写 Redis
+  │      └── miss → IntentNodeMapper 查 PostgreSQL → 构建树(fillFullPath) → 写 Redis
   │
   ├── 2. buildPrompt(leafNodes)
   │      加载 prompt/intent-classifier.st 模板
@@ -517,7 +517,7 @@ rag:
 
 ### 7.1 模板文件
 
-所有模板位于 `bootstrap/src/main/resources/prompt/*.st`，使用 Mustache 风格 `{key}` 占位符。
+所有模板位于 `bootstrap/src/main/resources/prompt/*.st`，使用 StringTemplate4 风格 `{key}` 占位符。
 
 | 模板文件 | 用途 | 场景 |
 |---------|------|------|

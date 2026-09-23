@@ -117,6 +117,13 @@ All config lives in `bootstrap/src/main/resources/application.yaml`, root prefix
 - `config/` — `@Configuration` + `@ConfigurationProperties` classes
 - Prompt templates as `.st` (StringTemplate4) files in `resources/prompt/`
 
+
+## 文档驱动开发
+
+- 开始实现前阅读根目录 `CONTEXT.md`，再按改动范围阅读 `docs/README.md`、`docs/rules/`、`docs/database/README.md` 和相关现有测试。
+- 影响检索顺序、阈值、TopK、状态、数据结构、模型路由或部署行为时，先同步规则/数据库文档和验收用例，再修改代码。
+- 模板验证命令：`node test/validate-ai-dev-template.mjs`。它检查 AI 开发模板文档仍指向 Ragent 的实际配置与部署入口。
+
 ## Git 与验证规范
 
 ### 提交信息

@@ -340,8 +340,8 @@ A: 实现 `SearchResultPostProcessor` 接口，并注册为 Spring Bean（使用
 
 ## 参考文档
 
-- [架构说明文档](./multi-channel-retrieval.md)
-- [重构总结](./refactoring-summary.md)
+- [架构说明文档](../architecture/multi-channel-retrieval.md)
+- [重构总结](./retrieval-refactoring-summary-legacy.md)
 
 ## 联系方式
 

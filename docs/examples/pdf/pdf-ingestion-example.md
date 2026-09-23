@@ -22,7 +22,7 @@
 
 **请求**:
 ```bash
-curl -X POST "http://localhost:8080/api/ragent/ingestion/pipelines" \
+curl -X POST "http://localhost:9090/api/ragent/ingestion/pipelines" \
   -H "Content-Type: application/json" \
   -d @pdf-pipeline-request.json
 ```
@@ -53,7 +53,7 @@ curl -X POST "http://localhost:8080/api/ragent/ingestion/pipelines" \
 
 **请求**:
 ```bash
-curl -X POST "http://localhost:8080/api/ragent/ingestion/tasks/upload" \
+curl -X POST "http://localhost:9090/api/ragent/ingestion/tasks/upload" \
   -F "pipelineId=1" \
   -F "file=@/path/to/your/document.pdf" \
   -F "metadata={\"category\":\"manual\",\"department\":\"IT\"}"
@@ -82,7 +82,7 @@ curl -X POST "http://localhost:8080/api/ragent/ingestion/tasks/upload" \
 
 **请求**:
 ```bash
-curl "http://localhost:8080/api/ragent/ingestion/tasks/123"
+curl "http://localhost:9090/api/ragent/ingestion/tasks/123"
 ```
 
 **响应（执行中）**:
@@ -204,7 +204,7 @@ No start node found in pipeline
 ```bash
 #!/bin/bash
 
-API_BASE="http://localhost:8080/api/ragent"
+API_BASE="http://localhost:9090/api/ragent"
 
 # 1. 创建流水线
 echo "📝 Creating pipeline..."
@@ -257,7 +257,7 @@ echo "🎉 Test completed successfully!"
 
 **简化版（单行）**:
 ```bash
-curl -X POST "http://localhost:8080/api/ragent/ingestion/pipelines" \
+curl -X POST "http://localhost:9090/api/ragent/ingestion/pipelines" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "pdf-pipeline",
@@ -276,9 +276,9 @@ curl -X POST "http://localhost:8080/api/ragent/ingestion/pipelines" \
 
 ## 📚 相关文档
 
-- [配置指南](../ingestion-pipeline-config-guide.md)
-- [执行示例](../pipeline-execution-guide.md)
-- [领域提示词库](../domain-specific-prompts-guide.md)
+- [摄取架构](../../architecture/ragent-architecture.md)
+- [本地运行与排障](../../operations/project-startup-guide.md)
+- [核心规则](../../rules/README.md)
 
 ---
 

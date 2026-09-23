@@ -35,7 +35,7 @@ Backend (Spring Boot)
 
 后端采用 Maven 多模块结构：`bootstrap` 负责应用与业务实现，`framework` 提供通用基础设施，`infra-ai` 负责模型能力抽象，`mcp-server` 提供独立的 MCP 服务。
 
-详细设计说明见 [架构文档](docs/ragent-architecture.md) 和 [多通道检索说明](docs/multi-channel-retrieval.md)。
+详细设计说明见 [架构文档](docs/architecture/ragent-architecture.md) 和 [多通道检索说明](docs/architecture/multi-channel-retrieval.md)。
 
 ## 技术栈
 
@@ -54,7 +54,7 @@ Backend (Spring Boot)
 - PostgreSQL + pgvector、Redis、RocketMQ、RustFS 等依赖服务
 - 可用的模型供应商配置；MCP 工具能力还需要启动 MCP Server
 
-项目的完整本地环境恢复、依赖服务检查和故障排查说明见 [本地启动指南](docs/project-startup-guide.md)。以下是服务准备完成后的最小启动方式。
+项目的完整本地环境恢复、依赖服务检查和故障排查说明见 [本地启动指南](docs/operations/project-startup-guide.md)。以下是服务准备完成后的最小启动方式。
 
 ### 启动后端
 
@@ -117,13 +117,13 @@ docker compose --env-file deploy/.env -f deploy/compose.yaml up -d
 docker compose --env-file deploy/.env -f deploy/compose.yaml ps
 ```
 
-完整的服务器配置、安全组、日志与备份说明见 [Docker 生产部署指南](docs/docker-production-deployment.md)。生产环境不要执行 `docker compose down -v`，该命令会删除持久化数据卷。
+完整的服务器配置、安全组、日志与备份说明见 [Docker 生产部署指南](docs/operations/docker-production-deployment.md)。生产环境不要执行 `docker compose down -v`，该命令会删除持久化数据卷。
 
 ### 自动部署
 
 当前生产发布流程为：本地推送 `master` 分支后，GitHub-hosted Runner 挑选变更涉及的服务，构建镜像并推送到腾讯云 TCR；腾讯云 CVM 上的 self-hosted Runner 从 TCR 拉取不可变镜像，只重建对应的应用容器。服务器本身不执行 Maven / npm 构建。
 
-应用镜像按 Spring Boot 层拆分，只改业务代码时只需上传约 5 MB 的 `application` 层。完整的部署链路、Runner 配置、镜像分层说明和排障手册见 [GitHub Actions 自动部署交接说明](docs/github-actions-auto-deployment.md)。
+应用镜像按 Spring Boot 层拆分，只改业务代码时只需上传约 5 MB 的 `application` 层。完整的部署链路、Runner 配置、镜像分层说明和排障手册见 [GitHub Actions 自动部署交接说明](docs/operations/github-actions-auto-deployment.md)。
 
 ## 项目结构
 
@@ -142,12 +142,15 @@ docs/        架构、开发、部署与运维文档
 
 | 文档 | 说明 |
 | --- | --- |
-| [本地启动指南](docs/project-startup-guide.md) | 本地依赖、中间件恢复、启动与故障排查 |
-| [架构文档](docs/ragent-architecture.md) | 模块边界与核心流程 |
-| [多通道检索](docs/multi-channel-retrieval.md) | 检索通道与后处理机制 |
-| [Docker 生产部署](docs/docker-production-deployment.md) | 腾讯云 CVM 的首次部署、运维与安全配置 |
-| [GitHub Actions 自动部署](docs/github-actions-auto-deployment.md) | 自动发布流程、Runner 配置与排障 |
-| [企业内部 MCP 工具](docs/enterprise-internal-mcp-tools.md) | MCP 工具接入说明 |
+| [本地启动指南](docs/operations/project-startup-guide.md) | 本地依赖、中间件恢复、启动与故障排查 |
+| [架构文档](docs/architecture/ragent-architecture.md) | 模块边界与核心流程 |
+| [多通道检索](docs/architecture/multi-channel-retrieval.md) | 检索通道与后处理机制 |
+| [Docker 生产部署](docs/operations/docker-production-deployment.md) | 腾讯云 CVM 的首次部署、运维与安全配置 |
+| [GitHub Actions 自动部署](docs/operations/github-actions-auto-deployment.md) | 自动发布流程、Runner 配置与排障 |
+| [企业内部 MCP 工具](docs/domain/enterprise-internal-mcp-tools.md) | MCP 工具接入说明 |
+| [文档地图](docs/README.md) | 按架构、开发、运维、领域与评测分类的文档入口 |
+| [核心规则](docs/rules/README.md) | 检索等不可随意变更的行为约束 |
+| [数据库脚本约定](docs/database/README.md) | 初始化、升级与生产数据变更流程 |
 
 ## 贡献
 

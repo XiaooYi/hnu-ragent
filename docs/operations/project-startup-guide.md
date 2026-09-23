@@ -39,7 +39,7 @@
 | Ragent 后端 | `localhost:9090/api/ragent` | 是 | Spring Boot 主应用 |
 | 前端 | `localhost:5173` | 是 | React + Vite 开发服务器 |
 
-当前 [application.yaml](../bootstrap/src/main/resources/application.yaml) 的 `rag.vector.type` 为 `pg`，因此项目现在使用 **PostgreSQL pgvector** 检索；Milvus 未启动不应阻塞当前主链路。
+当前 [application.yaml](../../bootstrap/src/main/resources/application.yaml) 的 `rag.vector.type` 为 `pg`，因此项目现在使用 **PostgreSQL pgvector** 检索；Milvus 未启动不应阻塞当前主链路。
 
 ## 3. 启动前检查
 
@@ -103,7 +103,7 @@ docker exec -it postgres pg_isready -U postgres -d ragent
 
 应出现类似 `accepting connections` 的结果。
 
-不要在已有恢复环境中重新执行建库或建表脚本。只有确认数据盘已丢失、需要从零初始化时，才应使用仓库中的 [schema_pg.sql](../resources/database/schema_pg.sql)。
+不要在已有恢复环境中重新执行建库或建表脚本。只有确认数据盘已丢失、需要从零初始化时，才应使用仓库中的 [schema_pg.sql](../../resources/database/schema_pg.sql)。
 
 ### 4.2 Redis
 
