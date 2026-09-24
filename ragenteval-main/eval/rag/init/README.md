@@ -2,6 +2,8 @@
 
 将评测项目的资产灌入 ragent 服务，准备好"被测系统"的状态。
 
+> 这里的创建、上传、重置脚本是比特严选演示环境专用的。评估服务器上已存在的湖南大学五个知识库时，**不要运行** `create_kbs.py`、`upload_docs.py`、`reset_kbs.py` 或 `build_intent_tree.py`；湖大评测集直接使用服务器已有知识库、文件名文档 ID 和意图树编码。
+
 ## 前置
 
 - ragent 服务已启动（默认 `http://localhost:9090/api/ragent`）

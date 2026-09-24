@@ -130,16 +130,20 @@ def slide_cover(run_file: Path, overall: dict[str, Any], generated_at: str) -> s
     n = overall.get("n", 0)
     status = overall.get("status") or {}
     status_text = " · ".join(f"{k} {v}" for k, v in sorted(status.items()))
+    is_hnu = run_file.stem.startswith("hnu_")
+    project_name = "湖南大学" if is_hnu else "比特严选"
+    project_label = "HNU · RAG Evaluation" if is_hnu else "Bit Select · RAG Evaluation"
+    subtitle = "校内信息助手 · 真实链路评测" if is_hnu else "RAG 客服助手 · 真实链路评测"
     return f"""
 <section class="slide hero dark">
   <div class="chrome">
-    <div>RAG · 全链路评测 · v1</div>
-    <div>BitSelect / 2026</div>
+    <div>RAG · 全链路评测</div>
+    <div>{esc(project_name)} / 2026</div>
   </div>
   <div class="frame" style="display:grid; gap:4vh; align-content:center; min-height:80vh">
-    <div class="kicker" data-anim>Bit Select · RAG 测评汇报</div>
-    <h1 class="h-hero" data-anim>比特严选</h1>
-    <h2 class="h-sub" data-anim>RAG 客服助手 · 真实链路评测</h2>
+    <div class="kicker" data-anim>{esc(project_label)}</div>
+    <h1 class="h-hero" data-anim>{esc(project_name)}</h1>
+    <h2 class="h-sub" data-anim>{esc(subtitle)}</h2>
     <p class="lead" style="max-width:62vw" data-anim>
       意图 → 检索 → 生成 · 三段全链路的可量化评测；自建指标与 RAGAS 互为印证。
     </p>

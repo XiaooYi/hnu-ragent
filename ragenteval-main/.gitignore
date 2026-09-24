@@ -17,6 +17,7 @@ venv/
 env/
 .env
 .env.*
+!.env.example
 
 # Eval runtime outputs
 eval/runs/

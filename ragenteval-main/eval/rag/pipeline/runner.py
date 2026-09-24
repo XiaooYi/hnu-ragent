@@ -2,7 +2,7 @@
 
 行为：
     1. 登录拿 sa-token
-    2. 读评估集 + doc_id_map.json（反向映射 ragent_doc_id -> 业务 id）
+    2. 读取所选评估集；可选 doc map 将 RAGent 文档 ID 转为业务 ID
     3. 对每条 query 调两个接口：
        - SSE: GET /rag/v3/chat（真实生产链路）→ response / thinking
        - JSON: GET /rag/eval（评测旁路，需 app.eval.enabled=true）→ 检索证据
@@ -16,7 +16,6 @@ from __future__ import annotations
 import concurrent.futures
 import dataclasses
 import json
-import os
 import sys
 import threading
 import time
@@ -26,9 +25,8 @@ from typing import Any, Iterator
 
 import requests
 
+from eval.common.env import ragent_base_url, ragent_credentials
 from eval.common.schemas import EvalRecord, EvalSample, load_samples
-
-DEFAULT_BASE_URL = "http://localhost:9090/api/ragent"
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 EVAL_SET_PATH = PROJECT_ROOT / "eval" / "rag" / "dataset" / "eval_set_v1.jsonl"
@@ -280,7 +278,16 @@ def build_record(
 
 def load_ragent_to_biz_map(doc_map_path: Path = DOC_MAP_PATH) -> dict[str, str]:
     doc_map = json.loads(doc_map_path.read_text(encoding="utf-8"))
-    return {v["ragent_doc_id"]: biz for biz, v in doc_map.items()}
+    ragent_to_biz: dict[str, str] = {}
+    for biz, entry in doc_map.items():
+        ragent_ids = entry.get("ragent_doc_ids")
+        if ragent_ids is None:
+            ragent_id = entry.get("ragent_doc_id")
+            ragent_ids = [ragent_id] if ragent_id else []
+        for ragent_id in ragent_ids:
+            if ragent_id:
+                ragent_to_biz[str(ragent_id)] = biz
+    return ragent_to_biz
 
 
 def _process_one(
@@ -309,22 +316,36 @@ def run(
     workers: int = 1,
     filter_intent: str | None = None,
     debug: bool = False,
+    eval_set_path: Path | None = None,
+    doc_map_path: Path | None = None,
     out_path: Path | None = None,
 ) -> Path:
-    """主入口。返回 runs/*.jsonl 的路径。环境变量：
-    RAGENT_BASE_URL / RAGENT_USERNAME / RAGENT_PASSWORD。
+    """主入口。返回 runs/*.jsonl 的路径。
+
+    ``eval_set_path`` 选择评估数据；``doc_map_path`` 为商品导入数据等
+    需要内部 ID 转换的环境提供映射。湖大服务返回文件名去后缀的文档 ID，
+    可直接与湖大评估集中的 ``expected_doc_ids`` 比较。
+
+    连接参数：RAGENT_BASE_URL / RAGENT_USERNAME / RAGENT_PASSWORD，
+    取进程环境变量或项目根目录 .env（见 eval/common/env.py）。
     """
-    base_url = os.environ.get("RAGENT_BASE_URL", DEFAULT_BASE_URL).rstrip("/")
-    username = os.environ.get("RAGENT_USERNAME")
-    password = os.environ.get("RAGENT_PASSWORD")
-    if not username or not password:
-        raise RuntimeError("缺少环境变量 RAGENT_USERNAME / RAGENT_PASSWORD")
+    base_url = ragent_base_url()
+    username, password = ragent_credentials()
 
-    if not DOC_MAP_PATH.exists():
-        raise RuntimeError(f"找不到 {DOC_MAP_PATH}，请先跑 eval/rag/init/upload_docs.py")
+    eval_set_path = (eval_set_path or EVAL_SET_PATH).resolve()
+    if doc_map_path is None and eval_set_path == EVAL_SET_PATH.resolve():
+        doc_map_path = DOC_MAP_PATH
+    if doc_map_path is not None:
+        doc_map_path = doc_map_path.resolve()
+        if not doc_map_path.exists():
+            raise RuntimeError(f"找不到文档 ID 映射：{doc_map_path}")
+        ragent_to_biz = load_ragent_to_biz_map(doc_map_path)
+    else:
+        # RAGent's /rag/eval returns document-name stems. New, already-ingested
+        # corpora can use those stable business IDs without an upload-time map.
+        ragent_to_biz = {}
 
-    ragent_to_biz = load_ragent_to_biz_map()
-    samples = load_samples(EVAL_SET_PATH)
+    samples = load_samples(eval_set_path)
     if filter_intent:
         samples = [s for s in samples if s.intent_l2 == filter_intent]
     samples = samples[start : start + limit]
@@ -332,8 +353,24 @@ def run(
         print("没有可执行的样本", file=sys.stderr)
         return Path()
 
+    expected_doc_ids = {
+        doc_id for sample in samples for doc_id in sample.expected_doc_ids
+    }
+    known_doc_ids = set(ragent_to_biz.values())
+    missing_doc_ids = sorted(expected_doc_ids - known_doc_ids) if doc_map_path else []
+    if missing_doc_ids:
+        preview = ", ".join(missing_doc_ids[:5])
+        more = " …" if len(missing_doc_ids) > 5 else ""
+        raise RuntimeError(
+            f"评估集中的文档标识未出现在映射文件 {doc_map_path}：{preview}{more}。"
+            "请同步当前 RAGent 环境的文档映射。"
+        )
+
     RUNS_DIR.mkdir(exist_ok=True)
-    out_path = out_path or (RUNS_DIR / f"v1_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jsonl")
+    run_prefix = eval_set_path.stem.removeprefix("eval_set_") or "run"
+    out_path = out_path or (
+        RUNS_DIR / f"{run_prefix}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jsonl"
+    )
 
     print(f"登录 {base_url} ...")
     token = login(base_url, username, password)

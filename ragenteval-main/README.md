@@ -1,6 +1,6 @@
-# 比特严选 RAG 客服助手 — 评测项目
+# RAGent 评测项目
 
-为虚拟电商「比特严选」构建生产级 RAG 客服系统，覆盖售前选购 / 售中咨询 / 售后服务 / 故障诊断 4 大场景。
+本仓库为 RAGent 提供数据集、录制、评分和报告工具。当前包含「比特严选」商品客服评测，以及连接湖南大学 CVM 现有五个知识库的校内信息评测。
 
 本项目是**评测侧**仓库，负责评估集维护、知识库管理、评测脚本和报告产出。
 被评系统在 `ragent` 仓库（Java），本项目为纯 Python 工具链。
@@ -13,11 +13,17 @@
 
 ```bash
 export RAGENT_BASE_URL=http://localhost:9090/api/ragent
-export RAGENT_USERNAME=admin                          # 可省，Ragent 默认用户名/密码
-export RAGENT_PASSWORD=admin                          # 可省
+export RAGENT_USERNAME=<ragent 账号>
+export RAGENT_PASSWORD=<ragent 密码>
 export AIHUBMIX_API_KEY=<your_aihubmix_key>           # RAGAS judge 用
 export JUDGE_MODEL=gpt-5.4-mini                       # 可省，RAGAS judge 默认值
 ```
+
+`RAGENT_BASE_URL` / `RAGENT_USERNAME` / `RAGENT_PASSWORD` 也可以写在项目根目录的
+`.env` 里（复制 `.env.example` 再填值），省掉每次 `export`。读取顺序是
+**环境变量 → `.env` → 默认值**，`.env` 已被 gitignore。账号要和实际部署对齐：
+Docker 部署把后端藏在 nginx 后面时，`RAGENT_BASE_URL` 要用 nginx 地址
+（例如 `http://localhost/api/ragent`），不是后端容器内部的 9090。
 
 ragent 服务端需开启评测旁路：`app.eval.enabled: true`。Python 3.11（RAGAS 依赖要求）。
 
@@ -60,6 +66,26 @@ python -m eval rag diff v1_xxx v1_yyy                    # 终端看对比
 python -m eval rag diff run_a run_b -o reports/diff.md   # 同时落 markdown
 ```
 
+### 湖南大学校内信息评测
+
+评测集使用 CVM 上现有的湖大知识库，不需要创建知识库或上传文档。`expected_doc_ids` 使用 RAGent `/rag/eval` 返回的文档文件名（去扩展名），意图字段使用服务器上已配置的意图叶子编码。
+
+五库数量、意图编码、评测前置条件和数据集边界见 [`docs/hnu-evaluation.md`](docs/hnu-evaluation.md)。
+
+```bash
+python -m eval rag run --dataset eval/rag/dataset/eval_set_hnu_v1.jsonl --limit 5
+python -m eval rag score eval/runs/hnu_v1_20260924_120000.jsonl --skip-ragas
+python -m eval rag report eval/runs/hnu_v1_20260924_120000.jsonl
+```
+
+或者一条龙运行：
+
+```bash
+python -m eval rag all --dataset eval/rag/dataset/eval_set_hnu_v1.jsonl --limit 5 --skip-ragas
+```
+
+评测前配置 `RAGENT_BASE_URL`、`RAGENT_USERNAME`、`RAGENT_PASSWORD`，并确认服务端启用 `app.eval.enabled`。湖大集不需要商品上传流程产生的 `doc_id_map.json`；文档名相同的记录会沿用 RAGent 当前以文件名去后缀作为文档 ID 的语义。商品评测仍使用原来的本地 ID 映射。
+
 ---
 
 ## 项目结构
@@ -78,6 +104,8 @@ ragenteval/
 │   │   ├── dataset/             评估集输入
 │   │   │   ├── eval_set_v1.jsonl    20 条评估集（默认 --limit）
 │   │   │   ├── eval_set_v1_all.jsonl 150 条全量
+│   │   │   ├── eval_set_hnu_v1.jsonl 湖南大学校内信息评估集
+│   │   │   │                         （当前含 30 条五知识库样本）
 │   │   │   └── doc_id_map.json      本地生成：业务码 ↔ ragent 内部 ID 映射（不进 git）
 │   │   ├── pipeline/            主流程
 │   │   │   ├── runner.py        调 ragent SSE + 评测旁路
@@ -111,7 +139,7 @@ ragenteval/
 │   ├── runs/v1_example.jsonl
 │   └── reports/v1_example/
 │
-├── knowledge_base/              115 篇 Markdown 文档
+├── knowledge_base/              115 篇比特严选 Markdown 文档
 │   ├── 01_product/              商品详情 50 + 选购指南 15 = 65 篇
 │   ├── 02_manual/               使用手册 15 + APP 5 + 配网 5 = 25 篇
 │   ├── 03_policy/               售后政策 15 篇

@@ -30,6 +30,8 @@ def cmd_run(args: argparse.Namespace) -> int:
             workers=args.workers,
             filter_intent=args.filter_intent,
             debug=args.debug,
+            eval_set_path=args.dataset,
+            doc_map_path=args.doc_map,
         )
         return 0 if out_path.name else 1
     except RuntimeError as e:
@@ -91,7 +93,12 @@ def cmd_report(args: argparse.Namespace) -> int:
 
     def latest_reportable_runs_file() -> Path | None:
         # 优先从 report 目录找最新的（已有评分结果的），退回到最新 runs 文件
-        for report_dir in sorted(REPORTS_DIR.glob("v1_*"), reverse=True):
+        report_dirs = sorted(
+            (path for path in REPORTS_DIR.iterdir() if path.is_dir()),
+            key=lambda path: path.stat().st_mtime,
+            reverse=True,
+        ) if REPORTS_DIR.exists() else []
+        for report_dir in report_dirs:
             scores = report_dir / "_scores.json"
             if not scores.exists():
                 continue
@@ -163,7 +170,13 @@ def cmd_all(args: argparse.Namespace) -> int:
     from eval.rag.pipeline.score import score
 
     try:
-        runs_file = run_runner(limit=args.limit, sleep=args.sleep, workers=args.workers)
+        runs_file = run_runner(
+            limit=args.limit,
+            sleep=args.sleep,
+            workers=args.workers,
+            eval_set_path=args.dataset,
+            doc_map_path=args.doc_map,
+        )
     except RuntimeError as e:
         print(f"错误：{e}", file=sys.stderr)
         return 2
@@ -178,7 +191,7 @@ def cmd_all(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="eval", description="比特严选 RAG 评测套件")
+    parser = argparse.ArgumentParser(prog="eval", description="RAGent RAG 评测套件")
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_rag = sub.add_parser("rag", help="RAG 评测")
@@ -190,6 +203,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_run.add_argument("--sleep", type=float, default=0.3, help="每条之间等待秒数")
     p_run.add_argument("-w", "--workers", type=int, default=1, help="并行线程数（默认 1 顺序）")
     p_run.add_argument("--filter-intent", default=None, help="只跑指定 intent_l2 的样本")
+    p_run.add_argument(
+        "--dataset", type=Path, default=None,
+        help="评估集 JSONL 路径（默认 eval_set_v1.jsonl）",
+    )
+    p_run.add_argument(
+        "--doc-map", type=Path, default=None,
+        help="RAGent 文档 ID 映射 JSON 路径（默认商品评测映射）",
+    )
     p_run.add_argument("--debug", action="store_true", help="保留每条 query 的原始 SSE 字节流")
     p_run.set_defaults(func=cmd_run)
 
@@ -222,6 +243,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_all = rag_sub.add_parser("all", help="run → score → report 一条龙")
     p_all.add_argument("--limit", type=int, default=20)
+    p_all.add_argument(
+        "--dataset", type=Path, default=None,
+        help="评估集 JSONL 路径（默认 eval_set_v1.jsonl）",
+    )
+    p_all.add_argument(
+        "--doc-map", type=Path, default=None,
+        help="RAGent 文档 ID 映射 JSON 路径（默认商品评测映射）",
+    )
     p_all.add_argument("--sleep", type=float, default=0.3)
     p_all.add_argument("-w", "--workers", type=int, default=1, help="并行线程数（默认 1 顺序）")
     p_all.add_argument("--skip-ragas", action="store_true")

@@ -1,8 +1,7 @@
 # 比特严选 RAG 客服助手 - ClaudeCode 协作指南
 
 ## 🎯 项目一句话定位
-为虚拟电商「比特严选」构建一个生产级 RAG 客服系统，
-覆盖售前选购 / 售中咨询 / 售后服务 / 故障诊断 4 大场景。
+本仓库维护 RAGent 评测集与评测流程，当前覆盖「比特严选」商品客服和湖南大学校内信息两套数据。
 
 仓库角色：**评测项目侧**（`ragenteval`），负责评估集、知识库、评测脚本、报告产出。
 被评系统在 `ragent` 仓库，本项目不包含 Java 后端代码。
@@ -17,9 +16,11 @@
 - 理由：组合爆炸（50 商品 → 1225 对比文档）
 - 替代方案：`compare_products` 工具动态对比
 
-### 决策 3：意图体系 = 3 个一级意图 + 22 个二级意图
+### 决策 3：比特严选意图体系 = 3 个一级意图 + 22 个二级意图
 - 一级：SUPPORT（17）/ FEEDBACK（3）/ CHAT（2）
 - 详见 `docs/「比特严选」用户意图体系设计.md`
+
+湖南大学评估集使用服务器已配置的 HNU 意图树编码与五个知识库，不复用比特严选意图树。
 
 ## 🗺️ 项目地图
 
@@ -28,6 +29,7 @@
 | 评测架构全景 | `docs/eval-current-state.md` |
 | 意图体系 | `docs/「比特严选」用户意图体系设计.md` |
 | 评估集设计 | `docs/「比特严选」评估集 Query 模板设计.md` + `eval/rag/dataset/` |
+| 湖南大学评估集 | `eval/rag/dataset/eval_set_hnu_v1.jsonl` + `docs/hnu-evaluation.md` |
 | 文档体系 | `docs/「比特严选」130 文档清单反推设计.md` + `knowledge_base/` |
 | 评测规划 | `docs/evaluation-plan.md` |
 | 评测代码与指标 | `eval/`（common / rag / pipeline / metrics / report） |
@@ -44,6 +46,7 @@
 - [x] 自建指标（意图 / Hit@K / Recall@K / MRR / 误拒率 / TTFT）
 - [x] RAGAS 指标（faithfulness / answer_relevancy / answer_correctness / context_precision / context_recall）
 - [x] 报告产出（markdown / per_sample.csv / failures.jsonl / slides.html）
+- [x] 湖南大学五知识库评估集与独立运行参数
 - [ ] Tool Calling 评测
 - [ ] 端到端评估闭环
 
@@ -83,6 +86,7 @@
 - **评估驱动**：每个核心模块必须有评估集
 - **可追溯性**：所有 prompt 单独文件管理，方便迭代
 - **录制与评分分离**：跑一次 runner 落 runs/*.jsonl，后续可反复评分不重复调接口
+- **多数据集隔离**：通过 `--dataset` 选择评估集；湖大服务复用已部署 KB，不运行商品 KB 初始化脚本
 
 ## 💡 ClaudeCode 工作模式建议
 

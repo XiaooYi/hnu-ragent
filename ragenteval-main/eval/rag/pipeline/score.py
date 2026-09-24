@@ -37,8 +37,8 @@ def load_records(runs_file: Path) -> list[EvalRecord]:
 
 
 def latest_runs_file() -> Path | None:
-    candidates = sorted(RUNS_DIR.glob("v1_*.jsonl"))
-    return candidates[-1] if candidates else None
+    candidates = list(RUNS_DIR.glob("*.jsonl"))
+    return max(candidates, key=lambda path: path.stat().st_mtime) if candidates else None
 
 
 def sanity_check_doc_id_alignment(records: list[EvalRecord]) -> list[dict]:
