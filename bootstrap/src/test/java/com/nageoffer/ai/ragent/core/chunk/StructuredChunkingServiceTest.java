@@ -2,6 +2,7 @@ package com.nageoffer.ai.ragent.core.chunk;
 
 import com.nageoffer.ai.ragent.core.chunk.blockaware.BlockAwareChunkerDispatcher;
 import com.nageoffer.ai.ragent.core.chunk.blockaware.BlockChunkConfig;
+import com.nageoffer.ai.ragent.core.parser.model.Block;
 import com.nageoffer.ai.ragent.core.parser.model.ParagraphBlock;
 import com.nageoffer.ai.ragent.core.parser.model.Provenance;
 import org.junit.jupiter.api.Test;
@@ -28,8 +29,7 @@ class StructuredChunkingServiceTest {
     @Test
     void passesStructureAwareBoundsSeparately() {
         StructuredChunkingService service = new StructuredChunkingService(dispatcher, factory);
-        List<ParagraphBlock> ignored = List.of();
-        var blocks = List.of(new ParagraphBlock("p", Provenance.ofFile("a.md"), List.of(), "text"));
+        List<Block> blocks = List.of(new ParagraphBlock("p", Provenance.ofFile("a.md"), List.of(), "text"));
         TextBoundaryOptions options = new TextBoundaryOptions(1400, 0, 1600, 600);
         service.chunk(blocks, "text", ChunkingMode.STRUCTURE_AWARE, options, null);
 
@@ -44,7 +44,7 @@ class StructuredChunkingServiceTest {
     @Test
     void mapsFixedSizeToAllThreeBounds() {
         StructuredChunkingService service = new StructuredChunkingService(dispatcher, factory);
-        var blocks = List.of(new ParagraphBlock("p", Provenance.ofFile("a.md"), List.of(), "text"));
+        List<Block> blocks = List.of(new ParagraphBlock("p", Provenance.ofFile("a.md"), List.of(), "text"));
         service.chunk(blocks, "text", ChunkingMode.FIXED_SIZE, new FixedSizeOptions(256, 32), null);
 
         ArgumentCaptor<BlockChunkConfig> captor = ArgumentCaptor.forClass(BlockChunkConfig.class);
@@ -59,7 +59,7 @@ class StructuredChunkingServiceTest {
     @Test
     void wholeDocumentSkipsBlockAwareDispatcher() {
         StructuredChunkingService service = new StructuredChunkingService(dispatcher, factory);
-        var blocks = List.of(new ParagraphBlock("p", Provenance.ofFile("a.md"), List.of(), "text"));
+        List<Block> blocks = List.of(new ParagraphBlock("p", Provenance.ofFile("a.md"), List.of(), "text"));
         List<VectorChunk> result = service.chunk(blocks, "text", ChunkingMode.STRUCTURE_AWARE,
                 new TextBoundaryOptions(-1, 0, 1600, 600), null);
 
