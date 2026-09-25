@@ -31,7 +31,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@Builder(toBuilder = true)
 public class RetrievedChunk {
 
     /**
@@ -51,4 +51,20 @@ public class RetrievedChunk {
      * 数值越大表示与查询的相关性越高
      */
     private Float score;
+
+    /**
+     * 精排（Rerank）相关度，取值 0~1，未跑过精排时为 {@code null}
+     * <p>
+     * 不读 {@link #score}：余弦、BM25、RRF 名次派生值都往那里写，读到时分不清是谁写的；
+     * 精排跳过节流或降级为 noop 时，留在 {@code score} 里的是上一个写入方的值。
+     * 只有真正跑过精排客户端才会写这个字段，证据相关性闸门据此判定
+     */
+    private Float rerankScore;
+
+    /**
+     * 兼容三分量（id, text, score）的构造方式，{@code rerankScore} 置空表示尚未精排
+     */
+    public RetrievedChunk(String id, String text, Float score) {
+        this(id, text, score, null);
+    }
 }

@@ -18,6 +18,7 @@
 package com.nageoffer.ai.ragent.rag.config;
 
 import lombok.Data;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
@@ -27,7 +28,7 @@ import org.springframework.stereotype.Component;
 @Data
 @Component
 @ConfigurationProperties(prefix = "rag.search")
-public class SearchChannelProperties {
+public class SearchChannelProperties implements InitializingBean {
 
     /**
      * 默认返回的 TopK
@@ -62,6 +63,41 @@ public class SearchChannelProperties {
      * 多通道结果融合配置
      */
     private Fusion fusion = new Fusion();
+
+    /**
+     * 证据相关性闸门
+     * 判定这批证据够不够格进提示词，与「查哪些库」「用什么模态」无关，故与 fusion 平级
+     */
+    private Evidence evidence = new Evidence();
+
+    @Override
+    public void afterPropertiesSet() {
+        // 精排分按 0~1 输出，下限高于 1 则全部证据被丢，表现与「库里没料」一致，线上无从分辨
+        double minRerankScore = evidence.getMinRerankScore();
+        if (Double.isNaN(minRerankScore) || minRerankScore > 1) {
+            throw new IllegalStateException(String.format(
+                    "rag.search.evidence.min-rerank-score(%s) 必须 <=1：精排分按 0~1 输出，"
+                            + "高于 1 会让全部证据被闸门丢弃、知识库侧恒为空；关闭闸门请填 0",
+                    minRerankScore));
+        }
+    }
+
+    /**
+     * 证据相关性闸门
+     * 检索只保证返回最像的 N 条，库里没答案时照样满额返回，闸门补一道相关度下限
+     */
+    @Data
+    public static class Evidence {
+
+        /**
+         * 最低精排分 0~1
+         * <p>
+         * 整批最高分低于此值则整批丢弃，判为「没检索到相关内容」。
+         * 与意图分（作用域收窄）不是一套量纲，刻意分开配置。
+         * <=0 关闭；无分可读时（精排关闭或降级 noop）放行。
+         */
+        private double minRerankScore = 0.2;
+    }
 
     @Data
     public static class Fusion {
@@ -134,8 +170,9 @@ public class SearchChannelProperties {
 
         /**
          * 是否启用关键词检索通道
+         * 默认关闭：rag.keyword.type 默认 none，置 true 会与「后端未装配」矛盾并被启动校验拦截
          */
-        private boolean enabled = true;
+        private boolean enabled = false;
 
         /**
          * 检索范围模式：global（全库）/ intent（仅意图域）/ both（有意图走意图域，否则全库）

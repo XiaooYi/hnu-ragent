@@ -9,7 +9,8 @@
 3. 聚合后的候选按 `SearchResultPostProcessor` 的 `getOrder()` 顺序串行处理。
 4. `DeduplicationPostProcessor` 的顺序为 `1`，始终执行，先于任何重排或截断。
 5. `FusionPostProcessor` 的顺序为 `5`，仅在 `rag.search.fusion.strategy=rrf` 时执行；它负责跨模态融合排序与候选池截断，不改变去重结果集合。
-5. `RerankPostProcessor` 的顺序为 `10`，仅在 `rag.rerank.enabled=true` 时执行；它是唯一负责 TopK 截断的后处理器。
+6. `RerankPostProcessor` 的顺序为 `10`，仅在 `rag.rerank.enabled=true` 时执行；它是唯一负责 TopK 截断的后处理器。
+7. `EvidenceGatePostProcessor` 的顺序为 `15`，仅在 `rag.search.evidence.min-rerank-score>0` 时执行；它只做**批级去留**（整批保留或整批丢弃），不做逐条过滤、不做截断。
 
 因此，关闭重排时，所有已合并且去重后的候选都会继续向下游传递，**不会**有隐式 TopK 截断。任何新增截断、排序或过滤行为必须以新的后处理器明确表达其顺序、开关、观测指标和测试。
 
@@ -19,6 +20,14 @@
 - 融合分数使用倒数名次 `Σ 1/(k + rank)`，`k` 取 `rag.search.fusion.rrf-k`（默认 60）；向量余弦分与关键词 BM25 分量纲不同，**禁止**直接线性加权。
 - 名次必须取自各通道返回的 `SearchChannelResult.chunks` 原始顺序，不能用去重后的合并列表，否则「多路命中」信息会丢失。
 - `rag.search.fusion.rerank-candidate-limit` 控制送入 Rerank 的候选上限（默认 50，`<=0` 不截断）；这是 Rerank 之前的粗排截断，与 `RerankPostProcessor` 的最终 TopK 截断职责不同，两者不可互相替代。
+
+### 证据相关性闸门的固定语义
+
+- 判据只能是 `RetrievedChunk.rerankScore`（真正跑过精排才有的 0~1 分）。禁止改读 `score`：那里可能是余弦、BM25 或 RRF 名次派生值，量纲不可比。
+- 判定对象是**整批最高分**，不是首条、不是平均分：精排客户端未承诺返回顺序，回填条目也没有分。
+- 无分可读（精排关闭 / 降级为 noop / 全部回填）时**放行并打 warn**，不得拦空；否则精排最不稳时会把整条知识库侧静默关掉，且现象与「库里没资料」无从分辨。
+- 闸门开启（`min-rerank-score>0`）但 `rag.rerank.enabled=false` 属于配置矛盾，启动即失败；`min-rerank-score>1` 同样启动即失败（精排分按 0~1 输出，高于 1 会让知识库侧恒为空）。
+- 意图分（`rag.search.scope.confidence-threshold`，决定查哪些库）与精排下限（决定证据够不够格进提示词）是两套量纲，禁止合并成一个配置项。
 
 ## 通道启用规则
 

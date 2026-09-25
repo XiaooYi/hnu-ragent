@@ -123,6 +123,10 @@ rag:
       rrf-k: 60
       rerank-candidate-limit: 50  # RRF 融合后送入 Rerank 的候选上限，<=0 不截断（经验值 40~100）
 
+    # 证据相关性闸门：检索只保证返回最像的 N 条，库里没答案时照样满额返回，这里补一道相关度下限
+    evidence:
+      min-rerank-score: 0.2   # 整批最高精排分低于此值则整批丢弃，0=关闭；随 reranker 而变，换模型看「检索归因 - 精排分布」重测
+
   trace:
     enabled: true
     max-error-length: 1000
