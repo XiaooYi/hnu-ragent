@@ -17,6 +17,7 @@
 
 package com.nageoffer.ai.ragent.rag.core.intent;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.nageoffer.ai.ragent.rag.enums.IntentKind;
 import com.nageoffer.ai.ragent.rag.enums.IntentLevel;
 import cn.hutool.core.util.StrUtil;
@@ -168,7 +169,11 @@ public class IntentNode {
      * 返回当前意图实际参与检索的 Collection
      * <p>
      * 新字段优先，旧的单 Collection 字段仅作平滑升级兜底；顺序保持插入顺序，便于日志比对
+     * <p>
+     * 计算型属性：必须 `@JsonIgnore`，否则会作为 effectiveCollectionNames 写进 Redis 缓存 JSON，
+     * 读缓存时因找不到 setter 直接反序列化失败
      */
+    @JsonIgnore
     public List<String> getEffectiveCollectionNames() {
         LinkedHashSet<String> normalized = new LinkedHashSet<>();
         if (collectionNames != null) {
