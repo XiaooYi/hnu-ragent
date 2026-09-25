@@ -41,7 +41,7 @@ public class IntentNode {
     private String kbId;
 
     /**
-     * 展示名称，如「人事」「OA系统」「数据安全」
+     * 展示名称，如「选课与课堂教学」「奖学金与荣誉奖励」
      */
     private String name;
 
@@ -81,7 +81,7 @@ public class IntentNode {
     private float[] embedding = null;
 
     /**
-     * 仅用于排查/打印的全路径，如「集团信息化 > 人事」
+     * 仅用于排查/打印的全路径，如「湖大本科教学与学业制度 > 湖大本科教学与学业制度主题」
      */
     @Builder.Default
     private String fullPath = "";

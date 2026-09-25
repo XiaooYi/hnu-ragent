@@ -29,12 +29,12 @@ import lombok.RequiredArgsConstructor;
 public enum IntentLevel {
 
     /**
-     * 顶层：集团信息化 / 业务系统 / 中间件环境信息
+     * 顶层：湖大通用概况与校园生活 / 湖大本科教学与学业制度 / 湖大研究生新生与研究生管理
      */
     DOMAIN(0),
 
     /**
-     * 第二层：人事 / 行政 / OA系统 / Redis ...
+     * 第二层：湖大通用概况与校园生活主题 / 湖大本科教学与学业制度主题 ...
      */
     CATEGORY(1),
 

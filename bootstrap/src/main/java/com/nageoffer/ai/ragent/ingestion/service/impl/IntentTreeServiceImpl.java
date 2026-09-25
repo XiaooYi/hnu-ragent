@@ -34,9 +34,7 @@ import com.nageoffer.ai.ragent.rag.enums.IntentLevel;
 import com.nageoffer.ai.ragent.framework.context.UserContext;
 import com.nageoffer.ai.ragent.framework.exception.ClientException;
 import com.nageoffer.ai.ragent.framework.exception.ServiceException;
-import com.nageoffer.ai.ragent.rag.core.intent.IntentNode;
 import com.nageoffer.ai.ragent.rag.core.intent.IntentTreeCacheManager;
-import com.nageoffer.ai.ragent.rag.core.intent.IntentTreeFactory;
 import com.nageoffer.ai.ragent.ingestion.service.IntentTreeService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.CollectionUtils;
@@ -302,92 +300,6 @@ public class IntentTreeServiceImpl extends ServiceImpl<IntentNodeMapper, IntentN
         }
         this.removeByIds(targetIdSet);
         intentTreeCacheManager.clearIntentTreeCache();
-    }
-
-    @Override
-    public int initFromFactory() {
-        List<IntentNode> roots = IntentTreeFactory.buildIntentTree();
-        List<IntentNode> allNodes = flatten(roots);
-
-        int sort = 0;
-        int created = 0;
-
-        for (IntentNode node : allNodes) {
-            // 如果已经存在相同 intentCode，就跳过，避免重复初始化
-            if (existsByIntentCode(node.getId())) {
-                continue;
-            }
-
-            IntentNodeCreateRequest nodeCreateRequest = IntentNodeCreateRequest.builder()
-                    .kbId(node.getKbId())
-                    .intentCode(node.getId())
-                    .name(node.getName())
-                    .level(mapLevel(node.getLevel()))
-                    .parentCode(node.getParentId())
-                    .description(node.getDescription())
-                    .examples(node.getExamples())
-                    .topK(normalizeTopK(node.getTopK()))
-                    .kind(mapKind(node.getKind()))
-                    .mcpToolId(node.getMcpToolId())
-                    .sortOrder(sort++)
-                    .enabled(1)
-                    .promptTemplate(node.getPromptTemplate())
-                    .promptSnippet(node.getPromptSnippet())
-                    .paramPromptTemplate(node.getParamPromptTemplate())
-                    .build();
-            createNode(nodeCreateRequest);
-            created++;
-        }
-
-        return created;
-    }
-
-    /**
-     * 展平树结构：保证父节点在前，子节点在后（先根遍历）
-     */
-    private List<IntentNode> flatten(List<IntentNode> roots) {
-        List<IntentNode> result = new ArrayList<>();
-        Deque<IntentNode> stack = new ArrayDeque<>(roots);
-        while (!stack.isEmpty()) {
-            IntentNode n = stack.pop();
-            result.add(n);
-            if (n.getChildren() != null && !n.getChildren().isEmpty()) {
-                // 为了保证父在前 / 子在后，这里逆序压栈
-                List<IntentNode> children = n.getChildren();
-                for (int i = children.size() - 1; i >= 0; i--) {
-                    stack.push(children.get(i));
-                }
-            }
-        }
-        return result;
-    }
-
-    /**
-     * IntentNode.Level -> Integer（0/1/2）
-     */
-    private int mapLevel(IntentLevel level) {
-        return level.getCode();
-    }
-
-    /**
-     * IntentKind -> Integer（0=KB, 1=SYSTEM, 2=MCP）
-     */
-    private int mapKind(IntentKind kind) {
-        if (kind == null) {
-            return 0; // 默认 KB
-        }
-        return kind.getCode();
-    }
-
-    /**
-     * 判断 intentCode 是否已存在，避免重复插入
-     */
-    private boolean existsByIntentCode(String intentCode) {
-        return baseMapper.selectCount(
-                new LambdaQueryWrapper<IntentNodeDO>()
-                        .eq(IntentNodeDO::getIntentCode, intentCode)
-                        .eq(IntentNodeDO::getDeleted, 0)
-        ) > 0;
     }
 
     /**

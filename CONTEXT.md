@@ -30,7 +30,7 @@ Ragent 是企业知识库与智能问答的 RAG / Agent 平台。它覆盖文档
 
 - 新检索通道实现 `SearchChannel`；
 - 新后处理器实现 `SearchResultPostProcessor` 并定义稳定的顺序；
-- 新 MCP 工具实现 `MCPToolExecutor`；
+- 新 MCP 工具实现 `McpToolExecutor`；
 - 新文档处理节点实现 `IngestionNode`；
 - 新模型供应商实现 `infra-ai` 的客户端接口，并接入候选路由。
 

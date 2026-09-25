@@ -62,8 +62,4 @@ public interface IntentTreeService extends IService<IntentNodeDO> {
      */
     void batchDeleteNodes(List<String> ids);
 
-    /**
-     * 从 IntentTreeFactory 初始化全量 Tree 到数据库
-     */
-    int initFromFactory();
 }

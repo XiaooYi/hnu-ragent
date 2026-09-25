@@ -85,7 +85,7 @@ Important: `RerankPostProcessor` is the **only** place that performs TopK trunca
 |----------|-----------|------------|
 | Search channel | `SearchChannel` interface | Auto-injected into `MultiChannelRetrievalEngine` |
 | Post-processor | `SearchResultPostProcessor` interface | Auto-injected, sorted by `getOrder()` |
-| MCP tool | `MCPToolExecutor` interface | Auto-discovered by `DefaultMCPToolRegistry` |
+| MCP tool | `McpToolExecutor` interface | Auto-discovered by `DefaultMcpToolRegistry` |
 | Ingestion node | `IngestionNode` interface | Inserted into document processing pipeline |
 | Model provider | `ChatClient` interface in infra-ai | Added to model routing candidate pool |
 

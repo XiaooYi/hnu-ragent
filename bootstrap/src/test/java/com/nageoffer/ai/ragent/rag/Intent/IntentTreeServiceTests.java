@@ -39,11 +39,6 @@ public class IntentTreeServiceTests {
     private final IntentTreeService intentTreeService;
 
     @Test
-    public void initFromFactory() {
-        intentTreeService.initFromFactory();
-    }
-
-    @Test
     public void getFullTree() {
         List<IntentNodeTreeVO> roots = intentTreeService.getFullTree();
         if (roots == null || roots.isEmpty()) {

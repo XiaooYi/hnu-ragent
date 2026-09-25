@@ -223,7 +223,7 @@ public class DefaultIntentClassifier implements IntentClassifier, IntentNodeRegi
      * 构造给 LLM 的 Prompt：
      * - 列出所有【叶子节点】的 id / 路径 / 描述 / 示例问题
      * - 要求 LLM 只在这些 id 中选择，输出 JSON 数组：[{"id": "...", "score": 0.9, "reason": "..."}]
-     * - 特别强调：如果问题里只提到 "OA系统"，不要选 "保险系统" 的分类
+     * - 特别强调：如果问题里只提到"研究生"，不要选本科教学或奖助学金分类
      * - 如果存在 MCP 类型节点，使用增强版 Prompt 并添加 type/toolId 标识
      */
     private String buildPrompt(List<IntentNode> leafNodes) {
@@ -320,9 +320,9 @@ public class DefaultIntentClassifier implements IntentClassifier, IntentNodeRegi
 
     /**
      * 填充 fullPath 字段，效果类似：
-     * - 集团信息化
-     * - 集团信息化 > 人事
-     * - 业务系统 > OA系统 > 系统介绍
+     * - 湖大本科教学与学业制度
+     * - 湖大本科教学与学业制度 > 湖大本科教学与学业制度主题
+     * - 湖大本科教学与学业制度 > 湖大本科教学与学业制度主题 > 转专业、专业分流与辅修
      */
     private void fillFullPath(List<IntentNode> nodes, IntentNode parent) {
         if (nodes == null) return;

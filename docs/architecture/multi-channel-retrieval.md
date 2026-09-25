@@ -74,7 +74,7 @@ rag:
 
 ### 新增模型或 MCP 能力
 
-模型供应商接入 `infra-ai` 的 Chat/Embedding/Rerank 客户端和候选路由；MCP 工具实现 `MCPToolExecutor`，由注册表自动发现。检索链路只消费抽象接口，不直接依赖供应商 SDK 或 HTTP 细节。
+模型供应商接入 `infra-ai` 的 Chat/Embedding/Rerank 客户端和候选路由；MCP 工具实现 `McpToolExecutor`，由注册表自动发现。检索链路只消费抽象接口，不直接依赖供应商 SDK 或 HTTP 细节。
 
 ## 验证清单
 
