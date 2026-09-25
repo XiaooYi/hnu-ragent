@@ -134,6 +134,11 @@ public class RAGConstant {
     public static final String MCP_PARAMETER_EXTRACT_USER_PROMPT_PATH = "prompt/mcp-parameter-extract-user.st";
 
     /**
+     * Agent ReAct 循环提示词（工具目录 + 观察结果 + 输出协议）
+     */
+    public static final String AGENT_REACT_PROMPT_PATH = "prompt/agent-react.st";
+
+    /**
      * MCP-only 场景提示词模板路径
      * 仅动态数据片段时使用
      */

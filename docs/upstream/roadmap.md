@@ -96,7 +96,7 @@
 | 编号 | 功能 | 功能文档 | 状态 |
 | --- | --- | --- | --- |
 | UP-31 | Spring Boot 4 升级 | [`features/up-32-agent-architecture-decision.md`](features/up-32-agent-architecture-decision.md)（决策 3 / P4） | 待决策（单独一轮，先跑通构建与测试基线） |
-| UP-32 | Agent 执行架构（不拆模块，包边界内聚） | [`features/up-32-agent-architecture-decision.md`](features/up-32-agent-architecture-decision.md) | 架构决策已就绪；实现按 P0→P1 |
+| UP-32 | Agent 执行架构（不拆模块，包边界内聚） | [`features/up-32-agent-architecture-decision.md`](features/up-32-agent-architecture-decision.md)、[`features/up-32-agent-runtime.md`](features/up-32-agent-runtime.md) | P0 基建 + P1 引擎核心已落地（含验证）；会话持久化 / `/agent/chat` SSE 待续 |
 | UP-33 | 智能体管理与配置 | 见架构决策 P3 | 待 P1 |
 | UP-34 | Agent 写操作确认流程 | 见架构决策 P3（默认拒绝 + 显式确认） | 待 P1 |
 | UP-35 | Skills 体系 | 见架构决策 P2 | 待 P1 |

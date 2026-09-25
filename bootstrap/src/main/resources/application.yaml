@@ -177,6 +177,16 @@ rag:
     max-output-tokens: 4096
 
 ai:
+  # Agent 运行时（ReAct 引擎 + 工具目录）
+  # 默认关闭：不注册引擎 bean，RAG 链路行为与「未引入 Agent」完全一致
+  agent:
+    enabled: false
+    max-steps: 6        # 单轮最多几次「想 + 调工具」，超出后用最后一次观察收口
+    temperature: 0.2
+    top-p: 0.3
+    allowed-tools: []   # 空表示目录内全部可用；可写 [ knowledge_search, youcom_search ] 收窄
+    max-observation-chars: 4000  # 单次工具结果截断长度，避免观察结果撑爆上下文
+
   providers:
     ollama:
       url: http://localhost:11434
