@@ -23,7 +23,7 @@ package com.nageoffer.ai.ragent.rag.core.prompt;
 public enum PromptScene {
 
     /**
-     * 仅命中知识库检索，使用企业知识库专用提示词模板
+     * 仅命中知识库检索，使用校内知识库专用提示词模板
      */
     KB_ONLY,
 

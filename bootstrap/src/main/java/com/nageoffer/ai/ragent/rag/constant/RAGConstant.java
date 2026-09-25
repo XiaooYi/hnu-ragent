@@ -81,7 +81,7 @@ public class RAGConstant {
 
     /**
      * 系统对话提示词模板路径
-     * 定义企业知识助手「小码」的角色设定和对话规则，包括打招呼、自我介绍、问题分类处理等场景。模板通过 {@code {question}} 占位符接收用户问题。
+     * 定义湖南大学校内知识助手「岳麓知枢」的角色设定和对话规则，包括打招呼、自我介绍、问题分类处理等场景。模板通过 {@code {question}} 占位符接收用户问题。
      */
     public static final String CHAT_SYSTEM_PROMPT_PATH = "prompt/answer-chat-system.st";
 
