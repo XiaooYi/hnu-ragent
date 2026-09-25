@@ -89,19 +89,23 @@
 
 ### 批次 8：Agentic 体系（最大改动，最后做）
 
+**先读架构决策记录**：[`features/up-32-agent-architecture-decision.md`](features/up-32-agent-architecture-decision.md)
+（模块边界、引擎选型、Spring Boot 4 顺序、分阶段计划 P0~P4、风险与待确认取舍）。
+批次内各项按该文档的阶段推进，不再一次性搬运上游提交。
+
 | 编号 | 功能 | 功能文档 | 状态 |
 | --- | --- | --- | --- |
-| UP-31 | Spring Boot 4 升级 | `features/up-31-spring-boot4.md` | 未开始 |
-| UP-32 | 模块拆分与 Agent 执行架构 | `features/up-32-agent-runtime.md` | 未开始 |
-| UP-33 | 智能体管理与配置 | `features/up-33-agent-admin.md` | 未开始 |
-| UP-34 | Agent 写操作确认流程 | `features/up-34-write-confirmation.md` | 未开始 |
-| UP-35 | Skills 体系 | `features/up-35-skills.md` | 未开始 |
-| UP-36 | Agent 长期记忆 | `features/up-36-agent-memory.md` | 未开始 |
+| UP-31 | Spring Boot 4 升级 | [`features/up-32-agent-architecture-decision.md`](features/up-32-agent-architecture-decision.md)（决策 3 / P4） | 待决策（单独一轮，先跑通构建与测试基线） |
+| UP-32 | Agent 执行架构（不拆模块，包边界内聚） | [`features/up-32-agent-architecture-decision.md`](features/up-32-agent-architecture-decision.md) | 架构决策已就绪；实现按 P0→P1 |
+| UP-33 | 智能体管理与配置 | 见架构决策 P3 | 待 P1 |
+| UP-34 | Agent 写操作确认流程 | 见架构决策 P3（默认拒绝 + 显式确认） | 待 P1 |
+| UP-35 | Skills 体系 | 见架构决策 P2 | 待 P1 |
+| UP-36 | Agent 长期记忆 | 见架构决策 P2 | 待 P1 |
 | UP-39 | MCP 工具目录与 Schema 构造器 | [`features/up-39-mcp-tool-kit.md`](features/up-39-mcp-tool-kit.md) | 部分落地：`McpToolSchema` / `McpToolException` / `McpToolResults` 已落地（含验证）；工具目录重构（`AgentToolCatalog`）随批次八 |
 | UP-40 | MCP 身份透传 | [`features/up-39-mcp-tool-kit.md`](features/up-39-mcp-tool-kit.md) | 部分落地：服务端读取 `_meta` 身份与缺身份回绝已落地（含验证）；调用侧透传随批次八 |
-| UP-37 | LangFuse 链路追踪 | `features/up-37-langfuse.md` | 未开始 |
-| UP-41 | 初始化器与场景示例 | `features/up-41-initializer.md` | 未开始 |
-| UP-44 | 前端与仪表盘体验 | `features/up-44-dashboard.md` | 未开始 |
+| UP-37 | LangFuse 链路追踪 | 见架构决策 P3 | 待 P1 |
+| UP-41 | 初始化器与场景示例 | 见架构决策 P4 | 待 P1 |
+| UP-44 | 前端与仪表盘体验 | 见架构决策 P3 | 待 P1 |
 
 ## 每项功能的完成定义（DoD）
 
