@@ -23,12 +23,11 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.google.gson.JsonSyntaxException;
 import com.nageoffer.ai.ragent.framework.convention.ChatMessage;
 import com.nageoffer.ai.ragent.framework.convention.ChatRequest;
 import com.nageoffer.ai.ragent.infra.chat.LLMService;
-import com.nageoffer.ai.ragent.infra.enums.Tier;
 import com.nageoffer.ai.ragent.infra.util.LLMResponseCleaner;
+import com.nageoffer.ai.ragent.infra.util.LogSafe;
 import com.nageoffer.ai.ragent.rag.core.prompt.PromptTemplateLoader;
 import io.modelcontextprotocol.spec.McpSchema.JsonSchema;
 import io.modelcontextprotocol.spec.McpSchema.Tool;
@@ -37,12 +36,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static com.nageoffer.ai.ragent.rag.constant.RAGConstant.MCP_PARAMETER_EXTRACT_PROMPT_PATH;
@@ -58,7 +57,7 @@ import static com.nageoffer.ai.ragent.rag.constant.RAGConstant.MCP_PARAMETER_EXT
  *     <li>以低温度配置调用 LLM，要求模型只根据工具定义和用户问题输出 JSON 参数对象。</li>
  *     <li>清洗 LLM 返回中可能存在的 Markdown 代码块，解析 JSON 对象并过滤掉工具未声明的字段。</li>
  *     <li>将 JSON 值转换为普通 Java 类型，再按 schema default 补齐缺省参数。</li>
- *     <li>解析或调用异常时降级为仅包含默认值的参数 Map，保持 MCP Tool 调用链继续执行。</li>
+ *     <li>把结果映射为三态：可调用（SUCCESS）/ 缺必填需澄清（NEED_CLARIFICATION）/ 提取失败（FAILED）。</li>
  * </ol>
  */
 @Slf4j
@@ -71,15 +70,15 @@ public class LLMMcpParameterExtractor implements McpParameterExtractor {
     private final Gson gson = new Gson();
 
     @Override
-    public Map<String, Object> extractParameters(String userQuestion, Tool tool) {
+    public McpExtractionResult extractParameters(String userQuestion, Tool tool) {
         return extractParameters(userQuestion, tool, null);
     }
 
     @Override
-    public Map<String, Object> extractParameters(String userQuestion, Tool tool, String customPromptTemplate) {
+    public McpExtractionResult extractParameters(String userQuestion, Tool tool, String customPromptTemplate) {
         // 无工具定义或无参数 schema 时，没有可供 LLM 匹配的参数空间，直接返回空参数。
         if (tool == null || tool.inputSchema() == null || CollUtil.isEmpty(tool.inputSchema().properties())) {
-            return Collections.emptyMap();
+            return McpExtractionResult.success(new HashMap<>());
         }
 
         // 系统 Prompt 支持按意图节点覆盖；未配置时使用通用 MCP 参数提取模板。
@@ -96,42 +95,155 @@ public class LLMMcpParameterExtractor implements McpParameterExtractor {
         ));
         messages.add(ChatMessage.user(userPrompt));
 
-        String raw = null;
+        ChatRequest request = ChatRequest.builder()
+                .messages(messages)
+                .temperature(0.1D)
+                .topP(0.3D)
+                .thinking(false)
+                .build();
+
+        // 提参质量直接决定工具调用是否正确，故走默认档（standard）而不是快速档；
+        // 档位内已有多候选做传输容错，这里失败即判 FAILED、不调用工具
+        McpExtractionResult result;
         try {
-            // 使用低随机性配置降低参数抽取波动，thinking 关闭以便获得可直接解析的 JSON 输出。
-            ChatRequest request = ChatRequest.builder()
-                    .messages(messages)
-                    .temperature(0.1D)
-                    .topP(0.3D)
-                    .thinking(false)
-                    .build();
-            raw = llmService.chat(request, Tier.FAST);
-            log.info("MCP 参数提取 LLM 响应: {}", raw);
-
-            // 解析阶段会清洗响应、校验 JSON 对象，并只保留 MCP Tool schema 中声明的参数。
-            Map<String, Object> extracted = parseJsonResponse(raw, tool);
-
-            // LLM 未返回但 schema 声明了 default 的参数，在最终结果中补齐。
-            fillDefaults(extracted, tool);
-
-            log.info("MCP 参数提取完成, toolId: {}, 使用自定义提示词: {}, 参数: {}",
-                    tool.name(), StrUtil.isNotBlank(customPromptTemplate), extracted);
-
-            return extracted;
-        } catch (JsonSyntaxException e) {
-            log.warn("MCP 参数提取-JSON解析失败, toolId: {}, 响应: {}", tool.name(), raw, e);
-            return buildDefaultParameters(tool);
+            result = validateMcpParams(llmService.chat(request), tool);
         } catch (Exception e) {
-            log.error("MCP 参数提取异常, toolId: {}", tool.name(), e);
-            return buildDefaultParameters(tool);
+            log.warn("MCP 参数提取 LLM 调用失败, toolId: {}", tool.name(), e);
+            result = McpExtractionResult.failed();
         }
+
+        // 仅 SUCCESS 才补默认值并交由消费端调用；NEED_CLARIFICATION / FAILED 不调用工具，故不补
+        if (result.status() == McpExtractionResult.Status.SUCCESS) {
+            fillDefaults(result.params(), tool);
+        }
+        log.info("MCP 参数提取完成, toolId: {}, 使用自定义提示词: {}, 结局: {}, 参数: {}",
+                tool.name(), StrUtil.isNotBlank(customPromptTemplate), result.status(), result.params());
+        return result;
     }
 
-    private Map<String, Object> buildDefaultParameters(Tool tool) {
-        Map<String, Object> defaultParams = new HashMap<>();
-        // 降级结果不猜测用户输入，只复用工具 schema 中显式定义的默认值。
-        fillDefaults(defaultParams, tool);
-        return defaultParams;
+    /**
+     * 校验提参结果并映射为三态
+     * <ul>
+     *   <li>JSON 解析失败 / 空响应 / 非对象 / 值类型或枚举非法 → FAILED（模型未遵守协议，不调用工具）</li>
+     *   <li>必填且无默认值的参数缺失或为 null → NEED_CLARIFICATION（用户确实没给，交给消费端追问）</li>
+     *   <li>其余 → SUCCESS</li>
+     * </ul>
+     */
+    private McpExtractionResult validateMcpParams(String raw, Tool tool) {
+        log.info("MCP 参数提取 LLM 响应: {}", LogSafe.preview(raw));
+        McpParse parsed;
+        try {
+            parsed = parseAndClassify(raw, tool);
+        } catch (Exception e) {
+            log.warn("MCP 参数提取响应解析失败, toolId: {}", tool.name(), e);
+            return McpExtractionResult.failed();
+        }
+
+        if (!parsed.failReasons().isEmpty()) {
+            log.warn("MCP 参数提取失败（模型未遵守协议 / 值非法）, toolId: {}, 问题: {}",
+                    tool.name(), parsed.failReasons());
+            return McpExtractionResult.failed();
+        }
+        if (!parsed.userMissing().isEmpty()) {
+            log.warn("MCP 参数提取缺少必填参数（用户未提供，触发澄清）, toolId: {}, missing: {}",
+                    tool.name(), parsed.userMissing());
+            return McpExtractionResult.needClarification(parsed.params(), parsed.userMissing());
+        }
+        return McpExtractionResult.success(parsed.params());
+    }
+
+    /**
+     * 按工具 schema 逐参数分类
+     * <p>
+     * 「模型省略 key」与「模型显式输出 null」在实践中不可区分，统一按「用户未提供」处理：
+     * 必填且无默认值 → 澄清；非必填/有默认值 → 忽略，交由 {@link #fillDefaults} 兜底。
+     * 值存在但类型/枚举非法一律判 FAILED（含可选字段）：静默丢弃会让过滤条件被无声移除
+     */
+    @SuppressWarnings("unchecked")
+    private McpParse parseAndClassify(String raw, Tool tool) {
+        Map<String, Object> params = new HashMap<>();
+        List<String> failReasons = new ArrayList<>();
+        List<String> userMissing = new ArrayList<>();
+
+        JsonSchema schema = tool.inputSchema();
+        Map<String, Object> properties = schema != null ? schema.properties() : null;
+        if (properties == null || properties.isEmpty()) {
+            return new McpParse(params, failReasons, userMissing);
+        }
+        List<String> required = schema.required() != null ? schema.required() : List.of();
+        JsonObject obj = parseJsonObject(raw);
+
+        for (Map.Entry<String, Object> entry : properties.entrySet()) {
+            String name = entry.getKey();
+            Map<String, Object> propDef = entry.getValue() instanceof Map
+                    ? (Map<String, Object>) entry.getValue() : Map.of();
+            boolean isRequired = required.contains(name);
+            boolean hasDefault = propDef.get("default") != null;
+
+            boolean present = obj.has(name);
+            boolean isNull = present && obj.get(name).isJsonNull();
+            if (!present || isNull) {
+                if (isRequired && !hasDefault) {
+                    userMissing.add(name);
+                }
+                continue;
+            }
+
+            Optional<Object> coerced = coerceAndValidate(convertJsonElement(obj.get(name)), propDef);
+            if (coerced.isPresent()) {
+                params.put(name, coerced.get());
+            } else {
+                failReasons.add(name + "（值类型 / 枚举非法）");
+            }
+        }
+        return new McpParse(params, failReasons, userMissing);
+    }
+
+    /**
+     * 把 LLM 原始响应解析为 JSON 对象；非对象或空内容直接判为协议异常
+     */
+    private JsonObject parseJsonObject(String raw) {
+        if (StrUtil.isBlank(raw)) {
+            throw new IllegalArgumentException("响应对空");
+        }
+        JsonElement element = JsonParser.parseString(LLMResponseCleaner.stripMarkdownCodeFence(raw));
+        if (!element.isJsonObject()) {
+            throw new IllegalArgumentException("响应不是 JSON 对象");
+        }
+        return element.getAsJsonObject();
+    }
+
+    /**
+     * 值类型与枚举校验
+     * <p>
+     * 保守但实用：字符串参数接受标量（数字/布尔转字符串，学号、编号常见此类表达）；
+     * 数字/布尔/数组/对象要求类型匹配；存在 enum 时必须命中其中之一。命中不了即判非法
+     */
+    private Optional<Object> coerceAndValidate(Object value, Map<String, Object> propDef) {
+        if (value == null) {
+            return Optional.empty();
+        }
+        Object enumValues = propDef.get("enum");
+        if (enumValues instanceof List<?> allowed && !allowed.isEmpty()) {
+            String text = String.valueOf(value).trim();
+            return allowed.stream().anyMatch(candidate -> String.valueOf(candidate).equals(text))
+                    ? Optional.of(value)
+                    : Optional.empty();
+        }
+
+        String type = Objects.toString(propDef.getOrDefault("type", "string"), "string");
+        return switch (type) {
+            case "integer", "number" -> value instanceof Number ? Optional.of(value) : Optional.empty();
+            case "boolean" -> value instanceof Boolean ? Optional.of(value) : Optional.empty();
+            case "array" -> value instanceof List ? Optional.of(value) : Optional.empty();
+            case "object" -> value instanceof Map ? Optional.of(value) : Optional.empty();
+            default -> Optional.of(value instanceof String ? value : String.valueOf(value));
+        };
+    }
+
+    private record McpParse(Map<String, Object> params,
+                            List<String> failReasons,
+                            List<String> userMissing) {
     }
 
     /**
@@ -178,37 +290,6 @@ public class LLMMcpParameterExtractor implements McpParameterExtractor {
         }
 
         return sb.toString();
-    }
-
-    /**
-     * 解析 LLM 返回的 JSON 响应
-     */
-    private Map<String, Object> parseJsonResponse(String raw, Tool tool) {
-        if (StrUtil.isBlank(raw)) {
-            return new HashMap<>();
-        }
-        // 兼容模型返回 ```json ... ``` 的情况，清洗后再交给 Gson 严格解析。
-        String cleaned = LLMResponseCleaner.stripMarkdownCodeFence(raw);
-        JsonElement element = JsonParser.parseString(cleaned);
-        if (!element.isJsonObject()) {
-            log.warn("LLM 返回的不是 JSON 对象: {}", raw);
-            return new HashMap<>();
-        }
-        JsonObject obj = element.getAsJsonObject();
-        Map<String, Object> result = new HashMap<>();
-
-        Set<String> paramNames = tool.inputSchema() != null && tool.inputSchema().properties() != null
-                ? tool.inputSchema().properties().keySet()
-                : Set.of();
-
-        // 参数匹配以 MCP Tool schema 为准，丢弃 LLM 额外生成的字段，避免污染工具调用入参。
-        for (String paramName : paramNames) {
-            if (obj.has(paramName) && !obj.get(paramName).isJsonNull()) {
-                JsonElement value = obj.get(paramName);
-                result.put(paramName, convertJsonElement(value));
-            }
-        }
-        return result;
     }
 
     /**
