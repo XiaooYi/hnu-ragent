@@ -45,6 +45,17 @@ rag:
   vector:
     type: pg  # 可选 milvus / pg
 
+  # 关键词检索（混合检索的第二路召回）
+  # none：不引入 ES 连接，检索通道与融合处理器都不注册，与纯向量检索等价
+  # es：启用 ES 关键词通道，需要可用的 Elasticsearch 与 IK 分词插件
+  keyword:
+    type: none  # 可选 none / es
+    es:
+      uris: http://127.0.0.1:9200
+      index: rag_keyword_store   # 全部知识库共用的物理索引，按 collection_name 字段区分
+      analyzer: ik_max_word      # 写入分词器（需安装 IK 插件）
+      search-analyzer: ik_smart  # 查询分词器（需安装 IK 插件）
+
   default:
     collection-name: rag_default_store
     dimension: 1536
@@ -100,6 +111,17 @@ rag:
         enabled: true
         min-intent-score: 0.4
         top-k-multiplier: 2
+      # 关键词检索通道（仅当 rag.keyword.type=es 时该通道才存在）
+      keyword:
+        enabled: true
+        mode: both  # 可选 global / intent / both
+        top-k-multiplier: 2
+
+    # 多通道结果融合：向量分与关键词分量纲不同，用 RRF 按名次融合
+    fusion:
+      strategy: rrf
+      rrf-k: 60
+      rerank-candidate-limit: 50  # RRF 融合后送入 Rerank 的候选上限，<=0 不截断（经验值 40~100）
 
   trace:
     enabled: true

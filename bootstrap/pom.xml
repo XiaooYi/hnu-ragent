@@ -33,6 +33,12 @@
             <artifactId>milvus-sdk-java</artifactId>
         </dependency>
 
+        <!-- 关键词检索（可选）：仅 rag.keyword.type=es 时使用，版本由 Spring Boot BOM 管理 -->
+        <dependency>
+            <groupId>co.elastic.clients</groupId>
+            <artifactId>elasticsearch-java</artifactId>
+        </dependency>
+
         <!-- 解析 PDF / DOC / DOCX / Markdown 等 -->
         <dependency>
             <groupId>org.apache.tika</groupId>

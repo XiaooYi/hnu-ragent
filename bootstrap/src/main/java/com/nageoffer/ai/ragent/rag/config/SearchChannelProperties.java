@@ -51,6 +51,35 @@ public class SearchChannelProperties {
          * 意图定向检索配置
          */
         private IntentDirected intentDirected = new IntentDirected();
+
+        /**
+         * 关键词检索配置（仅当 rag.keyword.type=es 时该通道才存在）
+         */
+        private Keyword keyword = new Keyword();
+    }
+
+    /**
+     * 多通道结果融合配置
+     */
+    private Fusion fusion = new Fusion();
+
+    @Data
+    public static class Fusion {
+
+        /**
+         * 融合策略，当前支持 rrf（倒数名次融合）；其它取值等价于关闭融合
+         */
+        private String strategy = "rrf";
+
+        /**
+         * RRF 平滑常数 k，经验值 60
+         */
+        private int rrfK = 60;
+
+        /**
+         * RRF 融合后送入 Rerank 的候选上限，<=0 表示不截断（经验值 40~100）
+         */
+        private int rerankCandidateLimit = 50;
     }
 
     @Data
@@ -93,6 +122,25 @@ public class SearchChannelProperties {
          * 低于此分数的意图节点会被过滤
          */
         private double minIntentScore = 0.4;
+
+        /**
+         * TopK 倍数
+         */
+        private int topKMultiplier = 2;
+    }
+
+    @Data
+    public static class Keyword {
+
+        /**
+         * 是否启用关键词检索通道
+         */
+        private boolean enabled = true;
+
+        /**
+         * 检索范围模式：global（全库）/ intent（仅意图域）/ both（有意图走意图域，否则全库）
+         */
+        private String mode = "both";
 
         /**
          * TopK 倍数
