@@ -101,6 +101,9 @@ public class IngestionTaskServiceImpl implements IngestionTaskService {
                     .fileName(fileName)
                     .build();
             return executeInternal(pipelineId, source, bytes, mimeType, null);
+        } catch (ClientException e) {
+            // 引擎的配置类错误（如多起点流水线）必须原样抛出，不能被下面的兜底包装成「读取上传文件失败」
+            throw e;
         } catch (Exception e) {
             throw new ClientException("读取上传文件失败: " + e.getMessage());
         }
@@ -333,7 +336,7 @@ public class IngestionTaskServiceImpl implements IngestionTaskService {
                 .chunkCount(task.getChunkCount())
                 .errorMessage(task.getErrorMessage())
                 .logs(readLogs(task.getLogsJson()))
-                .metadata(BeanUtil.beanToMap(task.getMetadataJson()))
+                .metadata(readMap(task.getMetadataJson()))
                 .startedAt(task.getStartedAt())
                 .completedAt(task.getCompletedAt())
                 .createdBy(task.getCreatedBy())
@@ -354,7 +357,7 @@ public class IngestionTaskServiceImpl implements IngestionTaskService {
                 .durationMs(node.getDurationMs())
                 .message(node.getMessage())
                 .errorMessage(node.getErrorMessage())
-                .output(BeanUtil.beanToMap(node.getOutputJson()))
+                .output(readMap(node.getOutputJson()))
                 .createTime(node.getCreateTime())
                 .updateTime(node.getUpdateTime())
                 .build();
@@ -397,6 +400,25 @@ public class IngestionTaskServiceImpl implements IngestionTaskService {
             });
         } catch (Exception e) {
             return List.of();
+        }
+    }
+
+    /**
+     * 解析数据库里的 JSON 字符串列
+     * <p>
+     * 不能交给 {@code BeanUtil.beanToMap}：入参是 JSON 字符串而非对象，转换结果会是字符串自身的属性表或空对象，
+     * 前端始终看不到 metadata / output。空串与非法 JSON 一律降级为空 Map，不让详情查询失败
+     */
+    private Map<String, Object> readMap(String raw) {
+        if (!StringUtils.hasText(raw)) {
+            return Map.of();
+        }
+        try {
+            Map<String, Object> value = objectMapper.readValue(raw, new TypeReference<Map<String, Object>>() {
+            });
+            return value == null ? Map.of() : value;
+        } catch (Exception e) {
+            return Map.of();
         }
     }
 

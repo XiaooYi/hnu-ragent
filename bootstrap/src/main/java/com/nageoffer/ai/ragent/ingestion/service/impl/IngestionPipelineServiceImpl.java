@@ -154,9 +154,7 @@ public class IngestionPipelineServiceImpl implements IngestionPipelineService {
         if (nodes == null) {
             return;
         }
-        LambdaQueryWrapper<IngestionPipelineNodeDO> qw = new LambdaQueryWrapper<IngestionPipelineNodeDO>()
-                .eq(IngestionPipelineNodeDO::getPipelineId, pipelineId);
-        nodeMapper.delete(qw);
+        nodeMapper.physicalDeleteByPipelineId(pipelineId);
         for (IngestionPipelineNodeRequest node : nodes) {
             if (node == null) {
                 continue;
