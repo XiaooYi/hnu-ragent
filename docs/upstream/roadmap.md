@@ -74,7 +74,7 @@
 | UP-21 | 模型调用健壮性（空白响应/熔断名额/候选顺序） | [`features/up-21-model-call-robustness.md`](features/up-21-model-call-robustness.md) | 已落地（含验证） |
 | UP-24 | DeepSeek 供应商 | [`features/up-24-deepseek-provider.md`](features/up-24-deepseek-provider.md) | 已落地（含验证） |
 | UP-25 | `enable_thinking` 自定义参数 | [`features/up-25-enable-thinking.md`](features/up-25-enable-thinking.md) | 已落地（含验证） |
-| UP-23 | 百炼向量客户端对齐 | `features/up-23-bailian-embedding.md` | 未开始 |
+| UP-23 | 百炼向量客户端对齐 | [`features/up-23-bailian-embedding.md`](features/up-23-bailian-embedding.md) | 已落地（本仓库自研实现先行，本轮补齐批量契约回归测试与文档） |
 
 ### 批次 7：独立大功能
 
