@@ -115,6 +115,42 @@ CREATE INDEX idx_sample_question_deleted ON t_sample_question (deleted);
 COMMENT ON TABLE t_sample_question IS '示例问题表';
 
 -- ============================================
+-- Agent Conversation & Message Tables
+-- ============================================
+
+CREATE TABLE t_agent_conversation (
+    id              VARCHAR(20) NOT NULL PRIMARY KEY,
+    conversation_id VARCHAR(20) NOT NULL,
+    user_id         VARCHAR(20) NOT NULL,
+    title           VARCHAR(128) NOT NULL,
+    last_time       TIMESTAMP,
+    create_time     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_time     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted         SMALLINT  DEFAULT 0
+);
+-- 部分唯一索引：逻辑删的旧行不再占用唯一键，否则删除后同 ID 重开会话必撞约束
+CREATE UNIQUE INDEX uk_agent_conversation_user ON t_agent_conversation (conversation_id, user_id) WHERE deleted = 0;
+CREATE INDEX idx_agent_conv_user_time ON t_agent_conversation (user_id, last_time);
+COMMENT ON TABLE t_agent_conversation IS 'Agent 会话列表';
+
+CREATE TABLE t_agent_message (
+    id                  VARCHAR(20) NOT NULL PRIMARY KEY,
+    conversation_id     VARCHAR(20) NOT NULL,
+    user_id             VARCHAR(20) NOT NULL,
+    role                VARCHAR(16) NOT NULL,
+    content             TEXT,
+    blocks              JSONB,
+    reply_to_message_id VARCHAR(20),
+    message_status      VARCHAR(32) NOT NULL DEFAULT 'NORMAL',
+    duration_ms         BIGINT,
+    create_time         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_time         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted             SMALLINT  DEFAULT 0
+);
+CREATE INDEX idx_agent_msg_conv ON t_agent_message (conversation_id, user_id, create_time);
+COMMENT ON TABLE t_agent_message IS 'Agent 消息记录';
+
+-- ============================================
 -- Business Change Audit Tables
 -- ============================================
 
@@ -515,6 +551,30 @@ COMMENT ON COLUMN t_sample_question.question IS '示例问题内容';
 COMMENT ON COLUMN t_sample_question.create_time IS '创建时间';
 COMMENT ON COLUMN t_sample_question.update_time IS '更新时间';
 COMMENT ON COLUMN t_sample_question.deleted IS '是否删除 0：正常 1：删除';
+
+-- t_agent_conversation
+COMMENT ON COLUMN t_agent_conversation.id IS '主键 ID';
+COMMENT ON COLUMN t_agent_conversation.conversation_id IS '会话 ID';
+COMMENT ON COLUMN t_agent_conversation.user_id IS '用户 ID';
+COMMENT ON COLUMN t_agent_conversation.title IS '会话标题';
+COMMENT ON COLUMN t_agent_conversation.last_time IS '最后一条消息时间';
+COMMENT ON COLUMN t_agent_conversation.create_time IS '创建时间';
+COMMENT ON COLUMN t_agent_conversation.update_time IS '更新时间';
+COMMENT ON COLUMN t_agent_conversation.deleted IS '是否删除 0：正常 1：删除';
+
+-- t_agent_message
+COMMENT ON COLUMN t_agent_message.id IS '主键 ID';
+COMMENT ON COLUMN t_agent_message.conversation_id IS '会话 ID';
+COMMENT ON COLUMN t_agent_message.user_id IS '用户 ID';
+COMMENT ON COLUMN t_agent_message.role IS '角色 user/assistant';
+COMMENT ON COLUMN t_agent_message.content IS '消息内容';
+COMMENT ON COLUMN t_agent_message.blocks IS '消息块（工具进度等）JSON 数组';
+COMMENT ON COLUMN t_agent_message.reply_to_message_id IS '助手消息回答的用户消息 ID';
+COMMENT ON COLUMN t_agent_message.message_status IS '消息结束状态：NORMAL / INTERRUPTED / FAILED';
+COMMENT ON COLUMN t_agent_message.duration_ms IS '助手消息耗时（毫秒）';
+COMMENT ON COLUMN t_agent_message.create_time IS '创建时间';
+COMMENT ON COLUMN t_agent_message.update_time IS '更新时间';
+COMMENT ON COLUMN t_agent_message.deleted IS '是否删除 0：正常 1：删除';
 
 -- t_biz_change_log
 COMMENT ON COLUMN t_biz_change_log.id IS '主键 ID';

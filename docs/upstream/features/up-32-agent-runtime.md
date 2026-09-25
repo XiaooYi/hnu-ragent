@@ -4,8 +4,8 @@
 及其配套能力。取舍与分阶段计划见
 [`up-32-agent-architecture-decision.md`](up-32-agent-architecture-decision.md)。
 
-本文档覆盖**阶段 P0（基建）与 P1 的引擎核心**；会话持久化、`/agent/chat` SSE、写操作确认、
-Skills、长期记忆等按架构决策的 P1 后半段与 P2/P3 另开文档落地。
+本文档覆盖**阶段 P0（基建）与 P1（引擎核心 + 会话持久化 + `/agent/chat` SSE）**；
+写操作确认、Skills、长期记忆、后台与前端按架构决策的 P2/P3 另开文档落地。
 
 ## 功能介绍
 
@@ -148,3 +148,70 @@ flowchart LR
   状态管理随 P3 的确认流程与后台管理一起做。
 - 上游的 Agent 会写会话/消息表并推 SSE 消息块；本仓库这部分在 P1 后半段单独落地（见架构决策 P1），
   本阶段先把引擎与目录做成**纯逻辑可测**的形态。
+
+## P1 后半段：会话持久化与 `/agent/chat` SSE
+
+### 功能介绍
+
+Agent 的一轮对话包含「用户提问 + 多次工具调用 + 最终回答」，比 RAG 单轮问答多两类数据：**工具过程**与
+**运行状态**。因此会话与消息**不与 RAG 版 `t_conversation` / `t_message` 混存**（那两张表的语义是
+「问题—回答」，塞进工具块会让两侧的历史回放逻辑互相污染），单独建两张表：
+
+| 表 | 关键列 | 说明 |
+| --- | --- | --- |
+| `t_agent_conversation` | `conversation_id` / `user_id` / `title` / `last_time` | 会话列表按 `last_time` 倒序；`(conversation_id, user_id) WHERE deleted = 0` 唯一，逻辑删后可复用同 ID |
+| `t_agent_message` | `role` / `content` / `blocks` / `reply_to_message_id` / `message_status` / `duration_ms` | `blocks` 存工具调用块（工具名、参数、观察结果、耗时），`message_status` 记录 `NORMAL` / `INTERRUPTED` / `FAILED` |
+
+SSE 事件协议（与 RAG 版 `SSEEventType` 分立）：`meta` → 每个工具步骤一条 `tool` → （达上限时）`hint`
+→ `message`（最终回答）→ `finish`。事件在服务层**先组装成列表再下发**：组装是纯函数，能脱离 SSE 单测；
+下发只负责按序发送。
+
+用户取消时写一条 `INTERRUPTED` 的助手消息并下发 `finish(reason=INTERRUPTED)`，不写正文；模型或工具异常时写
+`FAILED` 并给用户统一文案（实现细节只进日志）。
+
+### 验收标准（P1 后半段）
+
+1. **建表**：`upgrades/v1.2.0/001_agent_conversation_message.sql` 幂等可重复执行，`schema_pg.sql` 已同步。
+2. **会话复用与标题**：会话不存在时创建、标题取问题前 30 字；已存在时复用不重复建；
+   逻辑删后的同 ID 会话可重新创建（部分唯一索引保证）。
+3. **消息落库**：用户消息带 `role=user` / `message_status=NORMAL`；助手消息带 `reply_to_message_id`、
+   `blocks`（无工具调用时为 `null`，不写空数组）与 `duration_ms`；每次落库都会刷新会话 `last_time`。
+4. **事件顺序**：正常收口为 `meta → tool… → message → finish`；达步数上限时在 `message` 前多一条 `hint`；
+   无工具调用时只有 `meta → message → finish`。
+5. **失败与取消**：取消写 `INTERRUPTED` + `finish(INTERRUPTED)`；异常写 `FAILED` + 统一文案 + `finish(FAILED)`。
+6. **接口**：`GET /agent/chat?question=&conversationId=`（SSE）、`GET /agent/conversations`、
+   `GET /agent/conversations/{id}/messages`、`DELETE /agent/conversations/{id}`；
+   `ai.agent.enabled=false` 时这些路由**不存在**（不暴露必然失败的接口）。
+7. 可执行验证：
+
+```bash
+./mvnw test -pl bootstrap -am '-Dtest=AgentChatServiceImplTest,AgentConversationServiceImplTest' -Dsurefire.failIfNoSpecifiedTests=false
+```
+
+### 代码位置（P1 后半段）
+
+| 作用 | 位置 |
+| --- | --- |
+| 建表与升级脚本 | `resources/database/upgrades/v1.2.0/001_agent_conversation_message.sql`、`resources/database/schema_pg.sql` |
+| 实体与 Mapper | `bootstrap/src/main/java/com/nageoffer/ai/ragent/agent/dao/**` |
+| 会话与消息持久化 | `agent/service/AgentConversationService.java`、`agent/service/impl/AgentConversationServiceImpl.java` |
+| 事件组装与下发 | `agent/dto/AgentStreamEvent.java`、`agent/service/impl/AgentChatServiceImpl.java` |
+| SSE 事件协议 | `agent/enums/AgentSSEEventType.java`（`meta` / `tool` / `message` / `hint` / `finish`） |
+| 接口与视图 | `agent/controller/AgentChatController.java`、`agent/controller/vo/**` |
+| 单元测试 | `bootstrap/src/test/java/.../agent/service/impl/AgentChatServiceImplTest.java`、`AgentConversationServiceImplTest.java` |
+
+```mermaid
+sequenceDiagram
+    participant C as 前端
+    participant Ctrl as AgentChatController
+    participant S as AgentChatServiceImpl
+    participant E as ReActAgentEngine
+    participant D as t_agent_conversation / message
+    C->>Ctrl: GET /agent/chat?question&conversationId
+    Ctrl->>S: streamChat(question, conversationId, emitter)
+    S->>D: 建/取会话 + 落用户消息
+    S->>E: run(AgentRequest)
+    E-->>S: AgentRunResult（含工具步骤）
+    S-->>C: meta → tool… → message → finish
+    S->>D: 落助手消息（blocks 含工具过程）
+```
