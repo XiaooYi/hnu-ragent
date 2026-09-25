@@ -97,8 +97,8 @@
 | UP-34 | Agent 写操作确认流程 | `features/up-34-write-confirmation.md` | 未开始 |
 | UP-35 | Skills 体系 | `features/up-35-skills.md` | 未开始 |
 | UP-36 | Agent 长期记忆 | `features/up-36-agent-memory.md` | 未开始 |
-| UP-39 | MCP 工具目录与 Schema 构造器 | `features/up-39-mcp-tool-catalog.md` | 未开始 |
-| UP-40 | MCP 身份透传 | `features/up-40-mcp-identity.md` | 未开始 |
+| UP-39 | MCP 工具目录与 Schema 构造器 | [`features/up-39-mcp-tool-kit.md`](features/up-39-mcp-tool-kit.md) | 部分落地：`McpToolSchema` / `McpToolException` / `McpToolResults` 已落地（含验证）；工具目录重构（`AgentToolCatalog`）随批次八 |
+| UP-40 | MCP 身份透传 | [`features/up-39-mcp-tool-kit.md`](features/up-39-mcp-tool-kit.md) | 部分落地：服务端读取 `_meta` 身份与缺身份回绝已落地（含验证）；调用侧透传随批次八 |
 | UP-37 | LangFuse 链路追踪 | `features/up-37-langfuse.md` | 未开始 |
 | UP-41 | 初始化器与场景示例 | `features/up-41-initializer.md` | 未开始 |
 | UP-44 | 前端与仪表盘体验 | `features/up-44-dashboard.md` | 未开始 |
