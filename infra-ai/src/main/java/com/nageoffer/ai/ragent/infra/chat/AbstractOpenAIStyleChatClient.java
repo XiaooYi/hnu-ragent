@@ -306,6 +306,13 @@ public abstract class AbstractOpenAIStyleChatClient implements ChatClient {
         if (message == null || !message.has("content") || message.get("content").isJsonNull()) {
             throw new ModelClientException(provider() + " 响应缺少 content", ModelClientErrorType.INVALID_RESPONSE, null);
         }
-        return message.get("content").getAsString();
+        String content = message.get("content").getAsString();
+        if (content.isBlank()) {
+            // 网关可能返回 200 但内容为空/纯空白（想完就停、被截断、被内容策略拦下）；
+            // 这里视为无效响应，交给路由层切换下一个候选，而不是把空白答案返回给用户
+            throw new ModelClientException(provider() + " 响应 content 为空白",
+                    ModelClientErrorType.INVALID_RESPONSE, null);
+        }
+        return content;
     }
 }

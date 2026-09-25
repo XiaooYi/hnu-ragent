@@ -204,7 +204,7 @@ ai:
         candidates: [ qwen3-local, qwen-plus ]
         timeout-ms: 5000    # 高频小任务：短预算，快速失败后换候选
       standard:
-        candidates: [ qwen-plus, qwen3-max, qwen3-local ]
+        candidates: [ qwen3-max, qwen-plus, qwen3-local ]  # 首位放能力最强的模型，其余为降级候选
         timeout-ms: 120000
       deep:
         candidates: [ qwen3-max, glm-4.7 ]

@@ -23,7 +23,8 @@ import org.springframework.stereotype.Component;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * 模型健康状态存储器
@@ -37,6 +38,17 @@ public class ModelHealthStore {
 
     private final Map<String, ModelHealth> healthById = new ConcurrentHashMap<>();
 
+    private final AtomicLong probeTokenSeq = new AtomicLong();
+
+    /**
+     * 模型调用许可
+     * <p>
+     * {@code halfOpenToken > 0} 表示本次调用持有 HALF_OPEN 探测名额，必须由持有者释放；
+     * 为 0 表示普通调用（CLOSED 态），无需释放
+     */
+    public record CallPermit(String modelId, long halfOpenToken) {
+    }
+
     public boolean isUnavailable(String id) {
         ModelHealth health = healthById.get(id);
         if (health == null) {
@@ -48,13 +60,15 @@ public class ModelHealthStore {
         return health.state == State.HALF_OPEN && health.halfOpenInFlight;
     }
 
-    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
-    public boolean allowCall(String id) {
+    /**
+     * 申请调用许可；返回 {@code null} 表示当前拒绝调用（熔断 OPEN 或已有半开探测在跑）
+     */
+    public CallPermit allowCall(String id) {
         if (id == null) {
-            return false;
+            return null;
         }
         long now = System.currentTimeMillis();
-        AtomicBoolean allowed = new AtomicBoolean(false);
+        AtomicReference<CallPermit> granted = new AtomicReference<>();
         healthById.compute(id, (k, v) -> {
             if (v == null) {
                 v = new ModelHealth();
@@ -65,7 +79,8 @@ public class ModelHealthStore {
                 }
                 v.state = State.HALF_OPEN;
                 v.halfOpenInFlight = true;
-                allowed.set(true);
+                v.halfOpenToken = probeTokenSeq.incrementAndGet();
+                granted.set(new CallPermit(id, v.halfOpenToken));
                 return v;
             }
             if (v.state == State.HALF_OPEN) {
@@ -73,13 +88,14 @@ public class ModelHealthStore {
                     return v;
                 }
                 v.halfOpenInFlight = true;
-                allowed.set(true);
+                v.halfOpenToken = probeTokenSeq.incrementAndGet();
+                granted.set(new CallPermit(id, v.halfOpenToken));
                 return v;
             }
-            allowed.set(true);
+            granted.set(new CallPermit(id, 0L));
             return v;
         });
-        return allowed.get();
+        return granted.get();
     }
 
     public void markSuccess(String id) {
@@ -124,16 +140,36 @@ public class ModelHealthStore {
         });
     }
 
+    /**
+     * 释放半开探测名额：只有凭证 token 与当前在跑的探测一致时才释放
+     * <p>
+     * 中断（用户取消 / SSE 断开）路径既不成功也不失败，若不释放会让该模型永久处于
+     * HALF_OPEN + halfOpenInFlight，即「永久不可用」；token 比对则防止旧调用误放新一轮探测
+     */
+    public void releaseHalfOpenPermit(CallPermit permit) {
+        if (permit == null || permit.halfOpenToken() <= 0L) {
+            return;
+        }
+        healthById.computeIfPresent(permit.modelId(), (k, v) -> {
+            if (v.state == State.HALF_OPEN && v.halfOpenInFlight && v.halfOpenToken == permit.halfOpenToken()) {
+                v.halfOpenInFlight = false;
+            }
+            return v;
+        });
+    }
+
     private static class ModelHealth {
         private int consecutiveFailures;
         private long openUntil;
         private boolean halfOpenInFlight;
+        private long halfOpenToken;
         private State state;
 
         private ModelHealth() {
             this.consecutiveFailures = 0;
             this.openUntil = 0L;
             this.halfOpenInFlight = false;
+            this.halfOpenToken = 0L;
             this.state = State.CLOSED;
         }
     }

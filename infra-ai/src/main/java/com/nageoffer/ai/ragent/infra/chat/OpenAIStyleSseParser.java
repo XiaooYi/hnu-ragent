@@ -104,7 +104,8 @@ public final class OpenAIStyleSseParser {
         }
 
         boolean hasContent() {
-            return content != null && !content.isEmpty();
+            // 纯空白分片不算正文：否则「HTTP 200 但没有输出」会被当成首包成功
+            return content != null && !content.isBlank();
         }
 
         boolean hasReasoning() {

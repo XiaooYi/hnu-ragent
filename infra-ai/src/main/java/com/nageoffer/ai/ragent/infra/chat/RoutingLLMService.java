@@ -131,7 +131,8 @@ public class RoutingLLMService implements LLMService {
             if (client == null) {
                 continue;
             }
-            if (!healthStore.allowCall(target.id())) {
+            ModelHealthStore.CallPermit permit = healthStore.allowCall(target.id());
+            if (permit == null) {
                 continue;
             }
 
@@ -159,7 +160,8 @@ public class RoutingLLMService implements LLMService {
             long firstPacketBudgetMs = target.timeoutMs() == null
                     ? DEFAULT_FIRST_PACKET_TIMEOUT_MS
                     : target.timeoutMs();
-            ProbeStreamBridge.ProbeResult result = awaitFirstPacket(bridge, handle, callback, firstPacketBudgetMs);
+            ProbeStreamBridge.ProbeResult result =
+                    awaitFirstPacket(bridge, handle, callback, firstPacketBudgetMs, permit);
 
             if (result.isSuccess()) {
                 healthStore.markSuccess(target.id());
@@ -189,12 +191,18 @@ public class RoutingLLMService implements LLMService {
     private ProbeStreamBridge.ProbeResult awaitFirstPacket(ProbeStreamBridge bridge,
                                                            StreamCancellationHandle handle,
                                                            StreamCallback callback,
-                                                           long firstPacketBudgetMs) {
+                                                           long firstPacketBudgetMs,
+                                                           ModelHealthStore.CallPermit permit) {
         try {
             return firstPacketProbe.awaitFirstPacket(bridge, firstPacketBudgetMs, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            handle.cancel();
+            try {
+                handle.cancel();
+            } finally {
+                // 中断既不成功也不失败，必须由持有者释放半开探测名额，否则该模型永久不可用
+                healthStore.releaseHalfOpenPermit(permit);
+            }
             RemoteException interruptedException = new RemoteException(STREAM_INTERRUPTED_MESSAGE, e, BaseErrorCode.REMOTE_ERROR);
             callback.onError(interruptedException);
             throw interruptedException;
