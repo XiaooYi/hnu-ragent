@@ -36,6 +36,10 @@ public class IntentNodeUpdateRequest {
     private String description;
     private List<String> examples;
     private String collectionName;
+    /**
+     * 关联的 Collection 名称列表（与 collectionName 同时存在时以本字段为准）
+     */
+    private List<String> collectionNames;
     private Integer topK;
     private Integer kind;
     private Integer sortOrder;

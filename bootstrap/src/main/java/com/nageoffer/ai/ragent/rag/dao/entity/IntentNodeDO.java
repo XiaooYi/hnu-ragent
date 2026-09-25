@@ -23,18 +23,20 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.nageoffer.ai.ragent.knowledge.dao.handler.StringListTypeHandler;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.Date;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@TableName("t_intent_node")
+@TableName(value = "t_intent_node", autoResultMap = true)
 public class IntentNodeDO {
 
     @TableId(type = IdType.ASSIGN_ID)
@@ -79,6 +81,13 @@ public class IntentNodeDO {
      * Milvus Collection 名称（仅对 kind=0 有意义）
      */
     private String collectionName;
+
+    /**
+     * 关联的 Collection 名称列表（JSONB）
+     * collectionName 仅保留用于兼容旧数据，新逻辑以本字段为准
+     */
+    @TableField(typeHandler = StringListTypeHandler.class)
+    private List<String> collectionNames;
 
     /**
      * MCP 工具 ID（仅对 kind=2 有意义）

@@ -23,6 +23,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.Map;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Objects;
 
 /**
  * 向量检索请求参数：
@@ -55,6 +58,14 @@ public class RetrieveRequest {
     private String collectionName;
 
     /**
+     * 目标逻辑 Collection 列表
+     * <p>
+     * 多个值表示在同一次检索中按这些 Collection 过滤，topK 是整个过滤范围的**总预算**，
+     * 不是每个库各 topK
+     */
+    private List<String> collectionNames;
+
+    /**
      * 元数据等值过滤条件（扩展项）：
      * - key 为 metadata 字段名
      * - value 为匹配值
@@ -64,5 +75,23 @@ public class RetrieveRequest {
      * {"biz_type": "ATTENDANCE", "env": "TEST"}
      */
     private Map<String, Object> metadataFilters;
+
+    /**
+     * 新的多 Collection 参数优先，旧的单 Collection 参数用于兼容已有调用方
+     */
+    public List<String> getEffectiveCollectionNames() {
+        LinkedHashSet<String> normalized = new LinkedHashSet<>();
+        if (collectionNames != null) {
+            collectionNames.stream()
+                    .filter(Objects::nonNull)
+                    .map(String::trim)
+                    .filter(value -> !value.isEmpty())
+                    .forEach(normalized::add);
+        }
+        if (normalized.isEmpty() && collectionName != null && !collectionName.isBlank()) {
+            normalized.add(collectionName.trim());
+        }
+        return List.copyOf(normalized);
+    }
 }
 

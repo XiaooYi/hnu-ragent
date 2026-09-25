@@ -255,6 +255,7 @@ CREATE TABLE t_intent_node (
     description           VARCHAR(512),
     examples              TEXT,
     collection_name       VARCHAR(128),
+    collection_names      JSONB,
     top_k                 INTEGER,
     mcp_tool_id           VARCHAR(128),
     kind                  SMALLINT     NOT NULL DEFAULT 0,

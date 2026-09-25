@@ -66,17 +66,22 @@ public class IntentParallelRetriever extends AbstractParallelRetriever<IntentPar
     protected List<RetrievedChunk> createRetrievalTask(String question, IntentTask task, int ignoredTopK) {
         NodeScore nodeScore = task.nodeScore();
         IntentNode node = nodeScore.getNode();
+        List<String> collectionNames = node.getEffectiveCollectionNames();
+        if (collectionNames.isEmpty()) {
+            log.warn("意图未关联任何知识库，跳过检索 - 意图ID: {}, 意图名称: {}", node.getId(), node.getName());
+            return List.of();
+        }
         try {
             return retrieverService.retrieve(
                     RetrieveRequest.builder()
-                            .collectionName(node.getCollectionName())
+                            .collectionNames(collectionNames)
                             .query(question)
                             .topK(task.intentTopK())
                             .build()
             );
         } catch (Exception e) {
-            log.error("意图检索失败 - 意图ID: {}, 意图名称: {}, Collection: {}, 错误: {}",
-                    node.getId(), node.getName(), node.getCollectionName(), e.getMessage(), e);
+            log.error("意图检索失败 - 意图ID: {}, 意图名称: {}, Collections: {}, 错误: {}",
+                    node.getId(), node.getName(), collectionNames, e.getMessage(), e);
             return List.of();
         }
     }

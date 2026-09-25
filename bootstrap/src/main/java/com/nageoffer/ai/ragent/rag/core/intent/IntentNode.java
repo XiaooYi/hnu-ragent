@@ -19,11 +19,14 @@ package com.nageoffer.ai.ragent.rag.core.intent;
 
 import com.nageoffer.ai.ragent.rag.enums.IntentKind;
 import com.nageoffer.ai.ragent.rag.enums.IntentLevel;
+import cn.hutool.core.util.StrUtil;
 import lombok.Builder;
 import lombok.Data;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 
 @Data
 @Builder
@@ -98,6 +101,13 @@ public class IntentNode {
     private String collectionName;
 
     /**
+     * 一个知识库意图可关联多个逻辑 Collection
+     * collectionName 仅用于兼容旧缓存与旧数据
+     */
+    @Builder.Default
+    private List<String> collectionNames = new ArrayList<>();
+
+    /**
      * MCP 工具 ID（仅对 kind=MCP 有意义）
      */
     private String mcpToolId;
@@ -152,5 +162,25 @@ public class IntentNode {
      */
     public boolean isSystem() {
         return kind == IntentKind.SYSTEM;
+    }
+
+    /**
+     * 返回当前意图实际参与检索的 Collection
+     * <p>
+     * 新字段优先，旧的单 Collection 字段仅作平滑升级兜底；顺序保持插入顺序，便于日志比对
+     */
+    public List<String> getEffectiveCollectionNames() {
+        LinkedHashSet<String> normalized = new LinkedHashSet<>();
+        if (collectionNames != null) {
+            collectionNames.stream()
+                    .filter(Objects::nonNull)
+                    .map(String::trim)
+                    .filter(value -> !value.isEmpty())
+                    .forEach(normalized::add);
+        }
+        if (normalized.isEmpty() && StrUtil.isNotBlank(collectionName)) {
+            normalized.add(collectionName.trim());
+        }
+        return List.copyOf(normalized);
     }
 }

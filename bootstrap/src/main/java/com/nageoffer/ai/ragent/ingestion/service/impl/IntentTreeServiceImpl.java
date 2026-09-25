@@ -29,6 +29,7 @@ import com.nageoffer.ai.ragent.rag.controller.vo.IntentNodeTreeVO;
 import com.nageoffer.ai.ragent.rag.dao.entity.IntentNodeDO;
 import com.nageoffer.ai.ragent.rag.dao.mapper.IntentNodeMapper;
 import com.nageoffer.ai.ragent.knowledge.dao.mapper.KnowledgeBaseMapper;
+import com.nageoffer.ai.ragent.knowledge.dao.entity.KnowledgeBaseDO;
 import com.nageoffer.ai.ragent.rag.enums.IntentKind;
 import com.nageoffer.ai.ragent.rag.enums.IntentLevel;
 import com.nageoffer.ai.ragent.framework.context.UserContext;
@@ -46,6 +47,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -117,14 +119,14 @@ public class IntentTreeServiceImpl extends ServiceImpl<IntentNodeMapper, IntentN
             throw new ClientException("TOPIC级别的RAG检索节点必须指定目标知识库");
         }
 
+        List<String> createCollectionNames = resolveCreateCollectionNames(requestParam);
         IntentNodeDO node = IntentNodeDO.builder()
                 .intentCode(requestParam.getIntentCode())
                 .kbId(
                         StrUtil.isNotBlank(requestParam.getKbId()) ? requestParam.getKbId() : null
                 )
-                .collectionName(
-                        StrUtil.isNotBlank(requestParam.getKbId()) ? knowledgeBaseMapper.selectById(requestParam.getKbId()).getCollectionName() : null
-                )
+                .collectionName(firstCollectionName(createCollectionNames))
+                .collectionNames(createCollectionNames)
                 .name(requestParam.getName())
                 .level(requestParam.getLevel())
                 .parentCode(requestParam.getParentCode())
@@ -184,6 +186,12 @@ public class IntentTreeServiceImpl extends ServiceImpl<IntentNodeMapper, IntentN
         if (req.getCollectionName() != null) {
             node.setCollectionName(req.getCollectionName());
         }
+        if (req.getCollectionNames() != null) {
+            List<String> collectionNames = normalizeCollectionNames(req.getCollectionNames());
+            node.setCollectionNames(collectionNames);
+            // 旧单值字段同步为首个 Collection，供旧版本读侧与旧缓存回退使用
+            node.setCollectionName(firstCollectionName(collectionNames));
+        }
         if (req.getTopK() != null) {
             node.setTopK(normalizeTopK(req.getTopK()));
         }
@@ -210,6 +218,44 @@ public class IntentTreeServiceImpl extends ServiceImpl<IntentNodeMapper, IntentN
 
         // 清除Redis缓存，下次读取时会重新从数据库加载
         intentTreeCacheManager.clearIntentTreeCache();
+    }
+
+    /**
+     * 解析创建请求要关联的 Collection：
+     * 显式传入的列表优先（允许一个意图覆盖多个库），否则按 kbId 解析出该知识库的 Collection
+     */
+    private List<String> resolveCreateCollectionNames(IntentNodeCreateRequest requestParam) {
+        List<String> explicit = normalizeCollectionNames(requestParam.getCollectionNames());
+        if (!explicit.isEmpty()) {
+            return explicit;
+        }
+        if (StrUtil.isBlank(requestParam.getKbId())) {
+            return List.of();
+        }
+        KnowledgeBaseDO knowledgeBase = knowledgeBaseMapper.selectById(requestParam.getKbId());
+        return knowledgeBase == null || StrUtil.isBlank(knowledgeBase.getCollectionName())
+                ? List.of()
+                : List.of(knowledgeBase.getCollectionName().trim());
+    }
+
+    /**
+     * 清洗 Collection 列表：去空、去重、保序
+     */
+    private List<String> normalizeCollectionNames(List<String> collectionNames) {
+        if (CollectionUtils.isEmpty(collectionNames)) {
+            return List.of();
+        }
+        LinkedHashSet<String> normalized = new LinkedHashSet<>();
+        for (String name : collectionNames) {
+            if (name != null && !name.trim().isEmpty()) {
+                normalized.add(name.trim());
+            }
+        }
+        return List.copyOf(normalized);
+    }
+
+    private String firstCollectionName(List<String> collectionNames) {
+        return collectionNames.isEmpty() ? null : collectionNames.get(0);
     }
 
     @Override

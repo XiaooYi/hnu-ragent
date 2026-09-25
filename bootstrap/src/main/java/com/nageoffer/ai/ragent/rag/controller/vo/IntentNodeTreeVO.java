@@ -38,6 +38,10 @@ public class IntentNodeTreeVO {
     private String description;
     private String examples;
     private String collectionName;
+    /**
+     * 关联的 Collection 名称列表（新字段，旧的 collectionName 仅作兼容显示）
+     */
+    private List<String> collectionNames;
     private Integer topK;
     private Integer kind;
     private Integer sortOrder;

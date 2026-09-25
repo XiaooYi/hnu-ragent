@@ -25,7 +25,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -49,15 +51,27 @@ public class PgRetrieverService implements RetrieverService {
         // noinspection SqlDialectInspection,SqlNoDataSourceInspection
         jdbcTemplate.execute("SET hnsw.ef_search = 200");
 
+        List<String> collectionNames = request.getEffectiveCollectionNames();
+        if (collectionNames.isEmpty()) {
+            return List.of();
+        }
+
         String vectorLiteral = toVectorLiteral(vector);
+        // 单库与多库都走一条 SQL：多库用 IN 过滤，LIMIT 是整段过滤范围的总预算
+        String placeholders = collectionNames.stream().map(name -> "?").collect(Collectors.joining(", "));
+        List<Object> params = new ArrayList<>();
+        params.add(vectorLiteral);
+        params.addAll(collectionNames);
+        params.add(vectorLiteral);
+        params.add(request.getTopK());
         // noinspection SqlDialectInspection,SqlNoDataSourceInspection
-        return jdbcTemplate.query("SELECT id, content, 1 - (embedding <=> ?::vector) AS score FROM t_knowledge_vector WHERE metadata->>'collection_name' = ? ORDER BY embedding <=> ?::vector LIMIT ?",
+        return jdbcTemplate.query("SELECT id, content, 1 - (embedding <=> ?::vector) AS score FROM t_knowledge_vector WHERE metadata->>'collection_name' IN (" + placeholders + ") ORDER BY embedding <=> ?::vector LIMIT ?",
                 (rs, rowNum) -> RetrievedChunk.builder()
                         .id(rs.getString("id"))
                         .text(rs.getString("content"))
                         .score(rs.getFloat("score"))
                         .build(),
-                vectorLiteral, request.getCollectionName(), vectorLiteral, request.getTopK()
+                params.toArray()
         );
     }
 

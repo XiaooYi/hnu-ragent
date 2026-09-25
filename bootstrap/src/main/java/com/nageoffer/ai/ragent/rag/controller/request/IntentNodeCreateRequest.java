@@ -31,6 +31,11 @@ import java.util.List;
 public class IntentNodeCreateRequest {
 
     private String kbId;
+    /**
+     * 关联的 Collection 名称列表
+     * 为空时按 kbId 推导出单个 Collection；非空时以本字段为准（一个意图可覆盖多个知识库）
+     */
+    private List<String> collectionNames;
     private String intentCode;
     private String name;
     /**

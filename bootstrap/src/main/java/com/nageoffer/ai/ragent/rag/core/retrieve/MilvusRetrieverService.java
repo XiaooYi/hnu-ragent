@@ -31,6 +31,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +61,32 @@ public class MilvusRetrieverService implements RetrieverService {
 
     @Override
     public List<RetrievedChunk> retrieveByVector(float[] vector, RetrieveRequest retrieveParam) {
+        List<String> collectionNames = retrieveParam.getEffectiveCollectionNames();
+        // 本仓库 Milvus 为「每个知识库一个物理 Collection」：多库时逐库检索后合并，topK 是总预算
+        if (collectionNames.size() > 1) {
+            return searchAcrossCollections(vector, collectionNames, retrieveParam.getTopK());
+        }
+        String collectionName = collectionNames.isEmpty() ? null : collectionNames.get(0);
+        return searchSingleCollection(vector, collectionName, retrieveParam.getTopK());
+    }
+
+    /**
+     * 逐物理 Collection 检索后按分数合并、截断到总预算
+     */
+    private List<RetrievedChunk> searchAcrossCollections(float[] vector, List<String> collectionNames, int topK) {
+        List<RetrievedChunk> merged = new ArrayList<>();
+        for (String collectionName : collectionNames) {
+            try {
+                merged.addAll(searchSingleCollection(vector, collectionName, topK));
+            } catch (Exception e) {
+                log.warn("Collection {} 检索失败，跳过该库", collectionName, e);
+            }
+        }
+        merged.sort(Comparator.comparing(RetrievedChunk::getScore, Comparator.nullsLast(Comparator.reverseOrder())));
+        return merged.size() > topK ? List.copyOf(merged.subList(0, topK)) : List.copyOf(merged);
+    }
+
+    private List<RetrievedChunk> searchSingleCollection(float[] vector, String collectionName, int topK) {
         List<BaseVector> vectors = List.of(new FloatVec(vector));
 
         Map<String, Object> params = new HashMap<>();
@@ -66,12 +94,12 @@ public class MilvusRetrieverService implements RetrieverService {
         params.put("ef", 128);
 
         SearchReq req = SearchReq.builder()
-                .collectionName(
-                        StrUtil.isBlank(retrieveParam.getCollectionName()) ? ragDefaultProperties.getCollectionName() : retrieveParam.getCollectionName()
-                )
+                .collectionName(StrUtil.isBlank(collectionName)
+                        ? ragDefaultProperties.getCollectionName()
+                        : collectionName)
                 .annsField("embedding")
                 .data(vectors)
-                .topK(retrieveParam.getTopK())
+                .topK(topK)
                 .searchParams(params)
                 .outputFields(List.of("id", "content", "metadata"))
                 .build();

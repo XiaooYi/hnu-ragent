@@ -138,7 +138,7 @@ public class KeywordSearchChannel implements SearchChannel {
                 .flatMap(si -> si.nodeScores().stream())
                 .toList();
         return NodeScoreFilters.kb(allScores).stream()
-                .map(ns -> ns.getNode().getCollectionName())
+                .flatMap(ns -> ns.getNode().getEffectiveCollectionNames().stream())
                 .filter(StrUtil::isNotBlank)
                 .distinct()
                 .toList();
