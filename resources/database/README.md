@@ -27,6 +27,9 @@ upgrades/
 | --- | --- | --- |
 | v1.1.0-001 | `upgrades/v1.1.0/001_knowledge_chunk_log_duration.sql` | 分块日志表拆分计时字段（`embed_duration` / `persist_duration`） |
 | v1.1.0-002 | `upgrades/v1.1.0/002_message_thinking.sql` | `t_message` 新增 `thinking_content` / `thinking_duration` |
+| v1.1.0-003 | `upgrades/v1.1.0/003_intent_multi_collections.sql` | `t_intent_node` 新增 `collection_names` 并回填旧单值字段 |
+| v1.1.0-004 | `upgrades/v1.1.0/004_message_sources.sql` | `t_message` 新增 `sources`（回答来源） |
+| v1.1.0-005 | `upgrades/v1.1.0/005_message_recommendations.sql` | `t_message` 新增 `reply_to_message_id` / `grounding_chunks` / `recommended_questions` / `message_status` |
 
 ## 维护约定
 

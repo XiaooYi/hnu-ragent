@@ -37,6 +37,7 @@ import com.nageoffer.ai.ragent.rag.core.rewrite.QueryRewriteService;
 import com.nageoffer.ai.ragent.rag.core.rewrite.RewriteResult;
 import com.nageoffer.ai.ragent.rag.core.source.SourcesAssembler;
 import com.nageoffer.ai.ragent.rag.core.source.CitationContextEnricher;
+import com.nageoffer.ai.ragent.rag.core.source.GroundingChunksAssembler;
 import com.nageoffer.ai.ragent.rag.dto.IntentGroup;
 import com.nageoffer.ai.ragent.rag.dto.RetrievalContext;
 import com.nageoffer.ai.ragent.rag.dto.SubQuestionIntent;
@@ -76,6 +77,7 @@ public class StreamChatPipeline {
     private final StreamTaskManager taskManager;
     private final SourcesAssembler sourcesAssembler;
     private final CitationContextEnricher citationContextEnricher;
+    private final GroundingChunksAssembler groundingChunksAssembler;
 
     /**
      * 执行流式对话管道
@@ -103,11 +105,12 @@ public class StreamChatPipeline {
     // ==================== 流水线阶段 ====================
 
     private void loadMemory(StreamChatContext ctx) {
-        List<ChatMessage> history = memoryService.loadAndAppend(
-                ctx.getConversationId(),
-                ctx.getUserId(),
-                ChatMessage.user(ctx.getQuestion())
-        );
+        // 先取历史、再单独追加用户消息：这样拿得到提问 id，助手消息才能记录 reply_to_message_id
+        // （推荐追问依赖它定位「这条回答回答的是哪个问题」）
+        List<ChatMessage> history = memoryService.load(ctx.getConversationId(), ctx.getUserId());
+        String questionMessageId = memoryService.append(
+                ctx.getConversationId(), ctx.getUserId(), ChatMessage.user(ctx.getQuestion()));
+        ctx.getCallback().onReplyToMessageId(questionMessageId);
         ctx.setHistory(history);
     }
 
@@ -181,6 +184,8 @@ public class StreamChatPipeline {
         ctx.getCallback().onSources(sources);
         // 关闭引用时这一步只负责清掉上下文里的内部 docId，不注入编号
         retrievalCtx.setKbContext(citationContextEnricher.enrich(retrievalCtx.getKbContext(), sources));
+        // 装配 grounding 片段随消息落库，供回答完成后的推荐追问生成（不参与回答上下文）
+        ctx.getCallback().onGroundingChunks(groundingChunksAssembler.assemble(retrievalCtx.getIntentChunks()));
 
         StreamCancellationHandle handle = streamLLMResponse(
                 ctx.getRewriteResult(),

@@ -18,6 +18,7 @@
 package com.nageoffer.ai.ragent.rag.service.bo;
 
 import com.nageoffer.ai.ragent.framework.convention.SourceRef;
+import com.nageoffer.ai.ragent.framework.convention.GroundingChunk;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -68,4 +69,19 @@ public class ConversationMessageBO {
      * 回答来源，文档级来源列表（仅 assistant 消息可能有）
      */
     private List<SourceRef> sources;
+
+    /**
+     * 推荐问题 grounding 片段（仅 assistant 消息可能有）
+     */
+    private List<GroundingChunk> groundingChunks;
+
+    /**
+     * 该助手消息回答的用户消息 ID
+     */
+    private String replyToMessageId;
+
+    /**
+     * 消息结束状态：NORMAL / INTERRUPTED / REJECTED
+     */
+    private String messageStatus;
 }

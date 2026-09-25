@@ -24,7 +24,10 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.nageoffer.ai.ragent.framework.convention.SourceRef;
+import com.nageoffer.ai.ragent.framework.convention.GroundingChunk;
+import com.nageoffer.ai.ragent.knowledge.dao.handler.GroundingChunkListTypeHandler;
 import com.nageoffer.ai.ragent.knowledge.dao.handler.SourceRefListTypeHandler;
+import com.nageoffer.ai.ragent.knowledge.dao.handler.StringListTypeHandler;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -87,6 +90,28 @@ public class ConversationMessageDO {
      */
     @TableField(typeHandler = SourceRefListTypeHandler.class)
     private List<SourceRef> sources;
+
+    /**
+     * 推荐问题 grounding 片段（jsonb，仅 assistant 消息可能有）
+     */
+    @TableField(typeHandler = GroundingChunkListTypeHandler.class)
+    private List<GroundingChunk> groundingChunks;
+
+    /**
+     * 已生成的推荐追问问题（jsonb；NULL=未生成，空数组=已生成但无合适追问的负缓存）
+     */
+    @TableField(typeHandler = StringListTypeHandler.class)
+    private List<String> recommendedQuestions;
+
+    /**
+     * 该助手消息回答的用户消息 ID
+     */
+    private String replyToMessageId;
+
+    /**
+     * 消息结束状态：NORMAL / INTERRUPTED / REJECTED
+     */
+    private String messageStatus;
 
     /**
      * 创建时间，自动填充

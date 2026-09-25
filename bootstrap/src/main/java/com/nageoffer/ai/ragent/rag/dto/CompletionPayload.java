@@ -19,6 +19,7 @@ package com.nageoffer.ai.ragent.rag.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.nageoffer.ai.ragent.framework.convention.SourceRef;
+import com.nageoffer.ai.ragent.framework.convention.ChatMessage;
 
 import java.util.List;
 
@@ -28,14 +29,20 @@ import java.util.List;
  * @param messageId 消息ID（字符串，避免前端精度丢失）
  * @param title     会话标题（可选）
  * @param sources   文档级来源列表（可选，仅命中知识库时携带）
+ * @param messageStatus 消息结束状态（NORMAL / INTERRUPTED / REJECTED）
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public record CompletionPayload(String messageId, String title, List<SourceRef> sources) {
+public record CompletionPayload(String messageId, String title, List<SourceRef> sources,
+                                ChatMessage.MessageStatus messageStatus) {
 
     /**
      * 无来源场景的便捷构造：sources 置空（NON_NULL 序列化时自动省略该字段）
      */
     public CompletionPayload(String messageId, String title) {
-        this(messageId, title, null);
+        this(messageId, title, null, null);
+    }
+
+    public CompletionPayload(String messageId, String title, List<SourceRef> sources) {
+        this(messageId, title, sources, null);
     }
 }

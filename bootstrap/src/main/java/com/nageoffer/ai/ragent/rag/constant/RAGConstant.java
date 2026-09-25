@@ -117,6 +117,11 @@ public class RAGConstant {
     public static final String ANSWER_CITATION_RULES_PROMPT_PATH = "prompt/answer-citation-rules.st";
 
     /**
+     * 推荐追问问题生成提示词
+     */
+    public static final String RECOMMENDED_QUESTIONS_PROMPT_PATH = "prompt/recommended-questions.st";
+
+    /**
      * MCP 工具参数提取提示词模板路径
      * 用于从用户问题中提取工具调用参数
      */

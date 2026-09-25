@@ -76,6 +76,16 @@ public class ConversationMessageVO {
     private List<SourceRef> sources;
 
     /**
+     * 已生成的推荐追问问题（null=未生成，[]=已生成但无合适追问）
+     */
+    private List<String> recommendedQuestions;
+
+    /**
+     * 消息结束状态：NORMAL / INTERRUPTED / REJECTED
+     */
+    private String messageStatus;
+
+    /**
      * 创建时间
      */
     private Date createTime;

@@ -78,6 +78,20 @@ public class ChatMessage {
     }
 
     /**
+     * 消息结束状态
+     * <p>
+     * 只有 {@link #NORMAL} 的回答才适合生成推荐追问
+     */
+    public enum MessageStatus {
+        /** 正常完成 */
+        NORMAL,
+        /** 用户中断（停止生成） */
+        INTERRUPTED,
+        /** 被拒绝（限流 / 校验不通过等） */
+        REJECTED
+    }
+
+    /**
      * 当前消息的角色（系统 / 用户 / 助手）
      */
     private Role role;
@@ -101,6 +115,21 @@ public class ChatMessage {
      * 回答来源（文档级来源列表，仅 ASSISTANT 角色可能携带）
      */
     private List<SourceRef> sources;
+
+    /**
+     * 推荐问题 grounding 片段（仅 ASSISTANT 角色可能携带，不参与回答上下文）
+     */
+    private List<GroundingChunk> groundingChunks;
+
+    /**
+     * 当前助手消息所回答的用户消息 ID
+     */
+    private String replyToMessageId;
+
+    /**
+     * 消息结束状态
+     */
+    private MessageStatus messageStatus = MessageStatus.NORMAL;
 
     public ChatMessage(Role role, String content) {
         this.role = role;

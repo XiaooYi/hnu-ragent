@@ -61,8 +61,9 @@
 | --- | --- | --- | --- |
 | UP-18 | 回答来源与文档预览 | [`features/up-18-answer-sources.md`](features/up-18-answer-sources.md) | 已落地（UP-18a 来源链路 + UP-18b 预览页） |
 | UP-18b | 本地文档预览页（docId → 原文提取与渲染） | [`features/up-18b-document-preview.md`](features/up-18b-document-preview.md) | 已落地（含验证） |
-| UP-19 | 相关推荐追问 | `features/up-19-follow-up-questions.md` | 未开始（与 UP-20 耦合，同批实现，见下） |
-| UP-20 | 消息结束状态与顺序稳定性 | `features/up-20-stream-order.md` | 未开始（与 UP-19 同批实现） |
+| UP-19 | 相关推荐追问 | [`features/up-19-follow-up-questions.md`](features/up-19-follow-up-questions.md) | 部分落地：后端（grounding / 生成 / 接口 / 字段与迁移）已落地（UP-19a）；前端待做（UP-19b） |
+| UP-19b | 前端推荐追问列表与生成按钮 | 见 UP-19 文档 | 未开始 |
+| UP-20 | 消息结束状态与顺序稳定性 | 见 UP-19 文档 | 部分落地：消息状态与提问引用已随 UP-19a 贯通；前端顺序决胜键待做 |
 | UP-38 | 任务取消与中断反馈 | `features/up-38-task-cancellation.md` | 未开始 |
 
 ### 批次 6：模型与供应商

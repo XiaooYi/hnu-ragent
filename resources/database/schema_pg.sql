@@ -73,6 +73,10 @@ CREATE TABLE t_message (
     thinking_content  TEXT,
     thinking_duration INTEGER,
     sources           JSONB,
+    reply_to_message_id    VARCHAR(20),
+    grounding_chunks       JSONB,
+    recommended_questions  JSONB,
+    message_status         VARCHAR(16),
     create_time       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     update_time       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted           SMALLINT    DEFAULT 0
