@@ -6,6 +6,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   ClipboardList,
+  History,
   Database,
   GitBranch,
   Layers,
@@ -126,6 +127,11 @@ const menuGroups: MenuGroup[] = [
         label: "链路追踪",
         icon: Workflow
       },
+      {
+        path: "/admin/change-logs",
+        label: "变更记录",
+        icon: History
+      },
     ]
   },
   {
@@ -157,6 +163,7 @@ const breadcrumbMap: Record<string, string> = {
   "intent-list": "意图列表",
   ingestion: "数据通道",
   traces: "链路追踪",
+  "change-logs": "变更记录",
   "sample-questions": "示例问题",
   mappings: "关键词映射",
   settings: "系统设置",

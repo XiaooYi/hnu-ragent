@@ -29,6 +29,10 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nageoffer.ai.ragent.audit.annotation.BizChangeLog;
+import com.nageoffer.ai.ragent.audit.constant.BizChangeBizType;
+import com.nageoffer.ai.ragent.audit.constant.BizChangeOperationType;
+import com.nageoffer.ai.ragent.audit.support.BizChangeLogContext;
 import com.nageoffer.ai.ragent.core.chunk.ChunkEmbeddingService;
 import com.nageoffer.ai.ragent.core.chunk.ChunkingMode;
 import com.nageoffer.ai.ragent.core.chunk.ChunkingOptions;
@@ -122,11 +126,19 @@ public class KnowledgeDocumentServiceImpl implements KnowledgeDocumentService {
     private final MessageQueueProducer messageQueueProducer;
     private final KnowledgeScheduleProperties scheduleProperties;
     private final RemoteFileFetcher remoteFileFetcher;
+    private final BizChangeLogContext bizChangeLogContext;
 
     @Value("knowledge-document-chunk_topic${unique-name:}")
     private String chunkTopic;
 
     @Override
+    @BizChangeLog(
+            bizType = BizChangeBizType.KNOWLEDGE_DOCUMENT,
+            operationType = BizChangeOperationType.CREATE,
+            bizId = "#kbId",
+            success = "上传知识库文档：{{#documentDO.docName}}",
+            fail = "上传知识库文档失败：{{#_errorMsg}}"
+    )
     public KnowledgeDocumentVO upload(String kbId, KnowledgeDocumentUploadRequest requestParam, MultipartFile file) {
         KnowledgeBaseDO kbDO = knowledgeBaseMapper.selectById(kbId);
         Assert.notNull(kbDO, () -> new ClientException("知识库不存在"));
@@ -171,11 +183,22 @@ public class KnowledgeDocumentServiceImpl implements KnowledgeDocumentService {
             throw error;
         }
 
+        bizChangeLogContext.put(String.valueOf(documentDO.getId()), null, documentDO);
         return BeanUtil.toBean(documentDO, KnowledgeDocumentVO.class);
     }
 
     @Override
+    @BizChangeLog(
+            bizType = BizChangeBizType.KNOWLEDGE_DOCUMENT,
+            operationType = BizChangeOperationType.RUN,
+            bizId = "#docId",
+            success = "开始文档分块：{{#docId}}",
+            fail = "开始文档分块失败：{{#_errorMsg}}"
+    )
     public void startChunk(String docId) {
+        KnowledgeDocumentDO beforeDO = documentMapper.selectById(docId);
+        Assert.notNull(beforeDO, () -> new ClientException("文档不存在"));
+        KnowledgeDocumentDO before = BeanUtil.copyProperties(beforeDO, KnowledgeDocumentDO.class);
         KnowledgeDocumentChunkEvent event = KnowledgeDocumentChunkEvent.builder()
                 .docId(docId)
                 .operator(UserContext.getUsername())
@@ -206,6 +229,7 @@ public class KnowledgeDocumentServiceImpl implements KnowledgeDocumentService {
                     scheduleService.upsertSchedule(documentDO);
                 }
         );
+        bizChangeLogContext.put(docId, before, documentMapper.selectById(docId));
     }
 
     @Override
@@ -461,9 +485,17 @@ public class KnowledgeDocumentServiceImpl implements KnowledgeDocumentService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @BizChangeLog(
+            bizType = BizChangeBizType.KNOWLEDGE_DOCUMENT,
+            operationType = BizChangeOperationType.DELETE,
+            bizId = "#docId",
+            success = "删除知识库文档：{{#docId}}",
+            fail = "删除知识库文档失败：{{#_errorMsg}}"
+    )
     public void delete(String docId) {
         KnowledgeDocumentDO documentDO = documentMapper.selectById(docId);
         Assert.notNull(documentDO, () -> new ClientException("文档不存在"));
+        KnowledgeDocumentDO before = BeanUtil.copyProperties(documentDO, KnowledgeDocumentDO.class);
 
         // 禁止在文档分块运行时删除
         if (DocumentStatus.RUNNING.getCode().equals(documentDO.getStatus())) {
@@ -482,6 +514,7 @@ public class KnowledgeDocumentServiceImpl implements KnowledgeDocumentService {
         String collectionName = resolveCollectionName(documentDO.getKbId());
         vectorStoreService.deleteDocumentVectors(collectionName, docId);
         deleteStoredFileQuietly(documentDO);
+        bizChangeLogContext.put(docId, before, null);
     }
 
     @Override
@@ -493,9 +526,17 @@ public class KnowledgeDocumentServiceImpl implements KnowledgeDocumentService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @BizChangeLog(
+            bizType = BizChangeBizType.KNOWLEDGE_DOCUMENT,
+            operationType = BizChangeOperationType.UPDATE,
+            bizId = "#docId",
+            success = "更新知识库文档：{{#docId}}",
+            fail = "更新知识库文档失败：{{#_errorMsg}}"
+    )
     public void update(String docId, KnowledgeDocumentUpdateRequest requestParam) {
         KnowledgeDocumentDO documentDO = documentMapper.selectById(docId);
         Assert.notNull(documentDO, () -> new ClientException("文档不存在"));
+        KnowledgeDocumentDO before = BeanUtil.copyProperties(documentDO, KnowledgeDocumentDO.class);
 
         // 禁止在文档分块运行时修改
         if (DocumentStatus.RUNNING.getCode().equals(documentDO.getStatus())) {
@@ -591,6 +632,7 @@ public class KnowledgeDocumentServiceImpl implements KnowledgeDocumentService {
             KnowledgeDocumentDO updated = documentMapper.selectById(docId);
             scheduleService.upsertSchedule(updated);
         }
+        bizChangeLogContext.put(docId, before, documentMapper.selectById(docId));
     }
 
     @Override
@@ -673,6 +715,13 @@ public class KnowledgeDocumentServiceImpl implements KnowledgeDocumentService {
     }
 
     @Override
+    @BizChangeLog(
+            bizType = BizChangeBizType.KNOWLEDGE_DOCUMENT,
+            operationType = "{{#enabled ? 'ENABLE' : 'DISABLE'}}",
+            bizId = "#docId",
+            success = "{{#enabled ? '启用' : '禁用'}}知识库文档：{{#docId}}",
+            fail = "修改知识库文档启用状态失败：{{#_errorMsg}}"
+    )
     public void enable(String docId, boolean enabled) {
         KnowledgeDocumentDO documentDO = documentMapper.selectById(docId);
         Assert.notNull(documentDO, () -> new ClientException("文档不存在"));
@@ -685,15 +734,17 @@ public class KnowledgeDocumentServiceImpl implements KnowledgeDocumentService {
         // 如果已经是目标状态，直接返回
         int targetEnabled = enabled ? 1 : 0;
         if (documentDO.getEnabled() != null && documentDO.getEnabled() == targetEnabled) {
+            bizChangeLogContext.skip();
             return;
         }
+        KnowledgeDocumentDO before = BeanUtil.copyProperties(documentDO, KnowledgeDocumentDO.class);
 
         // 提前查知识库，两个分支都需要，避免重复查询
         KnowledgeBaseDO kbDO = knowledgeBaseMapper.selectById(documentDO.getKbId());
         String collectionName = kbDO.getCollectionName();
 
         // 启用时：embed 耗时较长，在事务外提前执行，避免长事务占用连接
-        List<VectorChunk> vectorChunks = null;
+        List<VectorChunk> vectorChunks = List.of();
         if (enabled) {
             List<KnowledgeChunkVO> chunks = knowledgeChunkService.listByDocId(docId);
             vectorChunks = chunks.stream().map(each ->
@@ -704,10 +755,11 @@ public class KnowledgeDocumentServiceImpl implements KnowledgeDocumentService {
                             .build()
             ).toList();
             if (CollUtil.isEmpty(vectorChunks)) {
-                log.warn("启用文档时未找到任何 Chunk，跳过向量重建，docId={}", docId);
-                return;
+                // 没有分块时只更新启用状态，避免「点了启用但状态没变」的错觉
+                log.warn("启用文档时未找到任何 Chunk，仅更新启用状态并跳过向量重建，docId={}", docId);
+            } else {
+                chunkEmbeddingService.embed(vectorChunks, kbDO.getEmbeddingModel());
             }
-            chunkEmbeddingService.embed(vectorChunks, kbDO.getEmbeddingModel());
         }
 
         final List<VectorChunk> finalVectorChunks = vectorChunks;
@@ -720,10 +772,11 @@ public class KnowledgeDocumentServiceImpl implements KnowledgeDocumentService {
 
             if (!enabled) {
                 vectorStoreService.deleteDocumentVectors(collectionName, docId);
-            } else {
+            } else if (CollUtil.isNotEmpty(finalVectorChunks)) {
                 vectorStoreService.indexDocumentChunks(collectionName, docId, finalVectorChunks);
             }
         });
+        bizChangeLogContext.put(docId, before, documentMapper.selectById(docId));
     }
 
     @Override

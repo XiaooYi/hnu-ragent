@@ -17,6 +17,8 @@
 
 package com.nageoffer.ai.ragent.knowledge.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nageoffer.ai.ragent.audit.support.BizChangeLogContext;
 import com.nageoffer.ai.ragent.core.parser.DocumentParser;
 import com.nageoffer.ai.ragent.core.parser.DocumentParserSelector;
 import com.nageoffer.ai.ragent.framework.exception.ClientException;
@@ -60,6 +62,8 @@ class KnowledgeDocumentUploadTest {
     private DocumentParser parser;
     @Mock
     private FileStorageService fileStorageService;
+    @Mock
+    private BizChangeLogContext bizChangeLogContext;
     @InjectMocks
     private KnowledgeDocumentServiceImpl service;
 

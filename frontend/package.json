@@ -14,6 +14,7 @@
     "test:document-preview": "node --test tests/documentPreview.test.mjs",
     "test:chat-recommendations": "node --test tests/chatRecommendations.test.mjs",
     "test:tier-settings": "node --test tests/settingsTiers.test.mjs",
+    "test:change-logs": "node --test tests/changeLogDiff.test.mjs",
     "preview": "vite preview",
     "lint": "eslint . --ext .ts,.tsx --max-warnings 0",
     "format": "prettier --write ."

@@ -15,28 +15,23 @@
  * limitations under the License.
  */
 
-package com.nageoffer.ai.ragent;
-
-import org.mybatis.spring.annotation.MapperScan;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.scheduling.annotation.EnableScheduling;
+package com.nageoffer.ai.ragent.audit.constant;
 
 /**
- * Ragent 核心应用启动类
+ * 审计日志的业务对象类型
  */
-@SpringBootApplication
-@EnableScheduling
-@MapperScan(basePackages = {
-        "com.nageoffer.ai.ragent.audit.dao.mapper",
-        "com.nageoffer.ai.ragent.rag.dao.mapper",
-        "com.nageoffer.ai.ragent.ingestion.dao.mapper",
-        "com.nageoffer.ai.ragent.knowledge.dao.mapper",
-        "com.nageoffer.ai.ragent.user.dao.mapper"
-})
-public class RagentApplication {
+public final class BizChangeBizType {
 
-    public static void main(String[] args) {
-        SpringApplication.run(RagentApplication.class, args);
+    public static final String KNOWLEDGE_BASE = "KNOWLEDGE_BASE";
+    public static final String KNOWLEDGE_DOCUMENT = "KNOWLEDGE_DOCUMENT";
+    public static final String KNOWLEDGE_CHUNK = "KNOWLEDGE_CHUNK";
+    public static final String INGESTION_PIPELINE = "INGESTION_PIPELINE";
+    public static final String INGESTION_TASK = "INGESTION_TASK";
+    public static final String INTENT_TREE = "INTENT_TREE";
+    public static final String QUERY_TERM_MAPPING = "QUERY_TERM_MAPPING";
+    public static final String SAMPLE_QUESTION = "SAMPLE_QUESTION";
+    public static final String USER = "USER";
+
+    private BizChangeBizType() {
     }
 }

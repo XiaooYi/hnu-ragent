@@ -15,28 +15,20 @@
  * limitations under the License.
  */
 
-package com.nageoffer.ai.ragent;
-
-import org.mybatis.spring.annotation.MapperScan;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.scheduling.annotation.EnableScheduling;
+package com.nageoffer.ai.ragent.audit.constant;
 
 /**
- * Ragent 核心应用启动类
+ * 审计日志的操作类型
  */
-@SpringBootApplication
-@EnableScheduling
-@MapperScan(basePackages = {
-        "com.nageoffer.ai.ragent.audit.dao.mapper",
-        "com.nageoffer.ai.ragent.rag.dao.mapper",
-        "com.nageoffer.ai.ragent.ingestion.dao.mapper",
-        "com.nageoffer.ai.ragent.knowledge.dao.mapper",
-        "com.nageoffer.ai.ragent.user.dao.mapper"
-})
-public class RagentApplication {
+public final class BizChangeOperationType {
 
-    public static void main(String[] args) {
-        SpringApplication.run(RagentApplication.class, args);
+    public static final String CREATE = "CREATE";
+    public static final String UPDATE = "UPDATE";
+    public static final String DELETE = "DELETE";
+    public static final String ENABLE = "ENABLE";
+    public static final String DISABLE = "DISABLE";
+    public static final String RUN = "RUN";
+
+    private BizChangeOperationType() {
     }
 }

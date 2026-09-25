@@ -17,11 +17,16 @@
 
 package com.nageoffer.ai.ragent.rag.service.impl;
 
+import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.lang.Assert;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.nageoffer.ai.ragent.audit.annotation.BizChangeLog;
+import com.nageoffer.ai.ragent.audit.constant.BizChangeBizType;
+import com.nageoffer.ai.ragent.audit.constant.BizChangeOperationType;
+import com.nageoffer.ai.ragent.audit.support.BizChangeLogContext;
 import com.nageoffer.ai.ragent.framework.exception.ClientException;
 import com.nageoffer.ai.ragent.rag.controller.request.SampleQuestionCreateRequest;
 import com.nageoffer.ai.ragent.rag.controller.request.SampleQuestionPageRequest;
@@ -42,8 +47,15 @@ public class SampleQuestionServiceImpl implements SampleQuestionService {
     private static final int DEFAULT_LIMIT = 3;
 
     private final SampleQuestionMapper sampleQuestionMapper;
+    private final BizChangeLogContext bizChangeLogContext;
 
     @Override
+    @BizChangeLog(
+            bizType = BizChangeBizType.SAMPLE_QUESTION,
+            operationType = BizChangeOperationType.CREATE,
+            success = "新增示例问题：{{#requestParam.question}}",
+            fail = "新增示例问题失败：{{#_errorMsg}}"
+    )
     public String create(SampleQuestionCreateRequest requestParam) {
         Assert.notNull(requestParam, () -> new ClientException("请求不能为空"));
         String question = StrUtil.trimToNull(requestParam.getQuestion());
@@ -55,13 +67,22 @@ public class SampleQuestionServiceImpl implements SampleQuestionService {
                 .question(question)
                 .build();
         sampleQuestionMapper.insert(record);
+        bizChangeLogContext.put(String.valueOf(record.getId()), null, record);
         return String.valueOf(record.getId());
     }
 
     @Override
+    @BizChangeLog(
+            bizType = BizChangeBizType.SAMPLE_QUESTION,
+            operationType = BizChangeOperationType.UPDATE,
+            bizId = "#id",
+            success = "更新示例问题：{{#id}}",
+            fail = "更新示例问题失败：{{#_errorMsg}}"
+    )
     public void update(String id, SampleQuestionUpdateRequest requestParam) {
         Assert.notNull(requestParam, () -> new ClientException("请求不能为空"));
         SampleQuestionDO record = loadById(id);
+        SampleQuestionDO before = BeanUtil.copyProperties(record, SampleQuestionDO.class);
 
         if (requestParam.getQuestion() != null) {
             String question = StrUtil.trimToNull(requestParam.getQuestion());
@@ -76,12 +97,22 @@ public class SampleQuestionServiceImpl implements SampleQuestionService {
         }
 
         sampleQuestionMapper.updateById(record);
+        bizChangeLogContext.put(id, before, record);
     }
 
     @Override
+    @BizChangeLog(
+            bizType = BizChangeBizType.SAMPLE_QUESTION,
+            operationType = BizChangeOperationType.DELETE,
+            bizId = "#id",
+            success = "删除示例问题：{{#id}}",
+            fail = "删除示例问题失败：{{#_errorMsg}}"
+    )
     public void delete(String id) {
         SampleQuestionDO record = loadById(id);
+        SampleQuestionDO before = BeanUtil.copyProperties(record, SampleQuestionDO.class);
         sampleQuestionMapper.deleteById(record.getId());
+        bizChangeLogContext.put(id, before, null);
     }
 
     @Override

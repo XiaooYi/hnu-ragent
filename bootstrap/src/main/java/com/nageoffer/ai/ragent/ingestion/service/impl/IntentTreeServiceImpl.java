@@ -23,6 +23,10 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.google.gson.Gson;
+import com.nageoffer.ai.ragent.audit.annotation.BizChangeLog;
+import com.nageoffer.ai.ragent.audit.constant.BizChangeBizType;
+import com.nageoffer.ai.ragent.audit.constant.BizChangeOperationType;
+import com.nageoffer.ai.ragent.audit.support.BizChangeLogContext;
 import com.nageoffer.ai.ragent.rag.controller.request.IntentNodeCreateRequest;
 import com.nageoffer.ai.ragent.rag.controller.request.IntentNodeUpdateRequest;
 import com.nageoffer.ai.ragent.rag.controller.vo.IntentNodeTreeVO;
@@ -60,6 +64,7 @@ public class IntentTreeServiceImpl extends ServiceImpl<IntentNodeMapper, IntentN
 
     private final KnowledgeBaseMapper knowledgeBaseMapper;
     private final IntentTreeCacheManager intentTreeCacheManager;
+    private final BizChangeLogContext bizChangeLogContext;
 
     private static final Gson GSON = new Gson();
 
@@ -104,6 +109,12 @@ public class IntentTreeServiceImpl extends ServiceImpl<IntentNodeMapper, IntentN
     }
 
     @Override
+    @BizChangeLog(
+            bizType = BizChangeBizType.INTENT_TREE,
+            operationType = BizChangeOperationType.CREATE,
+            success = "创建意图节点：{{#requestParam.intentCode}}（{{#requestParam.name}}）",
+            fail = "创建意图节点失败：{{#_errorMsg}}"
+    )
     public String createNode(IntentNodeCreateRequest requestParam) {
         // 简单重复校验：intentCode 不允许重复
         long count = this.count(new LambdaQueryWrapper<IntentNodeDO>()
@@ -158,15 +169,24 @@ public class IntentTreeServiceImpl extends ServiceImpl<IntentNodeMapper, IntentN
         // 清除Redis缓存，下次读取时会重新从数据库加载
         intentTreeCacheManager.clearIntentTreeCache();
 
+        bizChangeLogContext.put(String.valueOf(node.getId()), null, node);
         return String.valueOf(node.getId());
     }
 
     @Override
+    @BizChangeLog(
+            bizType = BizChangeBizType.INTENT_TREE,
+            operationType = BizChangeOperationType.UPDATE,
+            bizId = "#id",
+            success = "更新意图节点：{{#id}}",
+            fail = "更新意图节点失败：{{#_errorMsg}}"
+    )
     public void updateNode(String id, IntentNodeUpdateRequest req) {
         IntentNodeDO node = this.getById(id);
         if (node == null || Objects.equals(node.getDeleted(), 1)) {
             throw new ServiceException("节点不存在或已删除: id=" + id);
         }
+        IntentNodeDO before = BeanUtil.copyProperties(node, IntentNodeDO.class);
 
         if (req.getName() != null) {
             node.setName(req.getName());
@@ -218,6 +238,7 @@ public class IntentTreeServiceImpl extends ServiceImpl<IntentNodeMapper, IntentN
 
         // 清除Redis缓存，下次读取时会重新从数据库加载
         intentTreeCacheManager.clearIntentTreeCache();
+        bizChangeLogContext.put(id, before, this.getById(id));
     }
 
     /**
@@ -259,21 +280,39 @@ public class IntentTreeServiceImpl extends ServiceImpl<IntentNodeMapper, IntentN
     }
 
     @Override
+    @BizChangeLog(
+            bizType = BizChangeBizType.INTENT_TREE,
+            operationType = BizChangeOperationType.DELETE,
+            bizId = "#id",
+            success = "删除意图节点：{{#id}}",
+            fail = "删除意图节点失败：{{#_errorMsg}}"
+    )
     public void deleteNode(String id) {
+        IntentNodeDO node = this.getById(id);
+        IntentNodeDO before = node == null ? null : BeanUtil.copyProperties(node, IntentNodeDO.class);
         this.removeById(id);
 
         // 清除Redis缓存，下次读取时会重新从数据库加载
         intentTreeCacheManager.clearIntentTreeCache();
+        bizChangeLogContext.put(id, before, null);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @BizChangeLog(
+            bizType = BizChangeBizType.INTENT_TREE,
+            operationType = BizChangeOperationType.ENABLE,
+            success = "批量启用意图节点：{{#ids}}",
+            fail = "批量启用意图节点失败：{{#_errorMsg}}"
+    )
     public void batchEnableNodes(List<String> ids) {
         List<IntentNodeDO> targetNodes = listAndValidateTargetNodes(ids);
         String operator = UserContext.getUsername();
         targetNodes.forEach(node -> {
+            IntentNodeDO before = BeanUtil.copyProperties(node, IntentNodeDO.class);
             node.setEnabled(1);
             node.setUpdateBy(operator);
+            bizChangeLogContext.put(node.getId(), before, node);
         });
         this.updateBatchById(targetNodes);
         intentTreeCacheManager.clearIntentTreeCache();
@@ -281,6 +320,12 @@ public class IntentTreeServiceImpl extends ServiceImpl<IntentNodeMapper, IntentN
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @BizChangeLog(
+            bizType = BizChangeBizType.INTENT_TREE,
+            operationType = BizChangeOperationType.DISABLE,
+            success = "批量停用意图节点：{{#ids}}",
+            fail = "批量停用意图节点失败：{{#_errorMsg}}"
+    )
     public void batchDisableNodes(List<String> ids) {
         List<IntentNodeDO> targetNodes = listAndValidateTargetNodes(ids);
         List<IntentNodeDO> allActiveNodes = listActiveNodes();
@@ -303,8 +348,10 @@ public class IntentTreeServiceImpl extends ServiceImpl<IntentNodeMapper, IntentN
         }
         String operator = UserContext.getUsername();
         targetNodes.forEach(node -> {
+            IntentNodeDO before = BeanUtil.copyProperties(node, IntentNodeDO.class);
             node.setEnabled(0);
             node.setUpdateBy(operator);
+            bizChangeLogContext.put(node.getId(), before, node);
         });
         this.updateBatchById(targetNodes);
         intentTreeCacheManager.clearIntentTreeCache();
@@ -312,6 +359,12 @@ public class IntentTreeServiceImpl extends ServiceImpl<IntentNodeMapper, IntentN
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @BizChangeLog(
+            bizType = BizChangeBizType.INTENT_TREE,
+            operationType = BizChangeOperationType.DELETE,
+            success = "批量删除意图节点：{{#ids}}",
+            fail = "批量删除意图节点失败：{{#_errorMsg}}"
+    )
     public void batchDeleteNodes(List<String> ids) {
         List<IntentNodeDO> targetNodes = listAndValidateTargetNodes(ids);
         List<IntentNodeDO> allActiveNodes = listActiveNodes();
@@ -344,6 +397,8 @@ public class IntentTreeServiceImpl extends ServiceImpl<IntentNodeMapper, IntentN
                 );
             }
         }
+        targetNodes.forEach(node -> bizChangeLogContext.put(node.getId(),
+                BeanUtil.copyProperties(node, IntentNodeDO.class), null));
         this.removeByIds(targetIdSet);
         intentTreeCacheManager.clearIntentTreeCache();
     }

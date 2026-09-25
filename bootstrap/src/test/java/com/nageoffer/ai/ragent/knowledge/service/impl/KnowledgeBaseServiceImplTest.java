@@ -17,6 +17,8 @@
 
 package com.nageoffer.ai.ragent.knowledge.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nageoffer.ai.ragent.audit.support.BizChangeLogContext;
 import com.nageoffer.ai.ragent.framework.context.UserContext;
 import com.nageoffer.ai.ragent.framework.context.LoginUser;
 import com.nageoffer.ai.ragent.framework.exception.ServiceException;
@@ -50,19 +52,22 @@ class KnowledgeBaseServiceImplTest {
     private final VectorStoreAdmin vectorStoreAdmin = mock(VectorStoreAdmin.class);
     private final FileStorageService fileStorageService = mock(FileStorageService.class);
     private final MessageQueueProducer messageQueueProducer = mock(MessageQueueProducer.class);
+    private final BizChangeLogContext bizChangeLogContext = new BizChangeLogContext(new ObjectMapper());
 
     private KnowledgeBaseServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new KnowledgeBaseServiceImpl(
-                knowledgeBaseMapper, knowledgeDocumentMapper, vectorStoreAdmin, fileStorageService, messageQueueProducer);
+                knowledgeBaseMapper, knowledgeDocumentMapper, vectorStoreAdmin, fileStorageService, messageQueueProducer,
+                bizChangeLogContext);
         UserContext.set(LoginUser.builder().userId("u-1").username("admin").build());
     }
 
     @AfterEach
     void tearDown() {
         UserContext.clear();
+        bizChangeLogContext.clear();
     }
 
     @Test

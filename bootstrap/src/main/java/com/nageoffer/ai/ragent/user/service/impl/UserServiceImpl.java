@@ -17,11 +17,16 @@
 
 package com.nageoffer.ai.ragent.user.service.impl;
 
+import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.lang.Assert;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.nageoffer.ai.ragent.audit.annotation.BizChangeLog;
+import com.nageoffer.ai.ragent.audit.constant.BizChangeBizType;
+import com.nageoffer.ai.ragent.audit.constant.BizChangeOperationType;
+import com.nageoffer.ai.ragent.audit.support.BizChangeLogContext;
 import com.nageoffer.ai.ragent.framework.context.LoginUser;
 import com.nageoffer.ai.ragent.framework.context.UserContext;
 import com.nageoffer.ai.ragent.framework.exception.ClientException;
@@ -44,6 +49,7 @@ public class UserServiceImpl implements UserService {
     private static final String DEFAULT_ADMIN_USERNAME = "admin";
 
     private final UserMapper userMapper;
+    private final BizChangeLogContext bizChangeLogContext;
 
     @Override
     public IPage<UserVO> pageQuery(UserPageRequest requestParam) {
@@ -63,6 +69,12 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @BizChangeLog(
+            bizType = BizChangeBizType.USER,
+            operationType = BizChangeOperationType.CREATE,
+            success = "创建用户：{{#requestParam.username}}",
+            fail = "创建用户失败：{{#_errorMsg}}"
+    )
     public String create(UserCreateRequest requestParam) {
         Assert.notNull(requestParam, () -> new ClientException("请求不能为空"));
         String username = StrUtil.trimToNull(requestParam.getUsername());
@@ -84,14 +96,23 @@ public class UserServiceImpl implements UserService {
                 .avatar(StrUtil.trimToNull(requestParam.getAvatar()))
                 .build();
         userMapper.insert(record);
+        bizChangeLogContext.put(String.valueOf(record.getId()), null, maskPassword(record));
         return String.valueOf(record.getId());
     }
 
     @Override
+    @BizChangeLog(
+            bizType = BizChangeBizType.USER,
+            operationType = BizChangeOperationType.UPDATE,
+            bizId = "#id",
+            success = "更新用户：{{#id}}",
+            fail = "更新用户失败：{{#_errorMsg}}"
+    )
     public void update(String id, UserUpdateRequest requestParam) {
         Assert.notNull(requestParam, () -> new ClientException("请求不能为空"));
         UserDO record = loadById(id);
         ensureNotDefaultAdmin(record);
+        UserDO before = maskPassword(record);
 
         if (requestParam.getUsername() != null) {
             String username = StrUtil.trimToNull(requestParam.getUsername());
@@ -120,13 +141,23 @@ public class UserServiceImpl implements UserService {
         }
 
         userMapper.updateById(record);
+        bizChangeLogContext.put(id, before, maskPassword(record));
     }
 
     @Override
+    @BizChangeLog(
+            bizType = BizChangeBizType.USER,
+            operationType = BizChangeOperationType.DELETE,
+            bizId = "#id",
+            success = "删除用户：{{#id}}",
+            fail = "删除用户失败：{{#_errorMsg}}"
+    )
     public void delete(String id) {
         UserDO record = loadById(id);
         ensureNotDefaultAdmin(record);
+        UserDO before = maskPassword(record);
         userMapper.deleteById(record.getId());
+        bizChangeLogContext.put(id, before, null);
     }
 
     @Override
@@ -159,6 +190,15 @@ public class UserServiceImpl implements UserService {
         );
         Assert.notNull(record, () -> new ClientException("用户不存在"));
         return record;
+    }
+
+    /**
+     * 审计快照不记录密码：复制一份并清空，避免明文口令进入审计表
+     */
+    private UserDO maskPassword(UserDO record) {
+        UserDO snapshot = BeanUtil.copyProperties(record, UserDO.class);
+        snapshot.setPassword(null);
+        return snapshot;
     }
 
     private void ensureNotDefaultAdmin(UserDO record) {

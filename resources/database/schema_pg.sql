@@ -115,6 +115,35 @@ CREATE INDEX idx_sample_question_deleted ON t_sample_question (deleted);
 COMMENT ON TABLE t_sample_question IS '示例问题表';
 
 -- ============================================
+-- Business Change Audit Tables
+-- ============================================
+
+CREATE TABLE t_biz_change_log (
+    id               VARCHAR(20)  NOT NULL PRIMARY KEY,
+    biz_type         VARCHAR(64)  NOT NULL,
+    biz_id           VARCHAR(64)  NOT NULL,
+    operation_type   VARCHAR(32)  NOT NULL,
+    action_desc      VARCHAR(512),
+    before_snapshot  JSONB,
+    after_snapshot   JSONB,
+    change_diff      JSONB,
+    operator_id      VARCHAR(64),
+    operator_name    VARCHAR(128),
+    operator_role    VARCHAR(64),
+    success          BOOLEAN      NOT NULL DEFAULT TRUE,
+    error_message    TEXT,
+    class_name       VARCHAR(255),
+    method_name      VARCHAR(255),
+    ip               VARCHAR(64),
+    user_agent       VARCHAR(512),
+    create_time      TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_biz_change_log_biz ON t_biz_change_log (biz_type, biz_id);
+CREATE INDEX idx_biz_change_log_time ON t_biz_change_log (create_time);
+CREATE INDEX idx_biz_change_log_operator ON t_biz_change_log (operator_id);
+COMMENT ON TABLE t_biz_change_log IS '业务数据变更审计日志表';
+
+-- ============================================
 -- Knowledge Base Tables
 -- ============================================
 
@@ -486,6 +515,26 @@ COMMENT ON COLUMN t_sample_question.question IS '示例问题内容';
 COMMENT ON COLUMN t_sample_question.create_time IS '创建时间';
 COMMENT ON COLUMN t_sample_question.update_time IS '更新时间';
 COMMENT ON COLUMN t_sample_question.deleted IS '是否删除 0：正常 1：删除';
+
+-- t_biz_change_log
+COMMENT ON COLUMN t_biz_change_log.id IS '主键 ID';
+COMMENT ON COLUMN t_biz_change_log.biz_type IS '业务对象类型';
+COMMENT ON COLUMN t_biz_change_log.biz_id IS '业务对象主键';
+COMMENT ON COLUMN t_biz_change_log.operation_type IS '操作类型';
+COMMENT ON COLUMN t_biz_change_log.action_desc IS '操作描述';
+COMMENT ON COLUMN t_biz_change_log.before_snapshot IS '变更前快照';
+COMMENT ON COLUMN t_biz_change_log.after_snapshot IS '变更后快照';
+COMMENT ON COLUMN t_biz_change_log.change_diff IS '字段级变更差异';
+COMMENT ON COLUMN t_biz_change_log.operator_id IS '操作人ID';
+COMMENT ON COLUMN t_biz_change_log.operator_name IS '操作人名称';
+COMMENT ON COLUMN t_biz_change_log.operator_role IS '操作人角色';
+COMMENT ON COLUMN t_biz_change_log.success IS '是否成功';
+COMMENT ON COLUMN t_biz_change_log.error_message IS '失败信息';
+COMMENT ON COLUMN t_biz_change_log.class_name IS '触发类名';
+COMMENT ON COLUMN t_biz_change_log.method_name IS '触发方法名';
+COMMENT ON COLUMN t_biz_change_log.ip IS '来源IP';
+COMMENT ON COLUMN t_biz_change_log.user_agent IS 'User-Agent';
+COMMENT ON COLUMN t_biz_change_log.create_time IS '创建时间';
 
 -- t_knowledge_base
 COMMENT ON COLUMN t_knowledge_base.id IS '主键 ID';

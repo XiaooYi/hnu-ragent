@@ -15,28 +15,24 @@
  * limitations under the License.
  */
 
-package com.nageoffer.ai.ragent;
+package com.nageoffer.ai.ragent.audit.service;
 
-import org.mybatis.spring.annotation.MapperScan;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.scheduling.annotation.EnableScheduling;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.nageoffer.ai.ragent.audit.controller.request.BizChangeLogPageRequest;
+import com.nageoffer.ai.ragent.audit.controller.vo.BizChangeLogVO;
 
 /**
- * Ragent 核心应用启动类
+ * 业务变更审计日志查询
  */
-@SpringBootApplication
-@EnableScheduling
-@MapperScan(basePackages = {
-        "com.nageoffer.ai.ragent.audit.dao.mapper",
-        "com.nageoffer.ai.ragent.rag.dao.mapper",
-        "com.nageoffer.ai.ragent.ingestion.dao.mapper",
-        "com.nageoffer.ai.ragent.knowledge.dao.mapper",
-        "com.nageoffer.ai.ragent.user.dao.mapper"
-})
-public class RagentApplication {
+public interface BizChangeLogService {
 
-    public static void main(String[] args) {
-        SpringApplication.run(RagentApplication.class, args);
-    }
+    /**
+     * 分页查询审计日志
+     */
+    IPage<BizChangeLogVO> page(BizChangeLogPageRequest requestParam);
+
+    /**
+     * 查询单条审计日志明细
+     */
+    BizChangeLogVO get(String id);
 }
