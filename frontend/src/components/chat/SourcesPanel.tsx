@@ -41,7 +41,12 @@ export function SourcesPanel({ sources }: SourcesPanelProps) {
           );
 
           return (
-            <li key={`${item.index}-${item.title}`} className="flex gap-2 text-xs">
+            <li
+              key={`${item.index}-${item.title}`}
+              id={`cite-${item.index}`}
+              data-citation-source={item.index}
+              className="flex gap-2 rounded px-1 text-xs transition-colors target:bg-primary/10"
+            >
               <span className="mt-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded bg-primary/10 px-1 font-medium text-primary">
                 {item.index}
               </span>

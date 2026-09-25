@@ -12,15 +12,25 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark, oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 import { Button } from "@/components/ui/button";
+import {
+  collectSourceIndexes,
+  focusCitationSource,
+  normalizeCitationMarkers,
+  parseCitationIndex
+} from "@/lib/chatCitations";
 import { cn } from "@/lib/utils";
 import { useThemeStore } from "@/stores/themeStore";
+import type { SourceRef } from "@/types";
 
 interface MarkdownRendererProps {
   content: string;
+  /** 回答来源：用于把裸标记 [N] 补成角标并支持点击跳转 */
+  sources?: SourceRef[];
 }
 
-export function MarkdownRenderer({ content }: MarkdownRendererProps) {
+export function MarkdownRenderer({ content, sources }: MarkdownRendererProps) {
   const theme = useThemeStore((state) => state.theme);
+  const rendered = normalizeCitationMarkers(content, collectSourceIndexes(sources));
 
   return (
     <ReactMarkdown
@@ -101,6 +111,25 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
           );
         },
         a({ children, ...props }) {
+          const citationIndex = parseCitationIndex(props.href);
+          if (citationIndex !== null) {
+            // 行内引用角标：不要默认的蓝色下划线链接样式，跨行/跨被引用内容都紧贴前文
+            return (
+              <a
+                href={props.href}
+                data-source-citation={citationIndex}
+                title={`查看第 ${citationIndex} 条来源`}
+                className="ml-0.5 align-super text-[10px] no-underline text-[#0969da] hover:underline dark:text-[#58a6ff]"
+                onClick={(event) => {
+                  // 同一页内跳转：交给来源面板展开并滚动，避免 URL 里留下 #cite-N
+                  event.preventDefault();
+                  focusCitationSource(citationIndex);
+                }}
+              >
+                [{children}]
+              </a>
+            );
+          }
           return (
             <a
               className="text-[#0969da] underline-offset-4 hover:underline dark:text-[#58a6ff]"
@@ -231,7 +260,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
       }}
       className="prose prose-gray max-w-none break-words leading-[1.6] dark:prose-invert prose-headings:text-[#1A1A1A] dark:prose-headings:text-[#EEEEEE] prose-p:text-[#333333] dark:prose-p:text-[#CCCCCC] prose-p:leading-relaxed prose-li:text-[#333333] dark:prose-li:text-[#CCCCCC] prose-strong:text-[#1A1A1A] dark:prose-strong:text-[#EEEEEE]"
     >
-      {content}
+      {rendered}
     </ReactMarkdown>
   );
 }
