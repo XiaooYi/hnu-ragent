@@ -120,8 +120,10 @@ public abstract class AbstractOpenAIStyleEmbeddingClient implements EmbeddingCli
 
         String url = ModelUrlResolver.resolveUrl(provider, target.candidate(), ModelCapability.EMBEDDING);
 
+        String model = HttpResponseHelper.requireModel(target, provider());
+
         JsonObject body = new JsonObject();
-        body.addProperty("model", HttpResponseHelper.requireModel(target, provider()));
+        body.addProperty("model", model);
         JsonArray inputArray = new JsonArray();
         for (String text : texts) {
             inputArray.add(text);
@@ -138,11 +140,16 @@ public abstract class AbstractOpenAIStyleEmbeddingClient implements EmbeddingCli
         }
         Request request = requestBuilder.build();
 
+        // embedding 是检索链路上唯一的远端同步调用，慢在这里会被上游按「通道无结果」吞掉
+        // 成败两路都记耗时：失败路更要记，慢失败才是吃满上游预算的那一种
+        long startTime = System.currentTimeMillis();
+
         JsonObject json;
         try (Response response = httpClient.newCall(request).execute()) {
             if (!response.isSuccessful()) {
                 String errBody = HttpResponseHelper.readBody(response.body());
-                log.warn("{} embedding 请求失败: status={}, body={}", provider(), response.code(), errBody);
+                log.warn("{} embedding 请求失败 - 模型：{}，条数：{}，耗时：{}ms，status={}, body={}",
+                        provider(), model, texts.size(), System.currentTimeMillis() - startTime, response.code(), errBody);
                 throw new ModelClientException(
                         provider() + " embedding 请求失败: HTTP " + response.code(),
                         ModelClientErrorType.fromHttpStatus(response.code()),
@@ -151,6 +158,8 @@ public abstract class AbstractOpenAIStyleEmbeddingClient implements EmbeddingCli
             }
             json = HttpResponseHelper.parseJson(response.body(), provider());
         } catch (IOException e) {
+            log.warn("{} embedding 请求异常 - 模型：{}，条数：{}，耗时：{}ms，原因：{}",
+                    provider(), model, texts.size(), System.currentTimeMillis() - startTime, e.getMessage());
             throw new ModelClientException(
                     provider() + " embedding 请求失败: " + e.getMessage(),
                     ModelClientErrorType.NETWORK_ERROR, null, e);

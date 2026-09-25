@@ -34,6 +34,11 @@ public class BaiLianChatClient extends AbstractOpenAIStyleChatClient {
     }
 
     @Override
+    protected boolean supportsEnableThinkingParam() {
+        return true;
+    }
+
+    @Override
     @RagTraceNode(name = "bailian-chat", type = "LLM_PROVIDER")
     public String chat(ChatRequest request, ModelTarget target) {
         return doChat(request, target);

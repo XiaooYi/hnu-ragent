@@ -75,12 +75,22 @@ public abstract class AbstractOpenAIStyleChatClient implements ChatClient {
     }
 
     /**
+     * 提供商是否认识 enable_thinking
+     * <p>
+     * 该字段是 DashScope 系的私有扩展，OpenAI 兼容协议本身没有；发给不认识它的网关会被判为
+     * unknown_parameter 直接 400，因此默认不发，由具体提供商声明
+     */
+    protected boolean supportsEnableThinkingParam() {
+        return false;
+    }
+
+    /**
      * 子类可覆写此方法添加提供商特有的请求体字段
-     * 默认实现：当请求开启 thinking 时添加 enable_thinking 字段
+     * 默认实现：仅对认识该字段的提供商显式声明思考开关（Qwen3 系不显式关会默认开启思考）
      */
     protected void customizeRequestBody(JsonObject body, ChatRequest request) {
-        if (Boolean.TRUE.equals(request.getThinking())) {
-            body.addProperty("enable_thinking", true);
+        if (supportsEnableThinkingParam()) {
+            body.addProperty("enable_thinking", Boolean.TRUE.equals(request.getThinking()));
         }
     }
 
@@ -178,9 +188,6 @@ public abstract class AbstractOpenAIStyleChatClient implements ChatClient {
                 );
             }
             ResponseBody body = response.body();
-            if (body == null) {
-                throw new ModelClientException(provider() + " 流式响应为空", ModelClientErrorType.INVALID_RESPONSE, null);
-            }
             BufferedSource source = body.source();
             boolean completed = false;
             while (!cancelled.get()) {
