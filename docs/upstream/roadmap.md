@@ -53,7 +53,7 @@
 | UP-17 | 会话摘要与上下文裁剪 | [`features/up-17-memory-compaction.md`](features/up-17-memory-compaction.md) | 部分落地：摘要刷新边界已修（含验证）；Agent 侧上下文裁剪随 UP-36 |
 | UP-15 | 知识库删除异步资源清理 | [`features/up-15-async-cleanup.md`](features/up-15-async-cleanup.md) | 已落地（含验证） |
 | UP-16 | MinerU 并发控制重构 | [`features/up-16-mineru-semaphore.md`](features/up-16-mineru-semaphore.md) | 已落地（含验证） |
-| UP-14 | 文件存储抽象 | `features/up-14-storage-abstraction.md` | 未开始 |
+| UP-14 | 文件存储抽象 | [`features/up-14-storage-abstraction.md`](features/up-14-storage-abstraction.md) | 已落地（含验证） |
 
 ### 批次 5：对话体验
 

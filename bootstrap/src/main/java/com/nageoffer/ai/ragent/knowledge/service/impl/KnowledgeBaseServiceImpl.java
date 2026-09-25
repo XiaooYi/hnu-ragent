@@ -36,6 +36,7 @@ import com.nageoffer.ai.ragent.framework.exception.ClientException;
 import com.nageoffer.ai.ragent.framework.exception.ServiceException;
 import com.nageoffer.ai.ragent.framework.mq.producer.MessageQueueProducer;
 import com.nageoffer.ai.ragent.knowledge.mq.event.KnowledgeBaseCleanupEvent;
+import com.nageoffer.ai.ragent.rag.service.FileStorageService;
 import com.nageoffer.ai.ragent.rag.core.vector.VectorSpaceId;
 import com.nageoffer.ai.ragent.rag.core.vector.VectorSpaceSpec;
 import com.nageoffer.ai.ragent.rag.core.vector.VectorStoreAdmin;
@@ -46,9 +47,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.BucketAlreadyExistsException;
-import software.amazon.awssdk.services.s3.model.BucketAlreadyOwnedByYouException;
 
 import java.util.HashMap;
 import java.util.List;
@@ -64,7 +62,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     private final KnowledgeBaseMapper knowledgeBaseMapper;
     private final KnowledgeDocumentMapper knowledgeDocumentMapper;
     private final VectorStoreAdmin vectorStoreAdmin;
-    private final S3Client s3Client;
+    private final FileStorageService fileStorageService;
     private final MessageQueueProducer messageQueueProducer;
 
     @Value("knowledge-base-cleanup_topic${unique-name:}")
@@ -96,17 +94,9 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
         knowledgeBaseMapper.insert(kbDO);
 
         String bucketName = requestParam.getCollectionName();
-        try {
-            s3Client.createBucket(builder -> builder.bucket(bucketName));
-            log.info("成功创建RestFS存储桶，Bucket名称: {}", bucketName);
-        } catch (BucketAlreadyOwnedByYouException | BucketAlreadyExistsException e) {
-            if (e instanceof BucketAlreadyOwnedByYouException) {
-                log.error("RestFS存储桶已存在，Bucket名称: {}", bucketName, e);
-            } else {
-                log.error("RestFS存储桶已存在但由其他账户拥有，Bucket名称: {}", bucketName, e);
-            }
-            throw new ServiceException("存储桶名称已被占用：" + bucketName);
-        }
+        // 存储操作只走抽象：桶是否已存在、属于谁，由存储实现决定（幂等语义在实现层收口）
+        fileStorageService.createBucket(bucketName);
+        log.info("知识库存储桶已就绪，bucket={}", bucketName);
 
         VectorSpaceSpec spaceSpec = VectorSpaceSpec.builder()
                 .spaceId(VectorSpaceId.builder()
