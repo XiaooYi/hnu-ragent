@@ -13,6 +13,7 @@ export function ChatInput() {
   const {
     sendMessage,
     isStreaming,
+    cancelRequested,
     cancelGeneration,
     deepThinkingEnabled,
     setDeepThinkingEnabled,
@@ -123,11 +124,14 @@ export function ChatInput() {
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={!hasContent && !isStreaming}
-            aria-label={isStreaming ? "停止生成" : "发送消息"}
+            disabled={(!hasContent && !isStreaming) || cancelRequested}
+            aria-label={cancelRequested ? "停止中" : isStreaming ? "停止生成" : "发送消息"}
+            aria-busy={cancelRequested}
             className={cn(
               "ml-auto rounded-full p-2.5 transition-all duration-200",
-              isStreaming
+              cancelRequested
+                ? "cursor-wait bg-[#F5F5F5] text-[#999999]"
+                : isStreaming
                 ? "bg-[#FEE2E2] text-[#EF4444] hover:bg-[#FECACA]"
                 : hasContent
                   ? "bg-[#3B82F6] text-white hover:bg-[#2563EB]"
@@ -153,7 +157,11 @@ export function ChatInput() {
           Shift + Enter
         </kbd>{" "}
         换行
-        {isStreaming ? <span className="ml-2 animate-pulse-soft">生成中...</span> : null}
+        {cancelRequested ? (
+          <span className="ml-2 text-[#999999]">停止中...</span>
+        ) : isStreaming ? (
+          <span className="ml-2 animate-pulse-soft">生成中...</span>
+        ) : null}
       </p>
     </div>
   );

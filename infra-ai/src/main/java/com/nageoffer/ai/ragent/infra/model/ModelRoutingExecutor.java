@@ -18,6 +18,7 @@
 package com.nageoffer.ai.ragent.infra.model;
 
 import com.nageoffer.ai.ragent.framework.errorcode.BaseErrorCode;
+import com.nageoffer.ai.ragent.framework.cancellation.TaskCancellation;
 import com.nageoffer.ai.ragent.framework.exception.RemoteException;
 import com.nageoffer.ai.ragent.infra.enums.ModelCapability;
 import lombok.RequiredArgsConstructor;
@@ -64,6 +65,11 @@ public class ModelRoutingExecutor {
                 healthStore.markSuccess(target.id());
                 return response;
             } catch (Exception e) {
+                // 用户取消不是模型故障：不改健康度、不继续降级，直接把取消抛给上层
+                if (TaskCancellation.isCancellation(e)) {
+                    log.debug("{} 调用被用户取消，停止降级。modelId={}", label, target.id());
+                    throw TaskCancellation.asCancellation(e);
+                }
                 last = e;
                 healthStore.markFailure(target.id());
                 log.warn("{} model failed, fallback to next. modelId={}, provider={}", label, target.id(), target.candidate().getProvider(), e);

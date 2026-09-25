@@ -64,7 +64,7 @@
 | UP-19 | 相关推荐追问 | [`features/up-19-follow-up-questions.md`](features/up-19-follow-up-questions.md) | 部分落地：后端（grounding / 生成 / 接口 / 字段与迁移）已落地（UP-19a）；前端待做（UP-19b） |
 | UP-19b | 前端推荐追问列表与生成按钮 | [`features/up-19-follow-up-questions.md`](features/up-19-follow-up-questions.md) | 已落地（含验证） |
 | UP-20 | 消息结束状态与顺序稳定性 | 见 UP-19 文档 | 已落地：状态与提问引用贯通（UP-19a）+ 消息顺序决胜键（雪花 id） |
-| UP-38 | 任务取消与中断反馈 | `features/up-38-task-cancellation.md` | 未开始（范围已复核，见下） |
+| UP-38 | 任务取消与中断反馈 | [`features/up-38-task-cancellation.md`](features/up-38-task-cancellation.md) | 已落地（RAG 侧：统一取消判定 + 停止态）；Agent 侧随批次八 |
 
 ### 批次 6：模型与供应商
 

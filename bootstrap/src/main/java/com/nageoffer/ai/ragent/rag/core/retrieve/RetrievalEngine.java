@@ -20,6 +20,7 @@ package com.nageoffer.ai.ragent.rag.core.retrieve;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import com.nageoffer.ai.ragent.framework.convention.RetrievedChunk;
+import com.nageoffer.ai.ragent.framework.cancellation.TaskCancellation;
 import com.nageoffer.ai.ragent.framework.trace.RagTraceNode;
 import com.nageoffer.ai.ragent.rag.config.SearchChannelProperties;
 import com.nageoffer.ai.ragent.rag.core.intent.IntentNode;
@@ -243,6 +244,15 @@ public class RetrievalEngine {
                                 CallToolResult result = executeSingleMcpTool(question, ns.getNode());
                                 return result == null ? null : new ToolOutput(toolId, result);
                             } catch (Exception e) {
+                                // 用户停止导致的工具中断不是故障：降级为 debug + 中断提示，避免排障噪声
+                                if (TaskCancellation.isCancellation(e)) {
+                                    log.debug("MCP 工具调用被用户取消, toolId: {}", toolId);
+                                    return new ToolOutput(toolId, CallToolResult.builder()
+                                            .content(List.of(new TextContent(
+                                                    "用户已停止本次生成，工具【" + toolId + "】的调用未完成。")))
+                                            .isError(true)
+                                            .build());
+                                }
                                 log.error("MCP 工具调用异常, toolId: {}", toolId, e);
                                 return new ToolOutput(toolId, CallToolResult.builder()
                                         .content(List.of(new TextContent("工具调用异常: " + e.getMessage())))
