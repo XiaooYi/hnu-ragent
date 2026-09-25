@@ -17,11 +17,15 @@
 
 package com.nageoffer.ai.ragent.rag.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nageoffer.ai.ragent.infra.config.AIModelProperties;
+import com.nageoffer.ai.ragent.rag.config.KeywordProperties;
 import com.nageoffer.ai.ragent.rag.config.MemoryProperties;
 import com.nageoffer.ai.ragent.rag.config.RAGConfigProperties;
 import com.nageoffer.ai.ragent.rag.config.RAGDefaultProperties;
 import com.nageoffer.ai.ragent.rag.config.RAGRateLimitProperties;
+import com.nageoffer.ai.ragent.rag.config.RagTraceProperties;
+import com.nageoffer.ai.ragent.rag.config.SearchChannelProperties;
 import com.nageoffer.ai.ragent.rag.controller.vo.SystemSettingsVO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -34,6 +38,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
@@ -42,19 +47,32 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class RAGSettingsControllerTest {
 
     private AIModelProperties aiModelProperties;
+    private SearchChannelProperties searchChannelProperties;
+    private KeywordProperties keywordProperties;
+    private RagTraceProperties ragTraceProperties;
+    private RAGConfigProperties ragConfigProperties;
     private RAGSettingsController controller;
 
     @BeforeEach
     void setUp() {
         aiModelProperties = new AIModelProperties();
+        searchChannelProperties = new SearchChannelProperties();
+        keywordProperties = new KeywordProperties();
+        ragTraceProperties = new RagTraceProperties();
+        ragConfigProperties = new RAGConfigProperties();
         controller = new RAGSettingsController(
+                searchChannelProperties,
+                keywordProperties,
+                ragTraceProperties,
                 new RAGDefaultProperties(),
-                new RAGConfigProperties(),
+                ragConfigProperties,
                 new RAGRateLimitProperties(),
                 new MemoryProperties(),
                 aiModelProperties);
         ReflectionTestUtils.setField(controller, "maxFileSize", DataSize.ofMegabytes(50));
         ReflectionTestUtils.setField(controller, "maxRequestSize", DataSize.ofMegabytes(100));
+        ReflectionTestUtils.setField(controller, "vectorType", "pg");
+        ReflectionTestUtils.setField(controller, "storageEndpoint", "http://127.0.0.1:9000");
     }
 
     @Test
@@ -103,6 +121,67 @@ class RAGSettingsControllerTest {
         assertNull(ai.getEmbedding().getTiers());
         assertNull(ai.getRerank().getDefaultTier());
         assertNull(ai.getRerank().getTiers());
+    }
+
+    @Test
+    @DisplayName("后端选型返回实现类型与访问地址，且不含任何凭据字段")
+    void exposesBackendSelection() throws Exception {
+        keywordProperties.setType("es");
+        keywordProperties.getEs().setIndex("rag_keyword_store");
+        keywordProperties.getEs().setUris("http://127.0.0.1:9200");
+
+        SystemSettingsVO.BackendSettings backends = controller.settings().getData().getBackends();
+
+        assertEquals("pg", backends.getVector().getType());
+        assertEquals("es", backends.getKeyword().getType());
+        assertEquals("rag_keyword_store", backends.getKeyword().getIndex());
+        assertEquals("s3-compatible", backends.getStorage().getPlatform());
+        assertEquals("http://127.0.0.1:9000", backends.getStorage().getEndpoint());
+
+        String json = new ObjectMapper().writeValueAsString(controller.settings().getData()).toLowerCase();
+        assertFalse(json.contains("secret"), "响应不得包含 secret 类字段");
+        assertFalse(json.contains("accesskey"), "响应不得包含 accessKey 类字段");
+    }
+
+    @Test
+    @DisplayName("能力开关取真实配置值")
+    void exposesFeatureFlags() {
+        ragConfigProperties.setQueryRewriteEnabled(true);
+        ragConfigProperties.setRerankEnabled(false);
+        ragConfigProperties.setCitationEnabled(true);
+        ragConfigProperties.setContextEnrichEnabled(false);
+        ragTraceProperties.setEnabled(true);
+
+        SystemSettingsVO.FeatureSettings features = controller.settings().getData().getRag().getFeatures();
+
+        assertEquals(true, features.getQueryRewrite());
+        assertEquals(false, features.getRerank());
+        assertEquals(true, features.getCitation());
+        assertEquals(false, features.getContextEnrich());
+        assertEquals(true, features.getTrace());
+    }
+
+    @Test
+    @DisplayName("检索管线：召回预算未显式配置时跟随融合候选上限，通道阈值如实返回")
+    void exposesSearchPipeline() {
+        searchChannelProperties.setDefaultTopK(10);
+        searchChannelProperties.getFusion().setRerankCandidateLimit(50);
+        searchChannelProperties.getScope().setRecallBudget(0);
+        searchChannelProperties.getChannels().setTimeoutMs(12_000L);
+        searchChannelProperties.getChannels().getIntentDirected().setMinIntentScore(0.45);
+
+        SystemSettingsVO.SearchSettings search = controller.settings().getData().getRag().getSearch();
+
+        assertEquals(10, search.getDefaultTopK());
+        assertEquals(50, search.getRecallBudget(), "recall-budget<=0 时回退融合候选上限");
+        assertEquals(12_000L, search.getChannels().getTimeoutMs());
+        assertEquals(0.45, search.getChannels().getIntentDirected().getMinIntentScore());
+        assertEquals("rrf", search.getFusion().getStrategy());
+        assertEquals(60, search.getFusion().getRrfK());
+        assertEquals(0.2, search.getEvidence().getMinRerankScore());
+
+        searchChannelProperties.getScope().setRecallBudget(80);
+        assertEquals(80, controller.settings().getData().getRag().getSearch().getRecallBudget());
     }
 
     private AIModelProperties.TierConfig tier(List<String> candidates, Long timeoutMs) {

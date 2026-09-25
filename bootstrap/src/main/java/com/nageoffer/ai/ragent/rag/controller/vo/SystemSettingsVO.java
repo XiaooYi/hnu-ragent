@@ -37,11 +37,13 @@ public class SystemSettingsVO {
     private RagSettings rag;
     private AISettings ai;
     private UploadSettings upload;
+    private BackendSettings backends;
 
-    public SystemSettingsVO(RagSettings rag, AISettings ai, UploadSettings upload) {
+    public SystemSettingsVO(RagSettings rag, AISettings ai, UploadSettings upload, BackendSettings backends) {
         this.rag = rag;
         this.ai = ai;
         this.upload = upload;
+        this.backends = backends;
     }
 
     public static SystemSettingsVOBuilder builder() {
@@ -52,6 +54,7 @@ public class SystemSettingsVO {
         private RagSettings rag;
         private AISettings ai;
         private UploadSettings upload;
+        private BackendSettings backends;
 
         public SystemSettingsVOBuilder rag(RagSettings rag) {
             this.rag = rag;
@@ -68,8 +71,59 @@ public class SystemSettingsVO {
             return this;
         }
 
+        public SystemSettingsVOBuilder backends(BackendSettings backends) {
+            this.backends = backends;
+            return this;
+        }
+
         public SystemSettingsVO build() {
-            return new SystemSettingsVO(rag, ai, upload);
+            return new SystemSettingsVO(rag, ai, upload, backends);
+        }
+    }
+
+    /**
+     * 后端选型视图：向量库 / 关键词检索 / 文件存储当前用的实现（只暴露地址，不含凭据）
+     */
+    @Data
+    @Builder
+    public static class BackendSettings {
+        private VectorBackend vector;
+        private KeywordBackend keyword;
+        private StorageBackend storage;
+
+        @Data
+        @Builder
+        public static class VectorBackend {
+            /**
+             * 向量后端类型：pg / milvus
+             */
+            private String type;
+        }
+
+        @Data
+        @Builder
+        public static class KeywordBackend {
+            /**
+             * 关键词后端类型：none / es
+             */
+            private String type;
+            private String uris;
+            private String index;
+            private String analyzer;
+            private String searchAnalyzer;
+        }
+
+        @Data
+        @Builder
+        public static class StorageBackend {
+            /**
+             * 存储平台（本仓库为 S3 兼容实现）
+             */
+            private String platform;
+            /**
+             * 访问地址（不含 access key / secret）
+             */
+            private String endpoint;
         }
     }
 
@@ -154,6 +208,10 @@ public class SystemSettingsVO {
         private String collectionName;
         private Integer dimension;
         private String metricType;
+        /**
+         * SSE 全局超时（毫秒），兜底防止连接泄漏
+         */
+        private Long sseTimeoutMs;
     }
 
     @Data
@@ -171,13 +229,17 @@ public class SystemSettingsVO {
     public static class RagSettings {
         @JsonProperty("default")
         private DefaultSettings defaultConfig;
+        private FeatureSettings features;
+        private SearchSettings search;
         private QueryRewriteSettings queryRewrite;
         private RateLimitSettings rateLimit;
         private MemorySettings memory;
 
-        public RagSettings(DefaultSettings defaultConfig, QueryRewriteSettings queryRewrite,
-                           RateLimitSettings rateLimit, MemorySettings memory) {
+        public RagSettings(DefaultSettings defaultConfig, FeatureSettings features, SearchSettings search,
+                           QueryRewriteSettings queryRewrite, RateLimitSettings rateLimit, MemorySettings memory) {
             this.defaultConfig = defaultConfig;
+            this.features = features;
+            this.search = search;
             this.queryRewrite = queryRewrite;
             this.rateLimit = rateLimit;
             this.memory = memory;
@@ -189,12 +251,24 @@ public class SystemSettingsVO {
 
         public static class RagSettingsBuilder {
             private DefaultSettings defaultConfig;
+            private FeatureSettings features;
+            private SearchSettings search;
             private QueryRewriteSettings queryRewrite;
             private RateLimitSettings rateLimit;
             private MemorySettings memory;
 
             public RagSettingsBuilder defaultConfig(DefaultSettings defaultConfig) {
                 this.defaultConfig = defaultConfig;
+                return this;
+            }
+
+            public RagSettingsBuilder features(FeatureSettings features) {
+                this.features = features;
+                return this;
+            }
+
+            public RagSettingsBuilder search(SearchSettings search) {
+                this.search = search;
                 return this;
             }
 
@@ -214,8 +288,85 @@ public class SystemSettingsVO {
             }
 
             public RagSettings build() {
-                return new RagSettings(defaultConfig, queryRewrite, rateLimit, memory);
+                return new RagSettings(defaultConfig, features, search, queryRewrite, rateLimit, memory);
             }
+        }
+    }
+
+    /**
+     * 能力开关视图：与 RAGConfigProperties / RagTraceProperties 一一对应
+     */
+    @Data
+    @Builder
+    public static class FeatureSettings {
+        private Boolean queryRewrite;
+        private Boolean rerank;
+        private Boolean citation;
+        private Boolean contextEnrich;
+        private Boolean trace;
+    }
+
+    /**
+     * 检索管线视图：展示线上真正生效的通道、融合与闸门参数
+     */
+    @Data
+    @Builder
+    public static class SearchSettings {
+        /**
+         * 最终进入上下文的条数
+         */
+        private Integer defaultTopK;
+        /**
+         * 通道取数深度（已按 recall-budget 的解析规则折算）
+         */
+        private Integer recallBudget;
+        private Channels channels;
+        private Fusion fusion;
+        private Evidence evidence;
+
+        @Data
+        @Builder
+        public static class Channels {
+            private Long timeoutMs;
+            private VectorGlobal vectorGlobal;
+            private IntentDirected intentDirected;
+            private Keyword keyword;
+        }
+
+        @Data
+        @Builder
+        public static class VectorGlobal {
+            private Boolean enabled;
+            private Double confidenceThreshold;
+            private Double singleIntentSupplementThreshold;
+        }
+
+        @Data
+        @Builder
+        public static class IntentDirected {
+            private Boolean enabled;
+            private Double minIntentScore;
+        }
+
+        @Data
+        @Builder
+        public static class Keyword {
+            private Boolean enabled;
+            private String mode;
+        }
+
+        @Data
+        @Builder
+        public static class Fusion {
+            private String strategy;
+            private Integer rrfK;
+            private Integer rerankCandidateLimit;
+        }
+
+        @Data
+        @Builder
+        public static class Evidence {
+            private Double minRerankScore;
         }
     }
 

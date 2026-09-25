@@ -15,6 +15,7 @@ import {
 import type { SystemSettings } from "@/services/settingsService";
 import { getSystemSettings } from "@/services/settingsService";
 import { tierRows } from "@/lib/settingsTiers";
+import { backendRows, channelRows, featureFlags, pipelineRows } from "@/lib/settingsRetrieval";
 import { getErrorMessage } from "@/utils/error";
 
 const BoolBadge = ({ value }: { value: boolean }) => (
@@ -67,8 +68,12 @@ export function SystemSettingsPage() {
     );
   }
 
-  const { rag, ai } = settings;
+  const { rag, ai, backends } = settings;
   const providers = Object.entries(ai.providers || {});
+  const features = featureFlags(rag.features);
+  const channels = channelRows(rag.search);
+  const pipeline = pipelineRows(rag.search);
+  const backendItems = backendRows(backends);
 
   return (
     <div className="admin-page">
@@ -88,6 +93,82 @@ export function SystemSettingsPage() {
           <InfoItem label="Collection" value={rag.default.collectionName} />
           <InfoItem label="Dimension" value={rag.default.dimension} />
           <InfoItem label="Metric Type" value={rag.default.metricType} />
+          <InfoItem label="SSE Timeout (ms)" value={rag.default.sseTimeoutMs ?? "-"} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>后端选型</CardTitle>
+          <CardDescription>检索与存储当前使用的实现（只读，不含任何凭据）</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-3">
+          {backendItems.length === 0 ? (
+            <div className="text-sm text-muted-foreground">接口未返回后端选型信息</div>
+          ) : (
+            backendItems.map((item) => <InfoItem key={item.label} label={item.label} value={item.value} />)
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>能力开关</CardTitle>
+          <CardDescription>影响检索与回答组装的全局开关</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {features.length === 0 ? (
+            <div className="text-sm text-muted-foreground">接口未返回能力开关</div>
+          ) : (
+            features.map((item) => (
+              <div
+                key={item.key}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200/70 bg-white px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-slate-800">{item.label}</div>
+                  <div className="text-xs text-slate-500">{item.hint}</div>
+                </div>
+                <BoolBadge value={item.enabled} />
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>检索管线</CardTitle>
+          <CardDescription>线上真正生效的通道、融合与证据闸门参数</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            {pipeline.map((item) => (
+              <InfoItem key={item.label} label={item.label} value={item.value} />
+            ))}
+          </div>
+          {channels.length === 0 ? (
+            <div className="text-sm text-muted-foreground">接口未返回检索通道信息</div>
+          ) : (
+            <Table className="min-w-[720px]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[180px]">通道</TableHead>
+                  <TableHead className="w-[100px]">状态</TableHead>
+                  <TableHead>关键阈值</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {channels.map((row) => (
+                  <TableRow key={row.name}>
+                    <TableCell className="font-medium">{row.name}</TableCell>
+                    <TableCell>{row.enabled}</TableCell>
+                    <TableCell className="text-muted-foreground">{row.detail}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 

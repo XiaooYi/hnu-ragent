@@ -11,7 +11,10 @@ export interface SystemSettings {
       collectionName: string;
       dimension: number;
       metricType: string;
+      sseTimeoutMs?: number | null;
     };
+    features?: FeatureSettings | null;
+    search?: SearchSettings | null;
     queryRewrite: {
       enabled: boolean;
     };
@@ -52,6 +55,44 @@ export interface SystemSettings {
     embedding: ModelGroup;
     rerank: ModelGroup;
   };
+  backends?: BackendSettings | null;
+}
+
+export interface BackendSettings {
+  vector?: { type?: string | null } | null;
+  keyword?: {
+    type?: string | null;
+    uris?: string | null;
+    index?: string | null;
+    analyzer?: string | null;
+    searchAnalyzer?: string | null;
+  } | null;
+  storage?: { platform?: string | null; endpoint?: string | null } | null;
+}
+
+export interface FeatureSettings {
+  queryRewrite?: boolean | null;
+  rerank?: boolean | null;
+  citation?: boolean | null;
+  contextEnrich?: boolean | null;
+  trace?: boolean | null;
+}
+
+export interface SearchSettings {
+  defaultTopK?: number | null;
+  recallBudget?: number | null;
+  channels?: {
+    timeoutMs?: number | null;
+    vectorGlobal?: {
+      enabled?: boolean | null;
+      confidenceThreshold?: number | null;
+      singleIntentSupplementThreshold?: number | null;
+    } | null;
+    intentDirected?: { enabled?: boolean | null; minIntentScore?: number | null } | null;
+    keyword?: { enabled?: boolean | null; mode?: string | null } | null;
+  } | null;
+  fusion?: { strategy?: string | null; rrfK?: number | null; rerankCandidateLimit?: number | null } | null;
+  evidence?: { minRerankScore?: number | null } | null;
 }
 
 export interface ModelGroup {
