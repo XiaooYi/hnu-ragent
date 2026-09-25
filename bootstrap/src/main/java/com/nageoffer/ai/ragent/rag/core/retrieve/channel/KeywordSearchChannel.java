@@ -59,11 +59,6 @@ public class KeywordSearchChannel implements SearchChannel {
     }
 
     @Override
-    public int getPriority() {
-        return 5;
-    }
-
-    @Override
     public SearchChannelType getType() {
         return SearchChannelType.KEYWORD_ES;
     }
@@ -83,9 +78,10 @@ public class KeywordSearchChannel implements SearchChannel {
                 return emptyResult(startTime);
             }
 
-            int topKMultiplier = properties.getChannels().getKeyword().getTopKMultiplier();
-            int topK = context.getTopK() * Math.max(1, topKMultiplier);
-            List<RetrievedChunk> chunks = keywordRetriever.search(context.getMainQuestion(), collections, topK);
+            // 取数深度与向量通道同源：只受 recallBudget 管
+            int recallBudget = context.getBudget().recallBudget();
+            List<RetrievedChunk> chunks = ChunkRanking.sortedByScore(
+                    keywordRetriever.search(context.getMainQuestion(), collections, recallBudget));
 
             long latency = System.currentTimeMillis() - startTime;
             log.info("关键词检索完成，知识库={}，检索到 {} 个 Chunk，耗时 {}ms", collections, chunks.size(), latency);
@@ -144,12 +140,4 @@ public class KeywordSearchChannel implements SearchChannel {
                 .toList();
     }
 
-    private SearchChannelResult emptyResult(long startTime) {
-        return SearchChannelResult.builder()
-                .channelType(SearchChannelType.KEYWORD_ES)
-                .channelName(getName())
-                .chunks(List.of())
-                .latencyMs(System.currentTimeMillis() - startTime)
-                .build();
-    }
 }

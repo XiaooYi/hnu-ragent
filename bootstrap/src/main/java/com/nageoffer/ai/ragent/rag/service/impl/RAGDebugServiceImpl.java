@@ -184,9 +184,9 @@ public class RAGDebugServiceImpl implements RAGDebugService {
     private List<ChannelExecution> executeChannels(SearchContext context,
                                                     RetrieveDebugRequest request,
                                                     String traceId) {
-        // 按优先级排序（与生产逻辑一致）
+        // 按通道类型枚举序排序（与生产逻辑一致：顺序只影响日志/派发，不影响结果）
         List<SearchChannel> sorted = searchChannels.stream()
-                .sorted(Comparator.comparingInt(SearchChannel::getPriority))
+                .sorted(Comparator.comparingInt(channel -> channel.getType().ordinal()))
                 .toList();
 
         List<CompletableFuture<ChannelExecution>> futures = sorted.stream()

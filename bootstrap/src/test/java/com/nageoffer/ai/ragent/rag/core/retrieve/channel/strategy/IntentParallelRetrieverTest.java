@@ -54,12 +54,12 @@ class IntentParallelRetrieverTest {
                 .score(0.9)
                 .build();
 
-        retriever.executeParallelRetrieval("转专业条件", List.of(nodeScore), 10, 2);
+        retriever.executeIntentRetrieval("转专业条件", List.of(nodeScore), 20);
 
         ArgumentCaptor<RetrieveRequest> captor = ArgumentCaptor.forClass(RetrieveRequest.class);
         verify(retrieverService).retrieve(captor.capture());
         assertEquals(List.of("kb_teaching", "kb_college"), captor.getValue().getEffectiveCollectionNames());
-        assertEquals(20, captor.getValue().getTopK(), "topK 是整段过滤范围的总预算");
+        assertEquals(20, captor.getValue().getTopK(), "取数深度只由 recallBudget 决定，不再乘通道倍率");
     }
 
     @Test
@@ -73,7 +73,7 @@ class IntentParallelRetrieverTest {
                 .score(0.8)
                 .build();
 
-        List<RetrievedChunk> chunks = retriever.executeParallelRetrieval("问题", List.of(nodeScore), 10, 2);
+        List<RetrievedChunk> chunks = retriever.executeIntentRetrieval("问题", List.of(nodeScore), 20);
 
         assertTrue(chunks.isEmpty());
         verify(retrieverService, never()).retrieve(any(RetrieveRequest.class));

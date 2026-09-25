@@ -58,11 +58,6 @@ public class IntentDirectedSearchChannel implements SearchChannel {
     }
 
     @Override
-    public int getPriority() {
-        return 1;  // 最高优先级
-    }
-
-    @Override
     public boolean isEnabled(SearchContext context) {
         // 检查配置是否启用
         if (!properties.getChannels().getIntentDirected().isEnabled()) {
@@ -99,13 +94,11 @@ public class IntentDirectedSearchChannel implements SearchChannel {
 
             log.info("执行意图定向检索，识别出 {} 个 KB 意图", kbIntents.size());
 
-            // 并行检索所有意图对应的知识库
-            int topKMultiplier = properties.getChannels().getIntentDirected().getTopKMultiplier();
+            // 并行检索所有意图对应的知识库；取数深度只受 recallBudget 管
             List<RetrievedChunk> allChunks = retrieveByIntents(
                     context.getMainQuestion(),
                     kbIntents,
-                    context.getTopK(),
-                    topKMultiplier
+                    context.getBudget().recallBudget()
             );
 
             long latency = System.currentTimeMillis() - startTime;
@@ -116,19 +109,14 @@ public class IntentDirectedSearchChannel implements SearchChannel {
             return SearchChannelResult.builder()
                     .channelType(SearchChannelType.INTENT_DIRECTED)
                     .channelName(getName())
-                    .chunks(allChunks)
+                    .chunks(ChunkRanking.sortedByScore(allChunks))
                     .latencyMs(latency)
                     .metadata(Map.of("intentCount", kbIntents.size()))
                     .build();
 
         } catch (Exception e) {
             log.error("意图定向检索失败", e);
-            return SearchChannelResult.builder()
-                    .channelType(SearchChannelType.INTENT_DIRECTED)
-                    .channelName(getName())
-                    .chunks(List.of())
-                    .latencyMs(System.currentTimeMillis() - startTime)
-                    .build();
+            return emptyResult(System.currentTimeMillis() - startTime);
         }
     }
 
@@ -153,9 +141,8 @@ public class IntentDirectedSearchChannel implements SearchChannel {
      */
     private List<RetrievedChunk> retrieveByIntents(String question,
                                                    List<NodeScore> kbIntents,
-                                                   int fallbackTopK,
-                                                   int topKMultiplier) {
+                                                   int recallBudget) {
         // 使用模板方法执行并行检索
-        return parallelRetriever.executeParallelRetrieval(question, kbIntents, fallbackTopK, topKMultiplier);
+        return parallelRetriever.executeIntentRetrieval(question, kbIntents, recallBudget);
     }
 }

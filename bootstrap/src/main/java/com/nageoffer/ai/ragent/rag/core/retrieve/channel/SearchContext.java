@@ -60,6 +60,13 @@ public class SearchContext {
     private int topK;
 
     /**
+     * 检索预算：取数深度与最终条数分开
+     * <p>
+     * 由 {@code MultiChannelRetrievalEngine} 在构建上下文时算一次，各通道只读不判
+     */
+    private RetrievalBudget budget;
+
+    /**
      * 扩展元数据
      */
     @Builder.Default
@@ -70,5 +77,12 @@ public class SearchContext {
      */
     public String getMainQuestion() {
         return rewrittenQuestion != null ? rewrittenQuestion : originalQuestion;
+    }
+
+    /**
+     * 缺失预算时按 topK 兜底，避免通道拿到 null
+     */
+    public RetrievalBudget getBudget() {
+        return budget != null ? budget : RetrievalBudget.uniform(topK);
     }
 }

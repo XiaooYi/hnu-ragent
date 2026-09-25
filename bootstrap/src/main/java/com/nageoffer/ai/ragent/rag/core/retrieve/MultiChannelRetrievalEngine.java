@@ -24,6 +24,7 @@ import com.nageoffer.ai.ragent.rag.config.SearchChannelProperties;
 import com.nageoffer.ai.ragent.rag.core.retrieve.channel.SearchChannel;
 import com.nageoffer.ai.ragent.rag.core.retrieve.channel.SearchChannelResult;
 import com.nageoffer.ai.ragent.rag.core.retrieve.channel.SearchContext;
+import com.nageoffer.ai.ragent.rag.core.retrieve.channel.RetrievalBudget;
 import com.nageoffer.ai.ragent.rag.core.retrieve.postprocessor.SearchResultPostProcessor;
 import com.nageoffer.ai.ragent.rag.dto.SubQuestionIntent;
 import lombok.RequiredArgsConstructor;
@@ -88,7 +89,9 @@ public class MultiChannelRetrievalEngine {
         // 过滤启用的通道
         List<SearchChannel> enabledChannels = searchChannels.stream()
                 .filter(channel -> channel.isEnabled(context))
-                .sorted(Comparator.comparingInt(SearchChannel::getPriority))
+                // 按通道类型枚举序稳定排序：通道并行执行、下游融合与归因均与顺序无关，
+                // 这里排序仅为日志与派发顺序稳定可复现，不承载任何检索优先级语义
+                .sorted(Comparator.comparingInt(channel -> channel.getType().ordinal()))
                 .toList();
 
         if (enabledChannels.isEmpty()) {
@@ -107,7 +110,7 @@ public class MultiChannelRetrievalEngine {
                                 return channel.search(context);
                             } catch (Exception e) {
                                 log.error("检索通道 {} 执行失败", channel.getName(), e);
-                                return emptyResult(channel);
+                                return channel.emptyResult(0);
                             }
                         },
                         ragRetrievalExecutor
@@ -201,14 +204,6 @@ public class MultiChannelRetrievalEngine {
         return chunks;
     }
 
-    private SearchChannelResult emptyResult(SearchChannel channel) {
-        return SearchChannelResult.builder()
-                .channelType(channel.getType())
-                .channelName(channel.getName())
-                .chunks(List.of())
-                .build();
-    }
-
     /**
      * 通道级超时：超过预算的通道按空结果降级，不让最慢一条钳制同一子问题里其余通道的融合
      * <p>
@@ -228,7 +223,7 @@ public class MultiChannelRetrievalEngine {
                     } else {
                         log.error("检索通道 {} 异步执行失败", channel.getName(), cause);
                     }
-                    return emptyResult(channel);
+                    return channel.emptyResult(0);
                 });
     }
 
@@ -243,6 +238,11 @@ public class MultiChannelRetrievalEngine {
                 .rewrittenQuestion(question)
                 .intents(subIntents)
                 .topK(topK)
+                // 取数深度与最终条数分开：通道只读 budget，不再各自乘倍数
+                .budget(new RetrievalBudget(
+                        Math.max(1, topK),
+                        searchProperties.getScope().resolveRecallBudget(
+                                searchProperties.getFusion().getRerankCandidateLimit())))
                 .build();
     }
 }

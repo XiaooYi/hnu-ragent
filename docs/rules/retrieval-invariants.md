@@ -51,7 +51,10 @@
 - `VectorGlobalSearchChannel` 在自身启用，并且意图定向检索未启用、最大意图得分低于 `confidence-threshold`，或仅有一个中等置信度意图时启用。当前默认 `confidence-threshold=0.6`。
 - `KeywordSearchChannel`（优先级 `5`）只在 `rag.keyword.type=es` 时存在，并且需要 `rag.search.channels.keyword.enabled=true` 才参与召回；它的检索范围由 `rag.search.channels.keyword.mode` 决定：`global` 取全部有效知识库、`intent` 只取意图命中的知识库、`both` 优先意图命中的知识库并在无命中时回退全库。
 - 关键词通道与向量全局通道的「全库范围」都必须来自 `KbCollectionProvider.listActiveCollections()`（未删除知识库的 collection），不得使用索引名通配，避免命中已删除库的残留数据。
-- 两个通道分别使用其配置的 `top-k-multiplier` 扩展候选池；该扩大不等同于最终 TopK。
+- 所有通道的取数深度只由 `rag.search.scope.recall-budget` 决定（`<=0` 时跟随 `rag.search.fusion.rerank-candidate-limit`）。通道内**不得**再乘通道级倍数；节点级 `topK` 是唯一允许的显式覆写。`recall-budget>0` 且小于 `rag.search.default-top-k` 属于配置矛盾，启动即失败。
+- 通道**不再有优先级语义**：`SearchChannel` 不声明 `getPriority()`，引擎按通道类型枚举序稳定派发（只为日志可复现）。跨通道顺序一律由「按 key 去重 + RRF 融合」决定，禁止以声明顺序影响结果。
+- 通道出口必须使用 `ChunkRanking.BY_SCORE_DESC` 统一排序（分数降序、空分沉底、同分按 chunk id 稳定），空结果必须由 `SearchChannel.emptyResult(latencyMs)` 构造并携带真实耗时。
+- 全局向量检索必须**一次调用覆盖全部目标库**（PG 单条 SQL `IN` 过滤、Milvus 服务内部逐库合并），禁止按库 fan-out 重复向量化同一个问题；全库范围来自 `KbCollectionProvider.listActiveCollections()`。
 - 每个通道有独立的执行预算 `rag.search.channels.timeout-ms`（默认 15000ms，`<=0` 不限时）。超时只降级**该通道**结果为空并打 warn，其余通道照常融合；不得因为单个通道慢或异常而中断整轮检索，也不得在超时后重试整次检索。
 
 阈值、乘数或启用条件变更时，必须同步修改 `bootstrap/src/main/resources/application.yaml`、本规则以及覆盖高/中/低意图置信度和重排开关的测试。

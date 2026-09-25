@@ -17,6 +17,8 @@
 
 package com.nageoffer.ai.ragent.rag.core.retrieve.channel;
 
+import java.util.List;
+
 /**
  * 检索通道接口
  * <p>
@@ -33,12 +35,6 @@ public interface SearchChannel {
      * 通道名称（用于日志和监控）
      */
     String getName();
-
-    /**
-     * 通道优先级（数字越小优先级越高）
-     * 用于结果合并时的优先级判断
-     */
-    int getPriority();
 
     /**
      * 是否启用该通道
@@ -60,4 +56,20 @@ public interface SearchChannel {
      * 通道类型
      */
     SearchChannelType getType();
+
+    /**
+     * 空结果（超时、异常、无目标库时统一走这里）
+     * <p>
+     * 默认实现带上真实耗时：原先引擎各处自建空结果、latencyMs 恒为 0，归因日志因此失真
+     *
+     * @param latencyMs 该通道已消耗的毫秒数
+     */
+    default SearchChannelResult emptyResult(long latencyMs) {
+        return SearchChannelResult.builder()
+                .channelType(getType())
+                .channelName(getName())
+                .chunks(List.of())
+                .latencyMs(Math.max(0L, latencyMs))
+                .build();
+    }
 }

@@ -22,7 +22,6 @@ import com.nageoffer.ai.ragent.rag.core.intent.IntentNode;
 import com.nageoffer.ai.ragent.rag.core.intent.NodeScore;
 import com.nageoffer.ai.ragent.rag.core.retrieve.RetrieveRequest;
 import com.nageoffer.ai.ragent.rag.core.retrieve.RetrieverService;
-import com.nageoffer.ai.ragent.rag.core.retrieve.channel.AbstractParallelRetriever;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -33,7 +32,8 @@ import java.util.concurrent.Executor;
  * 继承模板类，实现意图特定的检索逻辑
  */
 @Slf4j
-public class IntentParallelRetriever extends AbstractParallelRetriever<IntentParallelRetriever.IntentTask> {
+public class IntentParallelRetriever
+        extends com.nageoffer.ai.ragent.rag.core.retrieve.channel.AbstractParallelRetriever<IntentParallelRetriever.IntentTask> {
 
     private final RetrieverService retrieverService;
 
@@ -49,17 +49,21 @@ public class IntentParallelRetriever extends AbstractParallelRetriever<IntentPar
     /**
      * 执行并行检索（重载方法，支持动态 TopK 计算）
      */
-    public List<RetrievedChunk> executeParallelRetrieval(String question,
-                                                         List<NodeScore> targets,
-                                                         int fallbackTopK,
-                                                         int topKMultiplier) {
+    /**
+     * 按意图并行检索：每个意图用自己的知识库集合与取数深度
+     *
+     * @param recallBudget 默认取数深度（节点显式 topK 优先）
+     */
+    public List<RetrievedChunk> executeIntentRetrieval(String question,
+                                                       List<NodeScore> targets,
+                                                       int recallBudget) {
         List<IntentTask> intentTasks = targets.stream()
                 .map(nodeScore -> new IntentTask(
                         nodeScore,
-                        resolveIntentTopK(nodeScore, fallbackTopK, topKMultiplier)
+                        resolveIntentTopK(nodeScore, recallBudget)
                 ))
                 .toList();
-        return super.executeParallelRetrieval(question, intentTasks, fallbackTopK);
+        return executeParallelRetrieval(question, intentTasks, recallBudget);
     }
 
     @Override
@@ -99,22 +103,18 @@ public class IntentParallelRetriever extends AbstractParallelRetriever<IntentPar
     }
 
     /**
-     * 计算单个意图节点检索 TopK
+     * 单个意图的取数深度：节点显式配置的 topK 优先，否则用召回预算
+     * <p>
+     * 不再乘通道倍率：取数深度只由 {@code rag.search.scope.recall-budget} 这一个旋钮决定，
+     * 节点级 topK 是显式覆写，便于个别重要主题单独加深
      */
-    private int resolveIntentTopK(NodeScore nodeScore, int fallbackTopK, int topKMultiplier) {
-        int baseTopK = fallbackTopK;
+    private int resolveIntentTopK(NodeScore nodeScore, int recallBudget) {
         if (nodeScore != null && nodeScore.getNode() != null) {
             Integer nodeTopK = nodeScore.getNode().getTopK();
             if (nodeTopK != null && nodeTopK > 0) {
-                baseTopK = nodeTopK;
+                return nodeTopK;
             }
         }
-
-        if (topKMultiplier <= 0) {
-            log.warn("意图定向通道倍率配置异常: {}, 使用基础 TopK: {}", topKMultiplier, baseTopK);
-            return baseTopK;
-        }
-
-        return baseTopK * topKMultiplier;
+        return recallBudget;
     }
 }

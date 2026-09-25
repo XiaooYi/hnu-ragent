@@ -78,8 +78,23 @@ public class SearchChannelProperties implements InitializingBean {
      */
     private Evidence evidence = new Evidence();
 
+    /**
+     * 检索作用域与预算
+     */
+    private Scope scope = new Scope();
+
     @Override
     public void afterPropertiesSet() {
+        // 漏斗不变式：通道取数深度小于最终条数时必然拿不满，属于配置矛盾
+        int contextTopK = Math.max(1, defaultTopK);
+        int recallBudget = scope.resolveRecallBudget(fusion.getRerankCandidateLimit());
+        if (recallBudget > 0 && recallBudget < contextTopK) {
+            throw new IllegalStateException(String.format(
+                    "检索预算漏斗不变式被破坏：recall-budget(%d) < default-top-k(%d)，"
+                            + "通道取数深度不得小于最终条数；请调大 rag.search.scope.recall-budget 或调小 rag.search.default-top-k",
+                    recallBudget, contextTopK));
+        }
+
         // 精排分按 0~1 输出，下限高于 1 则全部证据被丢，表现与「库里没料」一致，线上无从分辨
         double minRerankScore = evidence.getMinRerankScore();
         if (Double.isNaN(minRerankScore) || minRerankScore > 1) {
@@ -105,6 +120,29 @@ public class SearchChannelProperties implements InitializingBean {
          * <=0 关闭；无分可读时（精排关闭或降级 noop）放行。
          */
         private double minRerankScore = 0.2;
+    }
+
+    /**
+     * 检索作用域与预算
+     */
+    @Data
+    public static class Scope {
+
+        /**
+         * 召回预算：各通道的取数深度（候选池大小）
+         * <p>
+         * 与 {@link SearchChannelProperties#defaultTopK}（最终进入上下文的条数）是两件事，
+         * 通道不再各自乘倍数。{@code <=0} 时回退到 {@code rag.search.fusion.rerank-candidate-limit}——
+         * 召回超过候选池上限的部分下游必被截断、属空转，故默认跟随候选池上限（单一真源）
+         */
+        private int recallBudget = 0;
+
+        /**
+         * 解析召回预算：显式配置优先，未配置时跟随 Rerank 候选池上限
+         */
+        public int resolveRecallBudget(int candidateLimitFallback) {
+            return recallBudget > 0 ? recallBudget : candidateLimitFallback;
+        }
     }
 
     @Data
@@ -146,11 +184,6 @@ public class SearchChannelProperties implements InitializingBean {
          */
         private double singleIntentSupplementThreshold = 0.8;
 
-        /**
-         * TopK 倍数
-         * 全局检索时召回更多候选，后续通过 Rerank 筛选
-         */
-        private int topKMultiplier = 3;
     }
 
     @Data
@@ -167,10 +200,6 @@ public class SearchChannelProperties implements InitializingBean {
          */
         private double minIntentScore = 0.4;
 
-        /**
-         * TopK 倍数
-         */
-        private int topKMultiplier = 2;
     }
 
     @Data
@@ -187,9 +216,5 @@ public class SearchChannelProperties implements InitializingBean {
          */
         private String mode = "both";
 
-        /**
-         * TopK 倍数
-         */
-        private int topKMultiplier = 2;
     }
 }

@@ -278,8 +278,6 @@ class RetrievalDebugServiceTest {
             @Override
             public String getName() { return "BrokenChannel"; }
             @Override
-            public int getPriority() { return 1; }
-            @Override
             public boolean isEnabled(SearchContext ctx) { return true; }
             @Override
             public SearchChannelResult search(SearchContext ctx) { throw new RuntimeException("BOOM"); }
@@ -518,8 +516,6 @@ class RetrievalDebugServiceTest {
         return new SearchChannel() {
             @Override
             public String getName() { return name; }
-            @Override
-            public int getPriority() { return priority; }
             @Override
             public boolean isEnabled(SearchContext ctx) { return enabled; }
             @Override
