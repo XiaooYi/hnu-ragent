@@ -113,7 +113,7 @@ rag:
         top-k-multiplier: 2
       # 关键词检索通道（仅当 rag.keyword.type=es 时该通道才存在）
       keyword:
-        enabled: true
+        enabled: false  # 置 true 前必须先把 rag.keyword.type 设为 es，否则启动校验会直接拦截
         mode: both  # 可选 global / intent / both
         top-k-multiplier: 2
 
