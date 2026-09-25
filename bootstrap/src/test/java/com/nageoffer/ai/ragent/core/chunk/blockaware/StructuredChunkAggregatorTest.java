@@ -59,6 +59,49 @@ class StructuredChunkAggregatorTest {
         assertEquals("PARAGRAPH", result.get(0).getBlockType());
     }
 
+    @Test
+    void mergesUndescribedImageIntoAdjacentParagraph() {
+        // 解析器没产出图注时图片也并入相邻段落：否则它单独成块，既召不回又白占一个 topK 名额
+        AssetRef asset = new AssetRef("https://example.test/b.png", "image/png", "img2");
+        VectorChunk text = paragraph("p1", "正文说明", List.of("A"));
+        VectorChunk image = VectorChunk.builder().chunkId("img").index(1).content("")
+                .assets(List.of(asset)).blockType("IMAGE")
+                .outlinePath(List.of("A")).sourceBlockIds(List.of("img2")).build();
+
+        List<VectorChunk> result = aggregator.aggregate(List.of(text, image), config);
+
+        assertEquals(1, result.size());
+        assertEquals(List.of(asset), result.get(0).getAssets());
+        assertEquals("PARAGRAPH", result.get(0).getBlockType());
+    }
+
+    @Test
+    void shortTailIsNotMergedAcrossOutlineBoundary() {
+        // A 节的短块不得被并进 B 节的块：块只带一条 outlinePath，跨节合并会让归属与引用都错
+        VectorChunk sectionA = paragraph("p1", "abcdefgh", List.of("A"));
+        VectorChunk sectionB = paragraph("p2", "ijklmnop", List.of("B"));
+
+        List<VectorChunk> result = aggregator.aggregate(List.of(sectionA, sectionB), config);
+
+        assertEquals(2, result.size());
+        assertEquals(List.of("A"), result.get(0).getOutlinePath());
+        assertEquals(List.of("B"), result.get(1).getOutlinePath());
+    }
+
+    @Test
+    void atomicBlockIsNeverMergedIntoNeighbouringText() {
+        // 代码块体量虽小，但它是原子内容：既不并入前块，也不吞掉后面的短段落
+        VectorChunk text = paragraph("p1", "简短说明", List.of("B"));
+        VectorChunk code = VectorChunk.builder().chunkId("code").index(1).content("x=1")
+                .blockType("CODE").outlinePath(List.of("B")).sourceBlockIds(List.of("c1")).build();
+        VectorChunk tail = paragraph("p2", "后续说明", List.of("B"));
+
+        List<VectorChunk> result = aggregator.aggregate(List.of(text, code, tail), config);
+
+        assertEquals(3, result.size());
+        assertEquals("CODE", result.get(1).getBlockType());
+    }
+
     private VectorChunk paragraph(String id, String text, List<String> outline) {
         return VectorChunk.builder().chunkId(id).index(0).content(text).blockType("PARAGRAPH")
                 .outlinePath(outline).sourceBlockIds(List.of(id)).build();

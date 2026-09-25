@@ -30,7 +30,12 @@ public class StructuredChunkAggregator {
         List<Group> groups = new ArrayList<>();
         Group current = null;
         for (VectorChunk chunk : chunks) {
-            if (chunk == null || chunk.getContent() == null || chunk.getContent().isEmpty()) {
+            if (chunk == null) {
+                continue;
+            }
+            // 正文为空的块若带资产（无描述图片）仍需保留：它是检索结果里图片的唯一载体，
+            // 直接丢弃等于把这张图从知识库里抹掉
+            if (textOf(chunk).isEmpty() && (chunk.getAssets() == null || chunk.getAssets().isEmpty())) {
                 continue;
             }
             if (isBarrier(chunk)) {
@@ -65,11 +70,22 @@ public class StructuredChunkAggregator {
         return result;
     }
 
+    /**
+     * 短尾合并：不足最小体量的余量并回前一块，避免产出召不回也白占名额的碎块
+     * <p>
+     * 与常规合并共用同一套边界约束，且额外排除原子块：
+     * - <b>不跨提纲</b>：块只带一条 {@code outlinePath}，把 A 节的内容并进 B 节的块会让归属与引用都错，
+     *   宁可保留一个短块；
+     * - <b>不动原子块</b>：代码 / 表格既不该被并进文本块，也不该吞掉相邻文本。
+     */
     private void mergeShortTail(List<Group> groups, BlockChunkConfig config) {
         for (int i = groups.size() - 1; i > 0; i--) {
             Group tail = groups.get(i);
             Group previous = groups.get(i - 1);
             if (tail.length() < config.minChars()
+                    && !isBarrier(previous.last())
+                    && !isBarrier(tail.first())
+                    && sameOutline(previous.last(), tail.first())
                     && compatible(previous, tail.first())
                     && canAppend(previous, tail.first(), config)) {
                 groups.set(i - 1, previous.appendAll(tail));
@@ -88,9 +104,11 @@ public class StructuredChunkAggregator {
             return true;
         }
         if (IMAGE.equals(next.getBlockType())) {
-            return hasDescription(next) && group.hasParagraph();
+            // 图片无论有无描述都可并入文本块：无描述图片文本量太少，单独成块既召不回也白占一个 TopK 名额，
+            // 并进相邻段落至少让它的资产（图 URL）随块进入检索结果
+            return group.hasParagraph();
         }
-        if (PARAGRAPH.equals(next.getBlockType()) && group.hasDescribedImage()) {
+        if (PARAGRAPH.equals(next.getBlockType()) && group.hasImage()) {
             return true;
         }
         return false;
@@ -131,17 +149,22 @@ public class StructuredChunkAggregator {
         List<String> sectionContexts = new ArrayList<>();
         boolean hasEmbedding = false;
         for (VectorChunk part : parts) {
-            if (!content.isEmpty()) content.append(SEPARATOR);
-            content.append(part.getContent());
+            String partContent = textOf(part);
+            if (!partContent.isEmpty()) {
+                if (!content.isEmpty()) content.append(SEPARATOR);
+                content.append(partContent);
+            }
             String embeddingText = part.getEmbeddingText();
             if (embeddingText != null && !embeddingText.isBlank()) {
                 if (!embedding.isEmpty()) embedding.append(SEPARATOR);
                 embedding.append(embeddingText);
                 hasEmbedding = true;
             } else if (parts.size() > 1) {
-                if (!embedding.isEmpty()) embedding.append(SEPARATOR);
-                embedding.append(part.getContent());
-                hasEmbedding = true;
+                if (!partContent.isEmpty()) {
+                    if (!embedding.isEmpty()) embedding.append(SEPARATOR);
+                    embedding.append(partContent);
+                    hasEmbedding = true;
+                }
             }
             if (part.getSourceBlockIds() != null) sourceIds.addAll(part.getSourceBlockIds());
             if (part.getAssets() != null) assets.addAll(part.getAssets());
@@ -171,6 +194,13 @@ public class StructuredChunkAggregator {
         return path == null ? List.of() : path;
     }
 
+    /**
+     * 块的展示文本，null 视为空串（无描述图片的 content 可能为空）
+     */
+    private static String textOf(VectorChunk chunk) {
+        return chunk.getContent() == null ? "" : chunk.getContent();
+    }
+
     private record Group(List<VectorChunk> parts) {
         Group {
             parts = List.copyOf(parts);
@@ -181,7 +211,7 @@ public class StructuredChunkAggregator {
         }
 
         int length() {
-            return parts.stream().mapToInt(c -> c.getContent().length()).sum()
+            return parts.stream().mapToInt(c -> textOf(c).length()).sum()
                     + Math.max(0, parts.size() - 1) * SEPARATOR.length();
         }
 
@@ -192,6 +222,14 @@ public class StructuredChunkAggregator {
         boolean hasDescribedImage() {
             return parts.stream().anyMatch(c -> IMAGE.equals(c.getBlockType())
                     && c.getEmbeddingText() != null && !c.getEmbeddingText().isBlank());
+        }
+
+        boolean hasImage() {
+            return parts.stream().anyMatch(c -> IMAGE.equals(c.getBlockType()));
+        }
+
+        VectorChunk last() {
+            return parts.get(parts.size() - 1);
         }
 
         Group append(VectorChunk chunk) {

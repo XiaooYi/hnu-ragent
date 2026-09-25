@@ -17,4 +17,4 @@
 - 修改规则时，先更新本文档和相应验收用例，再调整实现与配置。
 - 如果规则仅适用于临时实验，应写明生效范围、开关和移除条件，不能默认为全局行为。
 
-当前检索链路的强约束见 [retrieval-invariants.md](retrieval-invariants.md)。
+当前检索链路的强约束见 [retrieval-invariants.md](retrieval-invariants.md)；分块合并边界见 [chunking-invariants.md](chunking-invariants.md)。
