@@ -62,9 +62,27 @@ public class RetrievedChunk {
     private Float rerankScore;
 
     /**
+     * 所属文档 ID
+     * 检索后由元数据富化补齐，未富化时为 {@code null}
+     */
+    private String docId;
+
+    /**
+     * 分块在所属文档中的序号，从 0 开始
+     * 检索后由元数据富化补齐，未富化时为 {@code null}
+     */
+    private Integer chunkIndex;
+
+    /**
+     * 所属文档名称，组装上下文时作为文档标题的内部锚点
+     * 检索后由元数据富化补齐，未富化时为 {@code null}
+     */
+    private String docName;
+
+    /**
      * 兼容三分量（id, text, score）的构造方式，{@code rerankScore} 置空表示尚未精排
      */
     public RetrievedChunk(String id, String text, Float score) {
-        this(id, text, score, null);
+        this(id, text, score, null, null, null, null);
     }
 }

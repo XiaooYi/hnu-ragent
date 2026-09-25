@@ -11,6 +11,7 @@
 5. `FusionPostProcessor` 的顺序为 `5`，仅在 `rag.search.fusion.strategy=rrf` 时执行；它负责跨模态融合排序与候选池截断，不改变去重结果集合。
 6. `RerankPostProcessor` 的顺序为 `10`，仅在 `rag.rerank.enabled=true` 时执行；它是唯一负责 TopK 截断的后处理器。
 7. `EvidenceGatePostProcessor` 的顺序为 `15`，仅在 `rag.search.evidence.min-rerank-score>0` 时执行；它只做**批级去留**（整批保留或整批丢弃），不做逐条过滤、不做截断。
+8. `MetadataEnrichmentPostProcessor` 的顺序为 `20`，仅在 `rag.context.enrich.enabled=true` 时执行；它只回表补齐 `docId` / `chunkIndex` / `docName`，**不得重排、不得过滤、不得增删**候选。
 
 因此，关闭重排时，所有已合并且去重后的候选都会继续向下游传递，**不会**有隐式 TopK 截断。任何新增截断、排序或过滤行为必须以新的后处理器明确表达其顺序、开关、观测指标和测试。
 
@@ -28,6 +29,14 @@
 - 无分可读（精排关闭 / 降级为 noop / 全部回填）时**放行并打 warn**，不得拦空；否则精排最不稳时会把整条知识库侧静默关掉，且现象与「库里没资料」无从分辨。
 - 闸门开启（`min-rerank-score>0`）但 `rag.rerank.enabled=false` 属于配置矛盾，启动即失败；`min-rerank-score>1` 同样启动即失败（精排分按 0~1 输出，高于 1 会让知识库侧恒为空）。
 - 意图分（`rag.search.scope.confidence-threshold`，决定查哪些库）与精排下限（决定证据够不够格进提示词）是两套量纲，禁止合并成一个配置项。
+
+### 上下文组装的固定语义
+
+- 上下文按**文档聚合**渲染：文档之间按「该文档最佳命中块的相关性排名」排序，文档内部按 `chunkIndex` 升序还原原文顺序。
+- 同一 `chunkId` 在多意图合并时只渲染一次；缺失 `docId` 的分块各自独立成 `<content>` 块并保留其相关性位置，不得丢弃、不得强行合并。
+- 文档标题以内部锚点形式写入 `<content source="...">`，必须剥掉文件扩展名并清洗 `"`、`<`、`>`，避免污染伪标签属性。
+- 元数据富化必须发生在 TopK 截断**之后**（Rerank 之后），避免为最终不进入上下文的候选做无用回表。
+- 回表失败只降级为「不带来源」，不得让整轮问答失败。
 
 ## 通道启用规则
 

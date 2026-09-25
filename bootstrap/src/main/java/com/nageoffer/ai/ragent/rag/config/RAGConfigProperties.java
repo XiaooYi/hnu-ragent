@@ -57,4 +57,15 @@ public class RAGConfigProperties {
      */
     @Value("${rag.rerank.enabled:true}")
     private Boolean rerankEnabled;
+
+    /**
+     * 上下文元数据富化开关
+     * <p>
+     * 控制是否在检索末端回表补齐 chunk 的文档归属信息（文档 ID / 序号 / 标题），
+     * 并在组装上下文时按文档聚合、组内按序号排列、带上文档标题作为内部锚点。
+     * 关闭后退回「按相关性平铺、不带来源」
+     * 默认值：{@code true}
+     */
+    @Value("${rag.context.enrich.enabled:true}")
+    private Boolean contextEnrichEnabled;
 }

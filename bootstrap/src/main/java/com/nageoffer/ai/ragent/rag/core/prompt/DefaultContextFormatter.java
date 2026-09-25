@@ -28,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -65,8 +66,7 @@ public class DefaultContextFormatter implements ContextFormatter {
             return "";
         }
         String snippet = StrUtil.emptyIfNull(nodeScore.getNode().getPromptSnippet()).trim();
-        String body = joinChunkTexts(chunks, topK);
-        return renderKbSection(renderSnippetRules(snippet), body);
+        return renderKbSection(renderSnippetRules(snippet), renderChunksGroupedByDoc(chunks, topK));
     }
 
     /**
@@ -89,21 +89,21 @@ public class DefaultContextFormatter implements ContextFormatter {
             snippetSection = renderSnippetRules(numberedRules);
         }
 
-        // 2. 合并所有意图的文档片段（去重）
-        List<RetrievedChunk> allChunks = rerankedByIntent.values().stream()
+        // 2. 合并所有意图的文档片段（按 chunk id 去重，保持相关性顺序）
+        Map<String, RetrievedChunk> dedupById = new LinkedHashMap<>();
+        rerankedByIntent.values().stream()
                 .flatMap(List::stream)
-                .distinct()
-                .limit(topK)
-                .toList();
+                .forEach(chunk -> {
+                    String key = StrUtil.isNotBlank(chunk.getId()) ? chunk.getId() : "__anon__" + dedupById.size();
+                    dedupById.putIfAbsent(key, chunk);
+                });
+        List<RetrievedChunk> allChunks = new ArrayList<>(dedupById.values());
 
         if (allChunks.isEmpty()) {
             return snippetSection;
         }
 
-        String body = allChunks.stream()
-                .map(RetrievedChunk::getText)
-                .collect(Collectors.joining("\n"));
-        return renderKbSection(snippetSection, body);
+        return renderKbSection(snippetSection, renderChunksGroupedByDoc(allChunks, topK));
     }
 
     private String formatChunksWithoutIntent(Map<String, List<RetrievedChunk>> rerankedByIntent, int topK) {
@@ -127,10 +127,7 @@ public class DefaultContextFormatter implements ContextFormatter {
             return "";
         }
 
-        String body = chunks.stream()
-                .map(RetrievedChunk::getText)
-                .collect(Collectors.joining("\n"));
-        return renderKbSection("", body);
+        return renderKbSection("", renderChunksGroupedByDoc(chunks, topK));
     }
 
     @Override
@@ -178,10 +175,10 @@ public class DefaultContextFormatter implements ContextFormatter {
 
     // ==================== 工具方法 ====================
 
-    private String renderKbSection(String snippetSection, String chunksBody) {
+    private String renderKbSection(String snippetSection, String docBlocks) {
         return templateLoader.renderSection(CONTEXT_FORMAT_PATH, "kb-section", Map.of(
                 "snippet_section", snippetSection,
-                "chunks_body", chunksBody
+                "doc_blocks", docBlocks
         ));
     }
 
@@ -192,11 +189,85 @@ public class DefaultContextFormatter implements ContextFormatter {
         return templateLoader.renderSection(CONTEXT_FORMAT_PATH, "snippet-rules", Map.of("rules", snippet));
     }
 
-    private String joinChunkTexts(List<RetrievedChunk> chunks, int topK) {
-        return chunks.stream()
-                .limit(topK)
-                .map(RetrievedChunk::getText)
+    /**
+     * 按文档聚合渲染 chunk 列表
+     * <p>
+     * 文档之间按相关性排序（各文档首个命中块在原列表中的顺序，即该文档最佳块的排名），
+     * 文档内部按 {@code chunkIndex} 升序还原原文顺序；docId 缺失的块各自单独成组、留在原位
+     */
+    private String renderChunksGroupedByDoc(List<RetrievedChunk> chunks, int topK) {
+        long limit = topK > 0 ? topK : Long.MAX_VALUE;
+        List<RetrievedChunk> limited = chunks.stream().limit(limit).toList();
+        if (limited.isEmpty()) {
+            return "";
+        }
+
+        // LinkedHashMap 保持首次出现顺序 = 文档间的相关性排序；docId 为空的块各自单独成组
+        LinkedHashMap<String, List<RetrievedChunk>> groups = new LinkedHashMap<>();
+        int anonymousSeq = 0;
+        for (RetrievedChunk chunk : limited) {
+            String key = StrUtil.isNotBlank(chunk.getDocId()) ? chunk.getDocId() : "__nodoc__" + (anonymousSeq++);
+            groups.computeIfAbsent(key, k -> new ArrayList<>()).add(chunk);
+        }
+
+        return groups.values().stream()
+                .map(this::renderDocBlock)
                 .collect(Collectors.joining("\n"));
+    }
+
+    /**
+     * 渲染单个文档块：组内按序号排序后拼接，带上文档标题作为内部锚点
+     */
+    private String renderDocBlock(List<RetrievedChunk> group) {
+        List<RetrievedChunk> ordered = group.stream()
+                .sorted(Comparator.comparing(RetrievedChunk::getChunkIndex,
+                        Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+
+        String chunks = ordered.stream()
+                .map(RetrievedChunk::getText)
+                .map(StrUtil::emptyIfNull)
+                .filter(text -> !text.isEmpty())
+                .collect(Collectors.joining("\n"));
+
+        String title = sanitizeTitle(resolveTitle(group));
+        if (StrUtil.isNotBlank(title)) {
+            return templateLoader.renderSection(CONTEXT_FORMAT_PATH, "kb-doc-block", Map.of(
+                    "source", title,
+                    "chunks", chunks
+            ));
+        }
+        return templateLoader.renderSection(CONTEXT_FORMAT_PATH, "kb-doc-block-untitled", Map.of("chunks", chunks));
+    }
+
+    /**
+     * 清洗文档标题里会破坏伪标签属性的字符（引号、尖括号），避免污染 source 属性
+     */
+    private String sanitizeTitle(String title) {
+        if (StrUtil.isBlank(title)) {
+            return "";
+        }
+        return title.replaceAll("[\"<>]", "").trim();
+    }
+
+    /**
+     * 取文档组的标题（首个非空 docName，剥掉文件扩展名）
+     */
+    private String resolveTitle(List<RetrievedChunk> group) {
+        return group.stream()
+                .map(RetrievedChunk::getDocName)
+                .filter(StrUtil::isNotBlank)
+                .map(DefaultContextFormatter::stripExtension)
+                .findFirst()
+                .orElse("");
+    }
+
+    private static String stripExtension(String docName) {
+        if (docName == null) {
+            return null;
+        }
+        int dot = docName.lastIndexOf('.');
+        return (dot > 0 && dot < docName.length() - 1) ? docName.substring(0, dot) : docName;
     }
 
     private String mergeAllResultsToText(Map<String, List<CallToolResult>> toolResults) {

@@ -68,6 +68,12 @@ rag:
   rerank:
     enabled: true
 
+  # 上下文组装：回表补齐文档归属（文档ID/序号/标题），并按文档聚合
+  # 关闭后退回「按相关性平铺、不带来源」的旧行为
+  context:
+    enrich:
+      enabled: true
+
   rate-limit:
     global:
       enabled: true

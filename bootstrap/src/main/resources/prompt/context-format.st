@@ -1,6 +1,14 @@
 --- section: kb-section ---
-{snippet_section}<content>
-{chunks_body}
+{snippet_section}{doc_blocks}
+
+--- section: kb-doc-block ---
+<content source="{source}">
+{chunks}
+</content>
+
+--- section: kb-doc-block-untitled ---
+<content>
+{chunks}
 </content>
 
 --- section: snippet-rules ---
