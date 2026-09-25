@@ -21,6 +21,7 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import com.nageoffer.ai.ragent.framework.convention.ChatMessage;
 import com.nageoffer.ai.ragent.framework.convention.RetrievedChunk;
+import com.nageoffer.ai.ragent.rag.config.RAGConfigProperties;
 import com.nageoffer.ai.ragent.rag.core.intent.IntentNode;
 import com.nageoffer.ai.ragent.rag.core.intent.NodeScore;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +36,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.nageoffer.ai.ragent.rag.constant.RAGConstant.CONTEXT_FORMAT_PATH;
+import static com.nageoffer.ai.ragent.rag.constant.RAGConstant.ANSWER_CITATION_RULES_PROMPT_PATH;
 import static com.nageoffer.ai.ragent.rag.constant.RAGConstant.MCP_KB_MIXED_PROMPT_PATH;
 import static com.nageoffer.ai.ragent.rag.constant.RAGConstant.MCP_ONLY_PROMPT_PATH;
 import static com.nageoffer.ai.ragent.rag.constant.RAGConstant.RAG_ENTERPRISE_PROMPT_PATH;
@@ -49,6 +51,7 @@ import static com.nageoffer.ai.ragent.rag.constant.RAGConstant.RAG_ENTERPRISE_PR
 public class RAGPromptService {
 
     private final PromptTemplateLoader templateLoader;
+    private final RAGConfigProperties ragConfigProperties;
 
     /**
      * 生成系统提示词，并对模板格式做清理
@@ -58,7 +61,20 @@ public class RAGPromptService {
         String template = StrUtil.isNotBlank(plan.getBaseTemplate())
                 ? plan.getBaseTemplate()
                 : defaultTemplate(plan.getScene());
-        return StrUtil.isBlank(template) ? "" : PromptTemplateUtils.cleanupPrompt(template);
+        String systemPrompt = StrUtil.isBlank(template) ? "" : PromptTemplateUtils.cleanupPrompt(template);
+        if (!context.hasKb() || !Boolean.TRUE.equals(ragConfigProperties.getCitationEnabled())) {
+            return systemPrompt;
+        }
+
+        String citationRules = PromptTemplateUtils.cleanupPrompt(
+                templateLoader.load(ANSWER_CITATION_RULES_PROMPT_PATH));
+        if (StrUtil.isBlank(systemPrompt)) {
+            return citationRules;
+        }
+        if (StrUtil.isBlank(citationRules)) {
+            return systemPrompt;
+        }
+        return systemPrompt + "\n\n" + citationRules;
     }
 
     /**

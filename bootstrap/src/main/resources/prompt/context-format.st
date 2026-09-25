@@ -2,11 +2,11 @@
 {snippet_section}{doc_blocks}
 
 --- section: kb-doc-block ---
-<content source="{source}">
+<content data-ragent-doc-id="{doc_id}">
 {chunks}
 </content>
 
---- section: kb-doc-block-untitled ---
+--- section: kb-doc-block-anonymous ---
 <content>
 {chunks}
 </content>

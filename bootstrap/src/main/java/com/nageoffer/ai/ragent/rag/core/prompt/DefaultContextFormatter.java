@@ -216,7 +216,11 @@ public class DefaultContextFormatter implements ContextFormatter {
     }
 
     /**
-     * 渲染单个文档块：组内按序号排序后拼接，带上文档标题作为内部锚点
+     * 渲染单个文档块：组内按序号排序后拼接，只带内部 docId 作为锚点
+     * <p>
+     * 刻意不注入文档标题：标题一旦进入上下文，模型就会写出「出自《XX》」之类的归因表述，
+     * 而提示词层面的禁令压不住。资料之间的区分交给 {@code ref} 编号（由 {@code CitationContextEnricher}
+     * 在来源装配后注入），文档名只在前端来源列表展示
      */
     private String renderDocBlock(List<RetrievedChunk> group) {
         List<RetrievedChunk> ordered = group.stream()
@@ -230,44 +234,35 @@ public class DefaultContextFormatter implements ContextFormatter {
                 .filter(text -> !text.isEmpty())
                 .collect(Collectors.joining("\n"));
 
-        String title = sanitizeTitle(resolveTitle(group));
-        if (StrUtil.isNotBlank(title)) {
+        String docId = sanitizeAttribute(resolveDocId(group));
+        if (StrUtil.isNotBlank(docId)) {
             return templateLoader.renderSection(CONTEXT_FORMAT_PATH, "kb-doc-block", Map.of(
-                    "source", title,
+                    "doc_id", docId,
                     "chunks", chunks
             ));
         }
-        return templateLoader.renderSection(CONTEXT_FORMAT_PATH, "kb-doc-block-untitled", Map.of("chunks", chunks));
+        return templateLoader.renderSection(CONTEXT_FORMAT_PATH, "kb-doc-block-anonymous", Map.of("chunks", chunks));
     }
 
     /**
-     * 清洗文档标题里会破坏伪标签属性的字符（引号、尖括号），避免污染 source 属性
+     * 清洗属性值里会破坏伪标签结构的字符（引号、尖括号）
      */
-    private String sanitizeTitle(String title) {
-        if (StrUtil.isBlank(title)) {
+    private String sanitizeAttribute(String value) {
+        if (StrUtil.isBlank(value)) {
             return "";
         }
-        return title.replaceAll("[\"<>]", "").trim();
+        return value.replaceAll("[\"<>]", "").trim();
     }
 
     /**
-     * 取文档组的标题（首个非空 docName，剥掉文件扩展名）
+     * 取文档组的内部 docId（首个非空值）
      */
-    private String resolveTitle(List<RetrievedChunk> group) {
+    private String resolveDocId(List<RetrievedChunk> group) {
         return group.stream()
-                .map(RetrievedChunk::getDocName)
+                .map(RetrievedChunk::getDocId)
                 .filter(StrUtil::isNotBlank)
-                .map(DefaultContextFormatter::stripExtension)
                 .findFirst()
                 .orElse("");
-    }
-
-    private static String stripExtension(String docName) {
-        if (docName == null) {
-            return null;
-        }
-        int dot = docName.lastIndexOf('.');
-        return (dot > 0 && dot < docName.length() - 1) ? docName.substring(0, dot) : docName;
     }
 
     private String mergeAllResultsToText(Map<String, List<CallToolResult>> toolResults) {

@@ -51,11 +51,12 @@ class DefaultContextFormatterTest {
                 Map.of("topic-1", List.of(laterChunk, otherDocChunk, earlierChunk)),
                 10);
 
-        assertTrue(context.contains("<content source=\"转专业管理办法\">"), context);
-        assertTrue(context.contains("<content source=\"奖助学金细则\">"), context);
-        int firstDocPosition = context.indexOf("转专业管理办法");
-        int secondDocPosition = context.indexOf("奖助学金细则");
+        assertTrue(context.contains("<content data-ragent-doc-id=\"doc-1\">"), context);
+        assertTrue(context.contains("<content data-ragent-doc-id=\"doc-2\">"), context);
+        int firstDocPosition = context.indexOf("data-ragent-doc-id=\"doc-1\"");
+        int secondDocPosition = context.indexOf("data-ragent-doc-id=\"doc-2\"");
         assertTrue(firstDocPosition < secondDocPosition, "文档之间按最佳命中块的顺序排列");
+        assertFalse(context.contains("转专业管理办法"), "文档标题不得进入模型上下文，避免模型写出「出自《XX》」");
         assertTrue(context.indexOf("第一段") < context.indexOf("第二段"), "文档内部按 chunkIndex 升序还原原文顺序");
         assertEquals(2, countOccurrences(context, "<content"), context);
     }
@@ -77,8 +78,8 @@ class DefaultContextFormatterTest {
     }
 
     @Test
-    @DisplayName("文档标题会去掉扩展名并清洗破坏标签属性的字符")
-    void sanitizesDocumentTitle() {
+    @DisplayName("内部 docId 会清洗破坏标签属性的字符，标题不进入上下文")
+    void sanitizesDocumentIdAttribute() {
         RetrievedChunk chunk = chunk("c1", "内容", 0.9F, "doc-1", 0, "《\"><转专业>》.pdf");
 
         String context = formatter.formatKbContext(
@@ -86,8 +87,8 @@ class DefaultContextFormatterTest {
                 Map.of("topic-1", List.of(chunk)),
                 10);
 
-        assertTrue(context.contains("<content source=\"《转专业》\">"), context);
-        assertFalse(context.contains("source=\"《\"><"), "标题中的引号与尖括号必须被清洗: " + context);
+        assertTrue(context.contains("<content data-ragent-doc-id=\"doc-1\">"), context);
+        assertFalse(context.contains("转专业"), "文档名不得泄漏进上下文: " + context);
     }
 
     @Test

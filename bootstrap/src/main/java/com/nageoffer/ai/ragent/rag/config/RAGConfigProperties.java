@@ -68,4 +68,16 @@ public class RAGConfigProperties {
      */
     @Value("${rag.context.enrich.enabled:true}")
     private Boolean contextEnrichEnabled;
+
+    /**
+     * 回答行内引用（数字角标）开关
+     * <p>
+     * 开启后为进入上下文的资料注入请求级引用编号，并动态追加行内引用规则，
+     * 模型在正文末尾输出 {@code [N](#cite-N)}。关闭则不注入编号、不追加引用规则，
+     * 省下这部分系统提示词与上下文开销以降低首字延迟；
+     * 文档级来源面板由 SSE 单独下发，不受此开关影响
+     * 默认值：{@code false}
+     */
+    @Value("${rag.citation.enabled:false}")
+    private Boolean citationEnabled;
 }

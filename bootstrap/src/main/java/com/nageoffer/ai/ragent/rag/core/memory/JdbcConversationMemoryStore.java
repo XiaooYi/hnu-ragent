@@ -20,6 +20,7 @@ package com.nageoffer.ai.ragent.rag.core.memory;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import com.nageoffer.ai.ragent.rag.config.MemoryProperties;
+import com.nageoffer.ai.ragent.rag.core.source.CitationMarkup;
 import com.nageoffer.ai.ragent.rag.controller.vo.ConversationMessageVO;
 import com.nageoffer.ai.ragent.framework.convention.ChatMessage;
 import com.nageoffer.ai.ragent.rag.enums.ConversationMessageOrder;
@@ -105,10 +106,12 @@ public class JdbcConversationMemoryStore implements ConversationMemoryStore {
         if (record == null || StrUtil.isBlank(record.getContent())) {
             return null;
         }
-        return new ChatMessage(
-                ChatMessage.Role.fromString(record.getRole()),
-                record.getContent()
-        );
+        ChatMessage.Role role = ChatMessage.Role.fromString(record.getRole());
+        // 行内引用角标是本轮的局部编号，进入下一轮历史前必须剥掉，避免污染本轮编号
+        String content = role == ChatMessage.Role.ASSISTANT
+                ? CitationMarkup.strip(record.getContent())
+                : record.getContent();
+        return new ChatMessage(role, content);
     }
 
     private List<ChatMessage> normalizeHistory(List<ChatMessage> messages) {

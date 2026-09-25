@@ -110,6 +110,13 @@ public class RAGConstant {
     public static final String RAG_ENTERPRISE_PROMPT_PATH = "prompt/answer-chat-kb.st";
 
     /**
+     * 知识资料回答的行内引用规则
+     * <p>
+     * 仅在 {@code rag.citation.enabled=true} 且存在知识库上下文时，由 Prompt 编排层追加
+     */
+    public static final String ANSWER_CITATION_RULES_PROMPT_PATH = "prompt/answer-citation-rules.st";
+
+    /**
      * MCP 工具参数提取提示词模板路径
      * 用于从用户问题中提取工具调用参数
      */

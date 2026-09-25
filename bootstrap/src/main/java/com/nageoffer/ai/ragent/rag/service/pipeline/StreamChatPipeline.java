@@ -36,6 +36,7 @@ import com.nageoffer.ai.ragent.rag.core.retrieve.RetrievalEngine;
 import com.nageoffer.ai.ragent.rag.core.rewrite.QueryRewriteService;
 import com.nageoffer.ai.ragent.rag.core.rewrite.RewriteResult;
 import com.nageoffer.ai.ragent.rag.core.source.SourcesAssembler;
+import com.nageoffer.ai.ragent.rag.core.source.CitationContextEnricher;
 import com.nageoffer.ai.ragent.rag.dto.IntentGroup;
 import com.nageoffer.ai.ragent.rag.dto.RetrievalContext;
 import com.nageoffer.ai.ragent.rag.dto.SubQuestionIntent;
@@ -74,6 +75,7 @@ public class StreamChatPipeline {
     private final PromptTemplateLoader promptTemplateLoader;
     private final StreamTaskManager taskManager;
     private final SourcesAssembler sourcesAssembler;
+    private final CitationContextEnricher citationContextEnricher;
 
     /**
      * 执行流式对话管道
@@ -174,9 +176,11 @@ public class StreamChatPipeline {
         // 聚合所有意图用于 prompt 规划
         IntentGroup mergedGroup = intentResolver.mergeIntentGroup(ctx.getSubIntents());
 
-        // 检索完成后先下发文档级来源（来源面板用，不参与 prompt）
+        // 检索完成后建立唯一来源编号：同一列表用于完成事件、来源面板与消息落库，开启引用时还作为行内角标编号
         List<SourceRef> sources = sourcesAssembler.assemble(retrievalCtx.getIntentChunks());
         ctx.getCallback().onSources(sources);
+        // 关闭引用时这一步只负责清掉上下文里的内部 docId，不注入编号
+        retrievalCtx.setKbContext(citationContextEnricher.enrich(retrievalCtx.getKbContext(), sources));
 
         StreamCancellationHandle handle = streamLLMResponse(
                 ctx.getRewriteResult(),
