@@ -44,6 +44,14 @@ public class SearchChannelProperties implements InitializingBean {
     public static class Channels {
 
         /**
+         * 单通道超时上限（毫秒）
+         * <p>
+         * 通道并行执行，整次检索耗时被钳制在最慢一条上：任一通道后端劣化（ES 慢查询、图谱服务超时、向量库抖动），
+         * 整个子问题都要等它。超过此值的通道按空结果降级、其余通道照常融合；<=0 不限时，退回等最慢通道
+         */
+        private long timeoutMs = 15_000;
+
+        /**
          * 向量全局检索配置
          */
         private VectorGlobal vectorGlobal = new VectorGlobal();

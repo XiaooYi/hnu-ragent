@@ -104,6 +104,7 @@ rag:
 
   search:
     channels:
+      timeout-ms: 15000  # 单通道超时上限；超时通道按空结果降级，<=0 不限时（退回等最慢通道）
       vector-global:
         confidence-threshold: 0.6
         top-k-multiplier: 3
