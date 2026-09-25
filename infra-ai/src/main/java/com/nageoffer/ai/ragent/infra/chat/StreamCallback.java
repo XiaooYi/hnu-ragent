@@ -17,6 +17,10 @@
 
 package com.nageoffer.ai.ragent.infra.chat;
 
+import com.nageoffer.ai.ragent.framework.convention.SourceRef;
+
+import java.util.List;
+
 /**
  * 流式响应回调接口（StreamCallback）
  * <p>
@@ -60,6 +64,16 @@ public interface StreamCallback {
      * @param content 当前推送的思考内容
      */
     default void onThinking(String content) {
+    }
+
+    /**
+     * 接收回答来源（文档级）
+     * <p>
+     * 检索完成后回调一次，由实现方暂存并随完成事件（onComplete）一并下发，默认空实现
+     *
+     * @param sources 文档级来源列表
+     */
+    default void onSources(List<SourceRef> sources) {
     }
 
     /**

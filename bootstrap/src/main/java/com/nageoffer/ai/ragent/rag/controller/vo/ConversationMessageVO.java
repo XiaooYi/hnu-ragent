@@ -17,12 +17,14 @@
 
 package com.nageoffer.ai.ragent.rag.controller.vo;
 
+import com.nageoffer.ai.ragent.framework.convention.SourceRef;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.Date;
+import java.util.List;
 
 /**
  * 会话消息视图对象
@@ -67,6 +69,11 @@ public class ConversationMessageVO {
      * 反馈值：1=点赞，-1=点踩，null=未反馈
      */
     private Integer vote;
+
+    /**
+     * 回答来源，文档级来源列表（仅 assistant 消息可能有）
+     */
+    private List<SourceRef> sources;
 
     /**
      * 创建时间

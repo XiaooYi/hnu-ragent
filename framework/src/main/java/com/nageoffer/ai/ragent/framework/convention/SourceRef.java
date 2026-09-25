@@ -15,57 +15,58 @@
  * limitations under the License.
  */
 
-package com.nageoffer.ai.ragent.rag.service.bo;
+package com.nageoffer.ai.ragent.framework.convention;
 
-import com.nageoffer.ai.ragent.framework.convention.SourceRef;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-
 /**
- * 对话消息业务对象
+ * 回答来源引用（文档级）
+ * <p>
+ * 由检索片段按文档去重、赋号后得到，同时用于：SSE 下发、消息落库、前端来源面板与预览
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ConversationMessageBO {
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class SourceRef {
 
     /**
-     * 对话ID
+     * 来源序号，从 1 开始；来源面板与行内引用角标共用同一编号
      */
-    private String conversationId;
+    private Integer index;
 
     /**
-     * 用户ID
+     * 文档 ID，用于预览取原文
      */
-    private String userId;
+    private String docId;
 
     /**
-     * 角色：system/user/assistant
+     * 文档名称，来源面板标题
      */
-    private String role;
+    private String docName;
 
     /**
-     * 消息内容
+     * 来源类型：file / url / feishu
      */
-    private String content;
+    private String sourceType;
 
     /**
-     * 深度思考内容
+     * 文件类型：md / xlsx / pdf / doc / 图片等，前端据此选类型图标；网页来源可为 null
      */
-    private String thinkingContent;
+    private String fileType;
 
     /**
-     * 深度思考耗时（秒）
+     * 外部原始链接：url / feishu 来源有值，file 为 null（走 docId 预览提取正文）
      */
-    private Integer thinkingDuration;
+    private String url;
 
     /**
-     * 回答来源，文档级来源列表（仅 assistant 消息可能有）
+     * 摘录：该文档最相关片段的截断文本
      */
-    private List<SourceRef> sources;
+    private String excerpt;
 }

@@ -23,12 +23,15 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.nageoffer.ai.ragent.framework.convention.SourceRef;
+import com.nageoffer.ai.ragent.knowledge.dao.handler.SourceRefListTypeHandler;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.Date;
+import java.util.List;
 
 /**
  * 会话消息实体类
@@ -38,7 +41,7 @@ import java.util.Date;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@TableName("t_message")
+@TableName(value = "t_message", autoResultMap = true)
 public class ConversationMessageDO {
 
     /**
@@ -78,6 +81,12 @@ public class ConversationMessageDO {
      * 深度思考耗时（秒）
      */
     private Integer thinkingDuration;
+
+    /**
+     * 回答来源，文档级来源列表（jsonb 存储，仅 assistant 消息可能有）
+     */
+    @TableField(typeHandler = SourceRefListTypeHandler.class)
+    private List<SourceRef> sources;
 
     /**
      * 创建时间，自动填充

@@ -105,6 +105,7 @@ public class ConversationMessageServiceImpl implements ConversationMessageServic
                     .thinkingContent(record.getThinkingContent())
                     .thinkingDuration(record.getThinkingDuration())
                     .vote(votesByMessageId.get(record.getId()))
+                    .sources(record.getSources())
                     .createTime(record.getCreateTime())
                     .build();
             result.add(vo);
