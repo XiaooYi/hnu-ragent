@@ -41,7 +41,7 @@
 | UP-10 | 意图关联多知识库 Collection（UP-03 依赖本项引入的多 Collection 字段） | [`features/up-10-intent-multi-collection.md`](features/up-10-intent-multi-collection.md) | 已落地（含验证） |
 | UP-03 | 意图缓存反序列化容错（依赖 UP-10） | `features/up-03-intent-cache-robustness.md` | 未开始 |
 | UP-12 | 检索结果元数据富化与上下文渲染 | [`features/up-12-context-enrichment.md`](features/up-12-context-enrichment.md) | 已落地（回表富化 + 按文档聚合渲染；行内引用角标拆到 UP-12b） |
-| UP-12b | 行内引用角标 `[N](#cite-N)`（依赖 UP-18a 的来源编号） | 见 UP-12 文档末尾分工 | 未开始 |
+| UP-12b | 行内引用角标 `[N](#cite-N)`（依赖 UP-18a 的来源编号） | [`features/up-12b-inline-citation.md`](features/up-12b-inline-citation.md) | 已落地（含验证） |
 | UP-30 | 数据库 v1.1.0 升级脚本体系 | [`features/up-30-db-upgrades.md`](features/up-30-db-upgrades.md) | 已落地（含验证） |
 | UP-11 | 意图歧义澄清重构 | `features/up-11-ambiguity-rewrite.md` | 未开始 |
 
@@ -72,7 +72,7 @@
 | UP-22 | 模型调用档位机制 | `features/up-22-model-tiers.md` | 未开始 |
 | UP-21 | 模型调用健壮性（空白响应/熔断名额/候选顺序） | `features/up-21-model-call-robustness.md` | 未开始 |
 | UP-24 | DeepSeek 供应商 | [`features/up-24-deepseek-provider.md`](features/up-24-deepseek-provider.md) | 已落地（含验证） |
-| UP-25 | `enable_thinking` 自定义参数 | `features/up-25-enable-thinking.md` | 未开始 |
+| UP-25 | `enable_thinking` 自定义参数 | [`features/up-25-enable-thinking.md`](features/up-25-enable-thinking.md) | 已落地（含验证） |
 | UP-23 | 百炼向量客户端对齐 | `features/up-23-bailian-embedding.md` | 未开始 |
 
 ### 批次 7：独立大功能
