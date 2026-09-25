@@ -32,6 +32,7 @@ import com.nageoffer.ai.ragent.ingestion.prompt.EnricherPromptManager;
 import com.nageoffer.ai.ragent.ingestion.util.JsonResponseParser;
 import com.nageoffer.ai.ragent.ingestion.util.PromptTemplateRenderer;
 import com.nageoffer.ai.ragent.infra.chat.LLMService;
+import com.nageoffer.ai.ragent.infra.enums.Tier;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -135,6 +136,7 @@ public class EnricherNode implements IngestionNode {
     }
 
     private String chat(ChatRequest request, String modelId) {
-        return llmService.chat(request, modelId);
+        // 节点显式指定的模型作为 preferred，失败仍可回退快速档内其它候选
+        return llmService.chat(request, Tier.FAST, modelId);
     }
 }

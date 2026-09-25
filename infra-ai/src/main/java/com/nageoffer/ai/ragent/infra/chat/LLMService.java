@@ -19,6 +19,7 @@ package com.nageoffer.ai.ragent.infra.chat;
 
 import com.nageoffer.ai.ragent.framework.convention.ChatMessage;
 import com.nageoffer.ai.ragent.framework.convention.ChatRequest;
+import com.nageoffer.ai.ragent.infra.enums.Tier;
 
 import java.util.List;
 
@@ -86,19 +87,30 @@ public interface LLMService {
     String chat(ChatRequest request);
 
     /**
-     * 同步调用（指定模型）
+     * 同步调用（指定档位覆盖）
      * <p>
      * 说明：
-     * - modelId 为空时等同于 chat(request)，走默认路由
-     * - modelId 不为空时只使用指定模型，仍走路由层的健康检查与 fallback
+     * - tier 显式指定档位（想要更快/更强模型时由调用点传入），覆盖默认 standard
+     * - 深度思考优先：request.thinking=true 时走 deep-thinking-tier
      *
      * @param request ChatRequest 完整配置的请求
-     * @param modelId 指定的模型ID，为空时走默认路由
+     * @param tier    目标档位
      * @return 模型返回的完整回答
      */
-    default String chat(ChatRequest request, String modelId) {
-        return chat(request);
-    }
+    String chat(ChatRequest request, Tier tier);
+
+    /**
+     * 同步调用（指定档位 + 指定优先模型）
+     * <p>
+     * preferred 语义：优先使用 preferredModelId 指定的模型，失败后回退到该档位的其余候选；
+     * preferredModelId 为空时等同于 chat(request, tier)
+     *
+     * @param request          ChatRequest 完整配置的请求
+     * @param tier             回退档位
+     * @param preferredModelId 优先模型 id，为空时走档位候选
+     * @return 模型返回的完整回答
+     */
+    String chat(ChatRequest request, Tier tier, String preferredModelId);
 
     /**
      * 流式调用（简化模式）

@@ -23,6 +23,7 @@ import org.springframework.context.annotation.Configuration;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -88,9 +89,43 @@ public class AIModelProperties {
         private String deepThinkingModel;
 
         /**
+         * 默认档位（chat 组使用），未显式指定档位时的兜底
+         */
+        private String defaultTier = "standard";
+
+        /**
+         * 深度思考档位（chat 组使用），thinking=true 时优先走该档位
+         */
+        private String deepThinkingTier = "deep";
+
+        /**
+         * 档位配置：key 为档位名（fast / standard / deep），value 为该档位的候选与超时预算
+         */
+        private Map<String, TierConfig> tiers = new LinkedHashMap<>();
+
+        /**
          * 候选模型列表
          */
         private List<ModelCandidate> candidates = new ArrayList<>();
+    }
+
+    /**
+     * 档位配置
+     * <p>
+     * 一个档位 = 一组有序候选 + 一个超时预算（流式下是首包 TTFT 预算，同步下是整段调用上限）
+     */
+    @Data
+    public static class TierConfig {
+
+        /**
+         * 档位内候选模型 id 列表（有序：靠前优先）
+         */
+        private List<String> candidates = new ArrayList<>();
+
+        /**
+         * 该档位的调用预算（毫秒）
+         */
+        private Long timeoutMs;
     }
 
     /**

@@ -31,6 +31,7 @@ import com.nageoffer.ai.ragent.rag.dao.mapper.IntentNodeMapper;
 import com.nageoffer.ai.ragent.framework.convention.ChatMessage;
 import com.nageoffer.ai.ragent.framework.convention.ChatRequest;
 import com.nageoffer.ai.ragent.infra.chat.LLMService;
+import com.nageoffer.ai.ragent.infra.enums.Tier;
 import com.nageoffer.ai.ragent.rag.core.prompt.PromptTemplateLoader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -153,7 +154,8 @@ public class DefaultIntentClassifier implements IntentClassifier, IntentNodeRegi
                 .thinking(false)
                 .build();
 
-        String raw = llmService.chat(request);
+        // 高频低风险：走快速档，延迟敏感且判错可由后续兜底
+        String raw = llmService.chat(request, Tier.FAST);
 
         try {
             // 移除可能的 markdown 代码块标记

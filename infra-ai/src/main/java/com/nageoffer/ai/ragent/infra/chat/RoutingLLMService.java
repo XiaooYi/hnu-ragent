@@ -23,6 +23,7 @@ import com.nageoffer.ai.ragent.framework.errorcode.BaseErrorCode;
 import com.nageoffer.ai.ragent.framework.exception.RemoteException;
 import com.nageoffer.ai.ragent.framework.trace.RagTraceNode;
 import com.nageoffer.ai.ragent.infra.enums.ModelCapability;
+import com.nageoffer.ai.ragent.infra.enums.Tier;
 import com.nageoffer.ai.ragent.infra.model.ModelHealthStore;
 import com.nageoffer.ai.ragent.infra.model.ModelRoutingExecutor;
 import com.nageoffer.ai.ragent.infra.model.ModelSelector;
@@ -46,8 +47,12 @@ import java.util.stream.Collectors;
 @Primary
 public class RoutingLLMService implements LLMService {
 
-    private static final int FIRST_PACKET_TIMEOUT_SECONDS = 60;
     private static final String STREAM_INTERRUPTED_MESSAGE = "流式请求被中断";
+
+    /**
+     * 候选未声明档位预算时的首包兜底（毫秒）
+     */
+    private static final long DEFAULT_FIRST_PACKET_TIMEOUT_MS = 60_000L;
     private static final String STREAM_NO_PROVIDER_MESSAGE = "无可用大模型提供者";
     private static final String STREAM_START_FAILED_MESSAGE = "流式请求启动失败";
     private static final String STREAM_TIMEOUT_MESSAGE = "流式首包超时";
@@ -86,13 +91,25 @@ public class RoutingLLMService implements LLMService {
     }
 
     @Override
-    public String chat(ChatRequest request, String modelId) {
-        if (!StringUtils.hasText(modelId)) {
-            return chat(request);
+    @RagTraceNode(name = "llm-chat-routing", type = "LLM_ROUTING")
+    public String chat(ChatRequest request, Tier tier) {
+        return executor.executeWithFallback(
+                ModelCapability.CHAT,
+                selector.selectChatCandidates(Boolean.TRUE.equals(request.getThinking()), tier),
+                target -> clientsByProvider.get(target.candidate().getProvider()),
+                (client, target) -> client.chat(request, target)
+        );
+    }
+
+    @Override
+    @RagTraceNode(name = "llm-chat-routing", type = "LLM_ROUTING")
+    public String chat(ChatRequest request, Tier tier, String preferredModelId) {
+        if (!StringUtils.hasText(preferredModelId)) {
+            return chat(request, tier);
         }
         return executor.executeWithFallback(
                 ModelCapability.CHAT,
-                List.of(resolveTarget(modelId, Boolean.TRUE.equals(request.getThinking()))),
+                selector.selectChatCandidates(Boolean.TRUE.equals(request.getThinking()), tier, preferredModelId),
                 target -> clientsByProvider.get(target.candidate().getProvider()),
                 (client, target) -> client.chat(request, target)
         );
@@ -138,7 +155,11 @@ public class RoutingLLMService implements LLMService {
                 continue;
             }
 
-            ProbeStreamBridge.ProbeResult result = awaitFirstPacket(bridge, handle, callback);
+            // 首包预算取候选所属档位的 timeout-ms：fast 档短预算快速失败换模型，deep 档允许更长思考
+            long firstPacketBudgetMs = target.timeoutMs() == null
+                    ? DEFAULT_FIRST_PACKET_TIMEOUT_MS
+                    : target.timeoutMs();
+            ProbeStreamBridge.ProbeResult result = awaitFirstPacket(bridge, handle, callback, firstPacketBudgetMs);
 
             if (result.isSuccess()) {
                 healthStore.markSuccess(target.id());
@@ -167,9 +188,10 @@ public class RoutingLLMService implements LLMService {
 
     private ProbeStreamBridge.ProbeResult awaitFirstPacket(ProbeStreamBridge bridge,
                                                            StreamCancellationHandle handle,
-                                                           StreamCallback callback) {
+                                                           StreamCallback callback,
+                                                           long firstPacketBudgetMs) {
         try {
-            return firstPacketProbe.awaitFirstPacket(bridge, FIRST_PACKET_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            return firstPacketProbe.awaitFirstPacket(bridge, firstPacketBudgetMs, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             handle.cancel();

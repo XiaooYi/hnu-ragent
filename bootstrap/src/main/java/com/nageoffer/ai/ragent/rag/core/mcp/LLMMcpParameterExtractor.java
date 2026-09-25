@@ -27,6 +27,7 @@ import com.google.gson.JsonSyntaxException;
 import com.nageoffer.ai.ragent.framework.convention.ChatMessage;
 import com.nageoffer.ai.ragent.framework.convention.ChatRequest;
 import com.nageoffer.ai.ragent.infra.chat.LLMService;
+import com.nageoffer.ai.ragent.infra.enums.Tier;
 import com.nageoffer.ai.ragent.infra.util.LLMResponseCleaner;
 import com.nageoffer.ai.ragent.rag.core.prompt.PromptTemplateLoader;
 import io.modelcontextprotocol.spec.McpSchema.JsonSchema;
@@ -104,7 +105,7 @@ public class LLMMcpParameterExtractor implements McpParameterExtractor {
                     .topP(0.3D)
                     .thinking(false)
                     .build();
-            raw = llmService.chat(request);
+            raw = llmService.chat(request, Tier.FAST);
             log.info("MCP 参数提取 LLM 响应: {}", raw);
 
             // 解析阶段会清洗响应、校验 JSON 对象，并只保留 MCP Tool schema 中声明的参数。

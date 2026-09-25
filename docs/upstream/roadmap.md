@@ -69,7 +69,8 @@
 
 | 编号 | 功能 | 功能文档 | 状态 |
 | --- | --- | --- | --- |
-| UP-22 | 模型调用档位机制 | `features/up-22-model-tiers.md` | 未开始 |
+| UP-22 | 模型调用档位机制 | [`features/up-22-model-tiers.md`](features/up-22-model-tiers.md) | 部分落地：档位机制与调用点迁移已落地（UP-22a）；MCP 提参三态校验与设置页暴露待做（UP-22b） |
+| UP-22b | MCP 提参三态校验与档位设置暴露 | 见 UP-22 文档 | 未开始 |
 | UP-21 | 模型调用健壮性（空白响应/熔断名额/候选顺序） | `features/up-21-model-call-robustness.md` | 未开始 |
 | UP-24 | DeepSeek 供应商 | [`features/up-24-deepseek-provider.md`](features/up-24-deepseek-provider.md) | 已落地（含验证） |
 | UP-25 | `enable_thinking` 自定义参数 | [`features/up-25-enable-thinking.md`](features/up-25-enable-thinking.md) | 已落地（含验证） |

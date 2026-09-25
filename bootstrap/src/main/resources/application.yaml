@@ -196,6 +196,19 @@ ai:
   chat:
     default-model: qwen-plus
     deep-thinking-model: qwen3-max
+    default-tier: standard
+    deep-thinking-tier: deep
+    # 档位 = 质量/成本/时延预算：调用点按任务性质选档，路由只在档位内选候选
+    tiers:
+      fast:
+        candidates: [ qwen3-local, qwen-plus ]
+        timeout-ms: 5000    # 高频小任务：短预算，快速失败后换候选
+      standard:
+        candidates: [ qwen-plus, qwen3-max, qwen3-local ]
+        timeout-ms: 120000
+      deep:
+        candidates: [ qwen3-max, glm-4.7 ]
+        timeout-ms: 180000
     candidates:
       - id: qwen-plus
         provider: bailian

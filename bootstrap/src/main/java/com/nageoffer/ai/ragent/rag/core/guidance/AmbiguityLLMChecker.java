@@ -23,6 +23,7 @@ import com.google.gson.JsonParser;
 import com.nageoffer.ai.ragent.framework.convention.ChatMessage;
 import com.nageoffer.ai.ragent.framework.convention.ChatRequest;
 import com.nageoffer.ai.ragent.infra.chat.LLMService;
+import com.nageoffer.ai.ragent.infra.enums.Tier;
 import com.nageoffer.ai.ragent.infra.util.LLMResponseCleaner;
 import com.nageoffer.ai.ragent.rag.core.intent.IntentNode;
 import com.nageoffer.ai.ragent.rag.core.intent.NodeScore;
@@ -72,7 +73,7 @@ public class AmbiguityLLMChecker {
                 .build();
 
         try {
-            String raw = llmService.chat(request);
+            String raw = llmService.chat(request, Tier.FAST);
             String cleaned = LLMResponseCleaner.stripMarkdownCodeFence(raw);
             JsonElement root = JsonParser.parseString(cleaned);
 
