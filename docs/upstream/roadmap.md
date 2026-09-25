@@ -64,7 +64,7 @@
 | UP-19 | 相关推荐追问 | [`features/up-19-follow-up-questions.md`](features/up-19-follow-up-questions.md) | 部分落地：后端（grounding / 生成 / 接口 / 字段与迁移）已落地（UP-19a）；前端待做（UP-19b） |
 | UP-19b | 前端推荐追问列表与生成按钮 | [`features/up-19-follow-up-questions.md`](features/up-19-follow-up-questions.md) | 已落地（含验证） |
 | UP-20 | 消息结束状态与顺序稳定性 | 见 UP-19 文档 | 已落地：状态与提问引用贯通（UP-19a）+ 消息顺序决胜键（雪花 id） |
-| UP-38 | 任务取消与中断反馈 | `features/up-38-task-cancellation.md` | 未开始 |
+| UP-38 | 任务取消与中断反馈 | `features/up-38-task-cancellation.md` | 未开始（范围已复核，见下） |
 
 ### 批次 6：模型与供应商
 
@@ -115,6 +115,17 @@
 | UP-19a | 后端：`GroundingChunk` + 装配器、`recommended_questions` / `grounding_chunks` / `reply_to_message_id` / `message_status` 字段与迁移脚本、生成器（FAST 档）、服务与接口（GET 缓存 / POST 幂等生成）、VO 暴露 |
 | UP-19b | 前端：回答下方推荐追问列表（点击即追问）+ 「换一批/生成」按钮调用接口 |
 | UP-20 | 消息状态语义（NORMAL / INTERRUPTED / REJECTED）贯通落库、SSE 完成事件与前端；消息顺序决胜键 |
+
+#### UP-38 的范围复核（2026-09-26）
+
+上游 `67624931` / `05f045ff` 的改动**绝大部分位于 `agent` 模块**（Agent 工具、Agent 消息块 `error` 类型、
+AgentChat 前端组件、AgentRunHandle），本仓库尚无该模块，这些部分随批次八落地。对本仓库当前（RAG 版）真正适用的是：
+
+| 可落地项 | 现状 | 计划 |
+| --- | --- | --- |
+| 分布式任务取消（Redis 取消标记 + 本地句柄取消 + `/rag/v3/stop`） | **已具备**（分叉点已有，前端也有「停止生成」） | 保持 |
+| 取消的**统一判定**（区分「用户取消 / 线程中断」与真实失败） | 缺失：各层各自判断，MCP 工具与模型路由可能把取消记成错误或误标模型不健康 | 新增 `TaskCancellation` 工具并接入 MCP 工具执行与模型路由 |
+| 前端「停止中」按钮状态与可访问属性 | 缺失 | 补齐交互态 |
 
 一项功能只有在下列条件全部满足时才标记为 `已落地（含验证）`：
 
