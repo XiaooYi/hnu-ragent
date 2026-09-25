@@ -35,6 +35,7 @@ import {
   TableRow
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { resolveIntentCollectionNames } from "@/lib/intentCollections";
 import {
   batchDeleteIntentNodes,
   batchDisableIntentNodes,
@@ -76,6 +77,7 @@ type FlatIntentNode = {
   description?: string | null;
   examples?: string | null;
   collectionName?: string | null;
+  collectionNames?: string[] | null;
   mcpToolId?: string | null;
   topK?: number | null;
   enabled: number;
@@ -124,6 +126,7 @@ const flattenIntentTree = (
       description: node.description,
       examples: node.examples,
       collectionName: node.collectionName,
+      collectionNames: node.collectionNames,
       mcpToolId: node.mcpToolId,
       topK: node.topK,
       enabled: node.enabled === 0 ? 0 : 1,
@@ -340,7 +343,8 @@ export function IntentListPage() {
 
   const resolveResourceText = (row: FlatIntentNode) => {
     if (row.kind === 0) {
-      return row.collectionName || "-";
+      // 新字段优先，旧的单值字段兜底；多库时用顿号连接，便于一眼看出意图覆盖范围
+      return resolveIntentCollectionNames(row).join("、") || "-";
     }
     if (row.kind === 2) {
       return row.mcpToolId || "-";

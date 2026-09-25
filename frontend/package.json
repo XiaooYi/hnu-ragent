@@ -8,6 +8,7 @@
     "build": "vite build",
     "test:chat-scroll": "node --test tests/chatAutoScroll.test.mjs",
     "test:knowledge-upload": "node --test tests/knowledgeUpload.test.mjs",
+    "test:intent-collections": "node --test tests/intentCollections.test.mjs",
     "preview": "vite preview",
     "lint": "eslint . --ext .ts,.tsx --max-warnings 0",
     "format": "prettier --write ."

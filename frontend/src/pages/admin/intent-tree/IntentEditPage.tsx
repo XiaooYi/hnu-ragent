@@ -19,6 +19,14 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  addCollectionName,
+  buildIntentCollectionPayload,
+  removeCollectionName,
+  resolveIntentCollectionNames,
+  toggleCollectionName
+} from "@/lib/intentCollections";
+import { getKnowledgeBases } from "@/services/knowledgeService";
+import {
   getIntentTree,
   updateIntentNode,
   type IntentNodeTree,
@@ -47,6 +55,7 @@ const formSchema = z.object({
   kind: z.number(),
   parentCode: z.string().optional(),
   collectionName: z.string().optional(),
+  collectionNames: z.array(z.string()).optional(),
   mcpToolId: z.string().optional(),
   description: z.string().optional(),
   examplesText: z.string().optional(),
@@ -70,6 +79,7 @@ type FlatIntentNode = {
   description?: string | null;
   examples?: string | null;
   collectionName?: string | null;
+  collectionNames?: string[] | null;
   mcpToolId?: string | null;
   topK?: number | null;
   enabled: number;
@@ -114,6 +124,7 @@ const flattenIntentTree = (
       description: node.description,
       examples: node.examples,
       collectionName: node.collectionName,
+      collectionNames: node.collectionNames,
       mcpToolId: node.mcpToolId,
       topK: node.topK,
       enabled: node.enabled === 0 ? 0 : 1,
@@ -135,6 +146,7 @@ const emptyDefaults: FormValues = {
   kind: 0,
   parentCode: ROOT_PARENT,
   collectionName: "",
+  collectionNames: [],
   mcpToolId: "",
   description: "",
   examplesText: "",
@@ -153,6 +165,8 @@ export function IntentEditPage() {
   const [tree, setTree] = useState<IntentNodeTree[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [manualCollection, setManualCollection] = useState("");
+  const [collectionOptions, setCollectionOptions] = useState<Array<{ value: string; label: string }>>([]);
 
   const returnTo = useMemo(() => {
     const from = searchParams.get("from") || "";
@@ -216,6 +230,7 @@ export function IntentEditPage() {
       kind: currentNode.kind ?? 0,
       parentCode: currentNode.parentCode || ROOT_PARENT,
       collectionName: currentNode.collectionName || "",
+      collectionNames: resolveIntentCollectionNames(currentNode),
       mcpToolId: currentNode.mcpToolId || "",
       description: currentNode.description || "",
       examplesText: parseExamples(currentNode.examples).join("\n"),
@@ -250,6 +265,23 @@ export function IntentEditPage() {
   }, []);
 
   useEffect(() => {
+    const loadCollections = async () => {
+      try {
+        const knowledgeBases = await getKnowledgeBases(1, 200);
+        setCollectionOptions(
+          knowledgeBases
+            .map((kb) => ({ value: kb.collectionName, label: `${kb.name}（${kb.collectionName}）` }))
+            .filter((option) => Boolean(option.value))
+        );
+      } catch (error) {
+        // 知识库列表只用于“可选项”，失败时仍允许手工填写 Collection 名称
+        console.error(error);
+      }
+    };
+    loadCollections();
+  }, []);
+
+  useEffect(() => {
     form.reset(resolvedDefaults);
   }, [resolvedDefaults, form]);
 
@@ -270,13 +302,19 @@ export function IntentEditPage() {
           .filter(Boolean)
       : [];
 
+    const { collectionName, collectionNames } = buildIntentCollectionPayload(
+      values.collectionNames,
+      values.kind
+    );
+
     const payload: IntentNodeUpdatePayload = {
       name: values.name.trim(),
       level: values.level,
       parentCode,
       description: values.description?.trim() || "",
       examples,
-      collectionName: values.kind === 0 ? values.collectionName?.trim() || "" : "",
+      collectionName,
+      collectionNames,
       mcpToolId: values.kind === 2 ? values.mcpToolId?.trim() || "" : "",
       kind: values.kind,
       topK: values.topK ?? undefined,
@@ -459,12 +497,83 @@ export function IntentEditPage() {
               {kind === 0 ? (
                 <FormField
                   control={form.control}
-                  name="collectionName"
+                  name="collectionNames"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Collection 名称</FormLabel>
+                      <FormLabel>关联知识库 Collection（可多选）</FormLabel>
                       <FormControl>
-                        <Input placeholder="向量数据库 Collection 名称" {...field} />
+                        <div className="space-y-3 rounded-lg border px-3 py-3">
+                          {collectionOptions.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">
+                              暂无可选知识库，可直接在下方手工填写 Collection 名称
+                            </p>
+                          ) : (
+                            <div className="flex flex-wrap gap-2">
+                              {collectionOptions.map((option) => {
+                                const selected = (field.value ?? []).includes(option.value);
+                                return (
+                                  <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={() =>
+                                      field.onChange(toggleCollectionName(field.value ?? [], option.value))
+                                    }
+                                    className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                                      selected
+                                        ? "border-primary bg-primary text-primary-foreground"
+                                        : "border-border text-muted-foreground hover:border-primary"
+                                    }`}
+                                  >
+                                    {option.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          <div className="flex gap-2">
+                            <Input
+                              value={manualCollection}
+                              placeholder="手工添加 Collection 名称"
+                              onChange={(event) => setManualCollection(event.target.value)}
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                if (!manualCollection.trim()) return;
+                                field.onChange(addCollectionName(field.value ?? [], manualCollection));
+                                setManualCollection("");
+                              }}
+                            >
+                              添加
+                            </Button>
+                          </div>
+
+                          {(field.value ?? []).length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                              {(field.value ?? []).map((name) => (
+                                <span
+                                  key={name}
+                                  className="inline-flex items-center gap-2 rounded bg-muted px-2 py-0.5 text-xs"
+                                >
+                                  {name}
+                                  <button
+                                    type="button"
+                                    aria-label={`移除 ${name}`}
+                                    className="text-muted-foreground hover:text-destructive"
+                                    onClick={() => field.onChange(removeCollectionName(field.value ?? [], name))}
+                                  >
+                                    ×
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
+                          <p className="text-xs text-muted-foreground">
+                            多个 Collection 会在同一次检索中一起召回，TopK 是整段范围的总预算
+                          </p>
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>

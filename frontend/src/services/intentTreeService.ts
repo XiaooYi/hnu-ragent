@@ -9,6 +9,8 @@ export interface IntentNodeTree {
   description?: string | null;
   examples?: string | null;
   collectionName?: string | null;
+  /** 关联的多个 Collection（新字段，旧的 collectionName 仅作兼容显示） */
+  collectionNames?: string[] | null;
   mcpToolId?: string | null;
   topK?: number | null;
   kind?: number | null;
@@ -28,6 +30,8 @@ export interface IntentNodeCreatePayload {
   parentCode?: string | null;
   description?: string | null;
   examples?: string[];
+  /** 关联的多个 Collection；为空时后端按 kbId 推导 */
+  collectionNames?: string[];
   mcpToolId?: string | null;
   topK?: number | null;
   kind?: number | null;
@@ -45,6 +49,8 @@ export interface IntentNodeUpdatePayload {
   description?: string | null;
   examples?: string[];
   collectionName?: string | null;
+  /** 关联的多个 Collection（与 collectionName 同时提交时以后者为准） */
+  collectionNames?: string[];
   mcpToolId?: string | null;
   topK?: number | null;
   kind?: number | null;
