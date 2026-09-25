@@ -140,35 +140,64 @@ bootstrap/src/main/java/com/nageoffer/ai/ragent/
 
 ### 3.2 意图树结构示例
 
+下面是当前部署（湖南大学校内知识助手「岳麓知枢」）在 `t_intent_node` 中的实际结构：共 42 个节点，其中 38 个 `KB`（5 个领域 + 5 个分类 + 28 个主题）、4 个 `SYSTEM`。知识库领域挂一个 `<领域>-topics` 分类，主题节点是叶子（`topK = 8`），`examples` 直接进入意图分类 Prompt。该树由 `scripts/import-huda-intent-tree.ps1` 导入（见 §3.7），也可在管理后台「意图树配置」逐节点维护。
+
 ```
-集团信息化 (DOMAIN)
-├── 人事 (CATEGORY)
-│   ├── 招聘政策 (TOPIC, KB) ──→ collection: hr_recruitment
-│   ├── 薪酬福利 (TOPIC, KB) ──→ collection: hr_compensation
-│   └── 考勤制度 (TOPIC, KB) ──→ collection: hr_attendance
-├── IT (CATEGORY)
-│   ├── 系统介绍 (TOPIC, KB)   ──→ collection: it_systems
-│   └── 技术支持 (TOPIC, KB)   ──→ collection: it_support
-└── 财务 (CATEGORY)
-    ├── 报销流程 (TOPIC, KB)   ──→ collection: finance_reimbursement
-    └── 发票信息 (TOPIC, KB)   ──→ collection: finance_invoice
-        └── 自定义 Prompt: "你是一个财务发票助手..."
+系统对话 (DOMAIN, SYSTEM)
+├── 问候与闲聊 (TOPIC, SYSTEM)      ──→ 示例问法：你好 / 在吗 / 谢谢 / 再见
+├── 关于助手 (TOPIC, SYSTEM)        ──→ 示例问法：你是谁 / 你能帮我查什么
+└── 非校内范围问题 (TOPIC, SYSTEM)  ──→ 示例问法：今天天气怎么样 / 帮我推荐一部电影
+    （三个 SYSTEM 叶子都带自定义 Prompt，模板开头是「你是“岳麓知枢”，湖南大学校内知识助手」）
 
-业务系统 (DOMAIN)
-├── OA 系统 (CATEGORY)
-│   └── 数据安全 (TOPIC, KB)   ──→ collection: oa_security
-└── 保险系统 (CATEGORY)
-    └── 数据安全 (TOPIC, KB)   ──→ collection: insurance_security
+湖大通用概况与校园生活 (DOMAIN, KB) ──→ collection: hnu1general1campus
+└── 湖大通用概况与校园生活主题 (CATEGORY)
+    ├── 学校概况与校园文化 (TOPIC, KB)   ──→ 湖南大学是一所什么样的学校？ / 校训是什么？
+    ├── 校园地图与设施 (TOPIC, KB)       ──→ 校园地图怎么看？ / 有哪些食宿设施？
+    ├── 住宿与宿舍管理 (TOPIC, KB)       ──→ 宿舍条件怎么样？ / 宿舍管理有哪些规定？
+    ├── 校园卡与校园网 (TOPIC, KB)       ──→ 校园卡怎么使用？ / 校园网如何办理？
+    ├── 校园事务与公共服务 (TOPIC, KB)   ──→ 教室怎么借用？ / 请销假流程是什么？
+    ├── 学生组织与社团 (TOPIC, KB)
+    └── 学生管理与勤工助学 (TOPIC, KB)
 
-MCP 工具 (DOMAIN)
-└── 销售数据 (TOPIC, MCP)      ──→ toolId: sales_data_query
+湖大本科教学与学业制度 (DOMAIN, KB) ──→ collection: hnu3undergrad3academic
+└── 湖大本科教学与学业制度主题 (CATEGORY)
+    ├── 选课与课堂教学 (TOPIC, KB)              ──→ 本科生怎么选课？ / 自主选择课堂怎么操作？
+    ├── 考试与成绩管理 (TOPIC, KB)              ──→ 考试违规怎么处理？ / 本科生绩点怎么计算？
+    ├── 学籍与学位 (TOPIC, KB)                  ──→ 本科学籍有哪些规定？ / 如何申请学士学位？
+    ├── 转专业、专业分流与辅修 (TOPIC, KB)      ──→ 如何转专业？ / 辅修专业有哪些要求？
+    ├── 拔尖、强基与试验班 (TOPIC, KB)
+    ├── 素质测评与优秀评选 (TOPIC, KB)
+    ├── 招生与特殊学生培养 (TOPIC, KB)
+    └── 征兵与服役资助 (TOPIC, KB)
 
-系统交互 (DOMAIN)
-├── 打招呼 (TOPIC, SYSTEM)
-└── 关于机器人 (TOPIC, SYSTEM)
+湖大本科专业培养方案 (DOMAIN, KB) ──→ collection: hnu1undergrad1curriculum
+└── 湖大本科专业培养方案主题 (CATEGORY)
+    └── 本科专业培养方案查询 (TOPIC, KB) ──→ 计算机科学与技术专业培养方案是什么？ / 人工智能专业需要修哪些课程？
+
+湖大奖助学金资助 (DOMAIN, KB) ──→ collection: hnu1scholarship1aid
+└── 湖大奖助学金资助主题 (CATEGORY)
+    ├── 奖学金与荣誉奖励 (TOPIC, KB)         ──→ 国家奖学金怎么评？ / 综合奖学金申请条件是什么？
+    ├── 助学金与困难认定 (TOPIC, KB)         ──→ 国家助学金如何申请？ / 困难学生如何认定？
+    ├── 国家助学贷款 (TOPIC, KB)             ──→ 国家助学贷款怎么申请？ / 校园地贷款如何办理？
+    ├── 出国境学习专项奖学金 (TOPIC, KB)
+    └── 资助政策参考与版本说明 (TOPIC, KB)
+
+湖大研究生新生与研究生管理 (DOMAIN, KB) ──→ collection: hnu1grad1management
+└── 湖大研究生新生与研究生管理主题 (CATEGORY)
+    ├── 研究生新生报到 (TOPIC, KB)           ──→ 研究生新生如何报到？ / 报到需要准备什么材料？
+    ├── 研究生住宿申请 (TOPIC, KB)           ──→ 研究生如何申请住宿？ / 研究生宿舍怎么分配？
+    ├── 研究生课程与英语免修 (TOPIC, KB)     ──→ 可以跨学院选课吗？ / 英语免修条件是什么？
+    ├── 研究生管理系统与学堂云 (TOPIC, KB)
+    ├── 研究生学籍、学位与中期考核 (TOPIC, KB) ──→ 中期考核有哪些要求？ / 学位授予条件是什么？
+    ├── 研究生奖学金与评优 (TOPIC, KB)       ──→ 学业奖学金如何评定？ / 研究生国家奖学金怎么申请？
+    └── 研究生校外修课与专业实践 (TOPIC, KB)
 ```
 
-> **注意**：「数据安全」同时出现在 OA 系统和保险系统下——这是歧义引导（Guidance）的典型触发场景。
+> 上例只给部分主题标了 `examples`，其余主题同样各带 2~3 条示例问法；`id` 使用 `intent_code`（如 `hnu-undergraduate-rules-major-change-minor`），`path` 为 `领域名 > 分类名 > 主题名`，二者与 `description`、`type`、`examples` 一起填入 `prompt/intent-classifier.st`。
+>
+> **注意**：「奖学金与荣誉奖励」「助学金与困难认定」同属「湖大奖助学金资助主题」分类，「研究生奖学金与评优」则挂在研究生管理下。当用户只给主题词（例如“国家资助怎么申请”）同时命中同一分类下的多个主题、且分数接近时，`IntentGuidanceService.detectAmbiguity()` 会返回澄清候选——这就是歧义引导（Guidance）的典型触发场景，开关与阈值见 `rag.guidance.enabled` / `rag.guidance.ambiguity-score-ratio`（0.8，边界区间 0.65~0.8 走 LLM 二次确认）。
+>
+> 当前部署只有 `KB`（38 个）和 `SYSTEM`（4 个）两类节点，`MCP`（`kind = 2`）尚未配置：MCP 工具由独立的 `mcp-server` 模块实现并通过 `/mcp` 暴露（如 `WeatherMcpExecutor`、`SalesMcpExecutor`），bootstrap 侧由 `DefaultMcpToolRegistry` 自动注册 `McpToolExecutor` Bean；在意图节点上填 `mcpToolId` 后，该节点才会带上 `type=MCP` 参与分类。
 
 ### 3.3 意图分类流程
 
@@ -181,10 +210,10 @@ DefaultIntentClassifier.classifyTargets(question)
   │
   ├── 2. buildPrompt(leafNodes)
   │      加载 prompt/intent-classifier.st 模板
-  │      填充 ${intent_list}$: id, path, name, description, examples, type
+  │      填充 ${intent_list}$: id, path, description, type, examples
   │
   ├── 3. LLM 调用 → 返回 JSON:
-  │      [{"id":"node_001", "score":0.92, "reason":"用户明确询问招聘政策"}]
+  │      [{"id":"hnu-undergraduate-rules-major-change-minor", "score":0.92, "reason":"问题明确询问本科生转专业与辅修流程"}]
   │
   └── 4. 解析并返回 List<NodeScore>
 ```
@@ -232,7 +261,7 @@ IntentNode {
     String parentId;           // 父节点 ID
     List<String> examples;     // 示例问法（用于 LLM 分类）
     List<IntentNode> children; // 子节点
-    String fullPath;           // 完整路径 "集团信息化 > 人事 > 招聘政策"
+    String fullPath;           // 完整路径 "湖大本科教学与学业制度 > 湖大本科教学与学业制度主题 > 转专业、专业分流与辅修"
     IntentKind kind;           // KB / MCP / SYSTEM
     String collectionName;     // Milvus Collection 名称 (KB 类型)
     String mcpToolId;          // MCP 工具 ID (MCP 类型)
