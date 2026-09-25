@@ -17,6 +17,7 @@
 
 package com.nageoffer.ai.ragent.rag.core.guidance;
 
+import cn.hutool.core.util.StrUtil;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -40,7 +41,9 @@ import static com.nageoffer.ai.ragent.rag.constant.RAGConstant.GUIDANCE_AMBIGUIT
 
 /**
  * LLM 歧义确认器
- * 仅在规则层无法明确判断时调用，通过 LLM 语义理解确认是否存在品类歧义
+ * <p>
+ * 规则层只能发现候选路径重名，是否真的要用户二选一由 LLM 判断。
+ * 纯 RAG 是只读流程：判不出来时一律放行联合检索，不能因为模型异常反复阻断用户
  */
 @Slf4j
 @Component
@@ -51,7 +54,7 @@ public class AmbiguityLLMChecker {
     private final PromptTemplateLoader promptTemplateLoader;
 
     /**
-     * 调用 LLM 确认是否存在歧义
+     * 调用 LLM 确认是否存在歧义；响应非法或调用失败时返回 false（放行）
      */
     public boolean checkAmbiguity(String question, List<NodeScore> ranked) {
         String candidatesText = buildCandidatesText(ranked);
@@ -78,8 +81,8 @@ public class AmbiguityLLMChecker {
             JsonElement root = JsonParser.parseString(cleaned);
 
             if (!root.isJsonObject()) {
-                log.warn("歧义确认 LLM 返回非 JSON 对象: {}", raw);
-                return true;
+                log.warn("歧义确认 LLM 返回非 JSON 对象, 降级为跳过澄清: {}", raw);
+                return false;
             }
 
             JsonObject obj = root.getAsJsonObject();
@@ -90,11 +93,11 @@ public class AmbiguityLLMChecker {
                 return ambiguous;
             }
 
-            log.warn("歧义确认 LLM 返回缺少 ambiguous 字段: {}", raw);
-            return true;
+            log.warn("歧义确认 LLM 返回缺少 ambiguous 字段, 降级为跳过澄清: {}", raw);
+            return false;
         } catch (Exception e) {
-            log.warn("歧义确认 LLM 调用失败, 降级为触发澄清, question={}", question, e);
-            return true;
+            log.warn("歧义确认 LLM 调用失败, 降级为跳过澄清, question={}", question, e);
+            return false;
         }
     }
 
@@ -102,9 +105,13 @@ public class AmbiguityLLMChecker {
         return ranked.stream()
                 .map(ns -> {
                     IntentNode node = ns.getNode();
-                    String systemPath = node.getFullPath() != null ? node.getFullPath() : node.getName();
-                    return String.format("- 品类ID: %s, 名称: %s, 路径: %s, 分数: %.2f",
-                            node.getId(), node.getName(), systemPath, ns.getScore());
+                    String fullPath = StrUtil.blankToDefault(node.getFullPath(), StrUtil.emptyIfNull(node.getName()));
+                    StringBuilder line = new StringBuilder(String.format("- 意图ID: %s, 名称: %s, 完整路径: %s",
+                            node.getId(), node.getName(), fullPath));
+                    if (StrUtil.isNotBlank(node.getDescription())) {
+                        line.append(", 说明: ").append(node.getDescription());
+                    }
+                    return line.append(String.format(", 匹配分数: %.2f", ns.getScore())).toString();
                 })
                 .collect(Collectors.joining("\n"));
     }

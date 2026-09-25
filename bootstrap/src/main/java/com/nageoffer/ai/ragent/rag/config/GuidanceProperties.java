@@ -32,14 +32,16 @@ public class GuidanceProperties {
     private Boolean enabled = true;
 
     /**
-     * 歧义阈值：ratio >= 此值直接判定歧义，触发澄清
+     * 歧义阈值
+     * <p>
+     * 歧义判定已改为「候选意图路径重名 + LLM 确认」，该值当前不参与判定，保留以兼容既有 yaml
      */
     private Double ambiguityScoreRatio = 0.8D;
 
     /**
      * 歧义阈值缓冲区宽度
-     * ratio 在 [ambiguityScoreRatio - margin, ambiguityScoreRatio) 区间时进入 LLM 二次确认
-     * ratio < ambiguityScoreRatio - margin 时不触发澄清
+     * <p>
+     * 同 {@link #ambiguityScoreRatio}，当前不参与判定
      */
     private Double ambiguityMargin = 0.15D;
 

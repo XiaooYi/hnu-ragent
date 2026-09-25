@@ -22,29 +22,44 @@ import cn.hutool.core.util.StrUtil;
 import com.nageoffer.ai.ragent.framework.trace.RagTraceNode;
 import com.nageoffer.ai.ragent.rag.config.GuidanceProperties;
 import com.nageoffer.ai.ragent.rag.constant.RAGConstant;
-import com.nageoffer.ai.ragent.rag.dto.SubQuestionIntent;
-import com.nageoffer.ai.ragent.rag.enums.IntentLevel;
 import com.nageoffer.ai.ragent.rag.core.intent.IntentNode;
 import com.nageoffer.ai.ragent.rag.core.intent.IntentNodeRegistry;
 import com.nageoffer.ai.ragent.rag.core.intent.NodeScore;
 import com.nageoffer.ai.ragent.rag.core.intent.NodeScoreFilters;
 import com.nageoffer.ai.ragent.rag.core.prompt.PromptTemplateLoader;
+import com.nageoffer.ai.ragent.rag.dto.SubQuestionIntent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * 意图澄清判定
+ * <p>
+ * 意图树层级由用户自行配置，因此只按「根到叶的节点路径」找重名分叉，再由 LLM 确认是否真的需要用户选择。
+ * 不再使用分数比值：比值接近只说明多个候选都相关（例如比较类问题），不代表用户没说清要哪个
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class IntentGuidanceService {
+
+    /**
+     * 参与重名比较的最短名称长度，避免单字名把无关路径判成冲突
+     */
+    private static final int MIN_COMPARABLE_NAME_LENGTH = 2;
 
     private final GuidanceProperties guidanceProperties;
     private final IntentNodeRegistry intentNodeRegistry;
@@ -71,99 +86,22 @@ public class IntentGuidanceService {
             return null;
         }
 
-        List<NodeScore> candidates = filterCandidates(subIntents.get(0).nodeScores());
-        if (candidates.size() < 2) {
-            return null;
-        }
-
-        Map<String, NodeScore> systemBest = candidates.stream()
-                .filter(ns -> StrUtil.isNotBlank(resolveSystemNodeId(ns.getNode())))
-                .collect(Collectors.toMap(
-                        ns -> resolveSystemNodeId(ns.getNode()),
-                        ns -> ns,
-                        (a, b) -> a.getScore() >= b.getScore() ? a : b
-                ));
-
-        List<NodeScore> ranked = systemBest.values().stream()
-                .sorted(Comparator.comparingDouble(NodeScore::getScore).reversed())
-                .toList();
-
+        List<NodeScore> ranked = rankCandidates(filterCandidates(subIntents.get(0).nodeScores()));
         if (ranked.size() < 2) {
             return null;
         }
 
-        if (shouldSkipGuidance(question, ranked)) {
+        PathConflict conflict = collectPathConflicts(question, ranked);
+        if (conflict == null) {
             return null;
         }
 
-        if (!confirmAmbiguity(question, ranked)) {
+        if (!ambiguityLLMChecker.checkAmbiguity(question, conflict.ranked())) {
+            log.info("LLM 判定候选路径不构成歧义, 跳过澄清, question={}", question);
             return null;
         }
 
-        List<NodeScore> trimmedRanked = trimRankedOptions(ranked);
-        String topicName = trimmedRanked.get(0).getNode().getName();
-        return new AmbiguityGroup(topicName, trimmedRanked);
-    }
-
-    private boolean shouldSkipGuidance(String question, List<NodeScore> ranked) {
-        double top = ranked.get(0).getScore();
-        if (top <= 0) {
-            return true;
-        }
-
-        // 快速通道 1：分数比值低于边界下限，意图明确
-        double ratio = ranked.get(1).getScore() / top;
-        double threshold = Optional.ofNullable(guidanceProperties.getAmbiguityScoreRatio()).orElse(0.8D);
-        double margin = Optional.ofNullable(guidanceProperties.getAmbiguityMargin()).orElse(0.15D);
-        if (ratio < threshold - margin) {
-            log.debug("分数比值(ratio={})低于边界下限({}), 跳过澄清", ratio, threshold - margin);
-            return true;
-        }
-
-        // 快速通道 2：用户问题中显式提到了某个系统的 DOMAIN 级名称
-        if (StrUtil.isNotBlank(question)) {
-            List<String> domainNames = ranked.stream()
-                    .map(ns -> resolveDomainName(ns.getNode()))
-                    .filter(StrUtil::isNotBlank)
-                    .distinct()
-                    .toList();
-
-            String normalizedQuestion = normalizeName(question);
-            for (String name : domainNames) {
-                for (String alias : buildSystemAliases(name)) {
-                    if (alias.length() >= 2 && normalizedQuestion.contains(alias)) {
-                        log.debug("用户问题包含系统名[{}], 跳过澄清", name);
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
-    private boolean confirmAmbiguity(String question, List<NodeScore> ranked) {
-        double top = ranked.get(0).getScore();
-        double second = ranked.get(1).getScore();
-        if (top <= 0) {
-            return false;
-        }
-
-        double ratio = second / top;
-        double threshold = guidanceProperties.getAmbiguityScoreRatio();
-        double margin = guidanceProperties.getAmbiguityMargin();
-
-        if (ratio >= threshold) {
-            log.info("分数比值(ratio={})超过阈值({}), 判定为歧义", ratio, threshold);
-            return true;
-        }
-
-        if (ratio >= threshold - margin) {
-            log.info("分数比值(ratio={})在边界区间[{}, {}), 调 LLM 确认", ratio, threshold - margin, threshold);
-            return ambiguityLLMChecker.checkAmbiguity(question, ranked);
-        }
-
-        // ratio < threshold - margin 但 > skipThreshold，不触发澄清
-        return false;
+        return new AmbiguityGroup(conflict.topicName(), trimRankedOptions(conflict.ranked()));
     }
 
     private List<NodeScore> filterCandidates(List<NodeScore> scores) {
@@ -173,56 +111,137 @@ public class IntentGuidanceService {
         return NodeScoreFilters.kb(scores, RAGConstant.INTENT_MIN_SCORE);
     }
 
-    private String resolveDomainName(IntentNode node) {
-        if (node == null) {
-            return "";
+    /**
+     * 按节点去重并按分数降序，同一节点重复命中时保留高分那条
+     */
+    private List<NodeScore> rankCandidates(List<NodeScore> candidates) {
+        Map<String, NodeScore> bestByNode = new LinkedHashMap<>();
+        for (NodeScore candidate : candidates) {
+            IntentNode node = candidate.getNode();
+            String key = StrUtil.blankToDefault(node.getId(), StrUtil.emptyIfNull(node.getName()));
+            bestByNode.merge(key, candidate, (kept, current) -> kept.getScore() >= current.getScore() ? kept : current);
         }
-        IntentNode current = node;
-        while (current != null) {
-            if (current.getLevel() == IntentLevel.DOMAIN) {
-                return StrUtil.blankToDefault(current.getName(), "");
-            }
-            current = fetchParent(current);
-        }
-        return "";
+        return bestByNode.values().stream()
+                .sorted(Comparator.comparingDouble(NodeScore::getScore).reversed())
+                .toList();
     }
 
-    private List<String> buildSystemAliases(String systemName) {
-        if (StrUtil.isBlank(systemName)) {
-            return List.of();
-        }
-        String normalized = normalizeName(systemName);
-        List<String> aliases = new ArrayList<>();
-        if (StrUtil.isNotBlank(normalized)) {
-            aliases.add(normalized);
-        }
-        return aliases;
-    }
+    /**
+     * 以最高分候选为主候选，收集与它构成路径重名的其它候选
+     */
+    private PathConflict collectPathConflicts(String question, List<NodeScore> ranked) {
+        Map<String, IntentNode> nodeCache = new HashMap<>();
+        NodeScore primary = ranked.get(0);
+        List<IntentNode> primaryPath = buildNodePath(primary.getNode(), nodeCache);
+        String normalizedQuestion = normalizeName(question);
 
-    private String resolveSystemNodeId(IntentNode node) {
-        if (node == null) {
-            return "";
-        }
-        IntentNode current = node;
-        IntentNode parent = fetchParent(current);
-        for (; ; ) {
-            IntentLevel level = current.getLevel();
-            if (level == IntentLevel.CATEGORY && (parent == null || parent.getLevel() == IntentLevel.DOMAIN)) {
-                return current.getId();
+        List<NodeScore> conflicts = new ArrayList<>();
+        conflicts.add(primary);
+        String topicName = null;
+        for (NodeScore other : ranked.subList(1, ranked.size())) {
+            List<IntentNode> otherPath = buildNodePath(other.getNode(), nodeCache);
+            String hitName = detectConflictName(primaryPath, otherPath, normalizedQuestion);
+            if (StrUtil.isBlank(hitName)) {
+                continue;
             }
-            if (parent == null) {
-                return current.getId();
+            conflicts.add(other);
+            if (topicName == null) {
+                topicName = hitName;
             }
-            current = parent;
-            parent = fetchParent(current);
         }
-    }
 
-    private IntentNode fetchParent(IntentNode node) {
-        if (node == null || StrUtil.isBlank(node.getParentId())) {
+        if (conflicts.size() < 2) {
             return null;
         }
-        return intentNodeRegistry.getNodeById(node.getParentId());
+        log.info("候选意图路径重名[{}], 调 LLM 确认是否需要澄清, question={}", topicName, question);
+        return new PathConflict(topicName, conflicts);
+    }
+
+    /**
+     * 返回两条路径的冲突名称，无冲突返回 null
+     * <p>
+     * 叶子重名直接算冲突；分叉后的中间节点重名还要求用户问题提到了这个名称，
+     * 否则用户问的并不是这个岔路口
+     */
+    private String detectConflictName(List<IntentNode> primaryPath, List<IntentNode> otherPath,
+                                      String normalizedQuestion) {
+        if (CollUtil.isEmpty(primaryPath) || CollUtil.isEmpty(otherPath)) {
+            return null;
+        }
+
+        IntentNode primaryLeaf = primaryPath.get(primaryPath.size() - 1);
+        String leafName = normalizeName(primaryLeaf.getName());
+        if (isComparableName(leafName)
+                && leafName.equals(normalizeName(otherPath.get(otherPath.size() - 1).getName()))) {
+            return primaryLeaf.getName();
+        }
+
+        // 公共前缀是同一批真实节点，共享它不构成歧义，只比较分叉之后的部分
+        int common = commonPrefixLength(primaryPath, otherPath);
+        Set<String> otherNames = otherPath.subList(common, otherPath.size()).stream()
+                .map(node -> normalizeName(node.getName()))
+                .filter(this::isComparableName)
+                .collect(Collectors.toSet());
+        for (IntentNode node : primaryPath.subList(common, primaryPath.size())) {
+            String name = normalizeName(node.getName());
+            if (isComparableName(name) && otherNames.contains(name) && normalizedQuestion.contains(name)) {
+                return node.getName();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 沿 parentId 上溯出「根 → … → 候选」的完整节点路径
+     * <p>
+     * {@code visited} 兜住配置错误形成的父子环，父节点缺失时停在已取到的链路上
+     */
+    private List<IntentNode> buildNodePath(IntentNode node, Map<String, IntentNode> nodeCache) {
+        LinkedList<IntentNode> path = new LinkedList<>();
+        Set<String> visited = new HashSet<>();
+        IntentNode current = node;
+        while (current != null) {
+            path.addFirst(current);
+            visited.add(current.getId());
+            String parentId = current.getParentId();
+            if (StrUtil.isBlank(parentId) || visited.contains(parentId)) {
+                break;
+            }
+            current = fetchNode(parentId, nodeCache);
+        }
+        return path;
+    }
+
+    /**
+     * 按节点 ID 计算最长公共前缀长度
+     */
+    private int commonPrefixLength(List<IntentNode> left, List<IntentNode> right) {
+        int max = Math.min(left.size(), right.size());
+        int index = 0;
+        while (index < max && isSameNode(left.get(index), right.get(index))) {
+            index++;
+        }
+        return index;
+    }
+
+    private boolean isSameNode(IntentNode left, IntentNode right) {
+        return StrUtil.isNotBlank(left.getId()) && left.getId().equals(right.getId());
+    }
+
+    private boolean isComparableName(String normalizedName) {
+        return StrUtil.isNotBlank(normalizedName) && normalizedName.length() >= MIN_COMPARABLE_NAME_LENGTH;
+    }
+
+    /**
+     * 本次判定内缓存注册表读取结果（含缺失的父节点），避免反复回表
+     */
+    private IntentNode fetchNode(String nodeId, Map<String, IntentNode> nodeCache) {
+        if (nodeCache.containsKey(nodeId)) {
+            return nodeCache.get(nodeId);
+        }
+        IntentNode node = intentNodeRegistry.getNodeById(nodeId);
+        nodeCache.put(nodeId, node);
+        return node;
     }
 
     private List<NodeScore> trimRankedOptions(List<NodeScore> ranked) {
@@ -273,5 +292,11 @@ public class IntentGuidanceService {
     }
 
     private record AmbiguityGroup(String topicName, List<NodeScore> ranked) {
+    }
+
+    /**
+     * 待 LLM 确认的路径重名候选组
+     */
+    private record PathConflict(String topicName, List<NodeScore> ranked) {
     }
 }

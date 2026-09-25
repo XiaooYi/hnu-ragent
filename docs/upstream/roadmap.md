@@ -43,7 +43,7 @@
 | UP-12 | 检索结果元数据富化与上下文渲染 | [`features/up-12-context-enrichment.md`](features/up-12-context-enrichment.md) | 已落地（回表富化 + 按文档聚合渲染；行内引用角标拆到 UP-12b） |
 | UP-12b | 行内引用角标 `[N](#cite-N)`（依赖 UP-18a 的来源编号） | [`features/up-12b-inline-citation.md`](features/up-12b-inline-citation.md) | 已落地（含验证） |
 | UP-30 | 数据库 v1.1.0 升级脚本体系 | [`features/up-30-db-upgrades.md`](features/up-30-db-upgrades.md) | 已落地（含验证） |
-| UP-11 | 意图歧义澄清重构 | `features/up-11-ambiguity-rewrite.md` | 未开始 |
+| UP-11 | 意图歧义澄清重构 | [`features/up-11-ambiguity-rewrite.md`](features/up-11-ambiguity-rewrite.md) | 已落地（含验证）；Agent 侧引导随批次八 |
 
 ### 批次 4：文档处理与会话记忆
 
