@@ -288,6 +288,9 @@ mineru:
   ocr: false
   language: ch
   concurrency-limit: 5
+  semaphore-name: rag:mineru:parse
+  max-wait-seconds: 30   # 等待解析许可上限（秒），超时快速失败
+  lease-seconds: 900     # 许可租约（秒），必须大于 timeout-seconds；崩溃后自动回收
 
 sa-token:
   token-name: Authorization

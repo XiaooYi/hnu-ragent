@@ -21,7 +21,10 @@ import com.nageoffer.ai.ragent.core.parser.DocumentParser;
 import com.nageoffer.ai.ragent.core.parser.ParserType;
 import com.nageoffer.ai.ragent.core.parser.model.ParsedDocument;
 import com.nageoffer.ai.ragent.framework.exception.ServiceException;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RPermitExpirableSemaphore;
+import org.redisson.api.RedissonClient;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -40,6 +43,7 @@ import java.util.concurrent.TimeoutException;
  * <p>
  * 走 MinerU 官方"本地文件批量上传解析"，串联各组件实现 B-lite 异步解析:
  * <ol>
+ *   <li>{@link RPermitExpirableSemaphore} 获取跨实例解析许可，限制 MinerU outstanding 任务数</li>
  *   <li>{@link MinerUClient#requestUpload} 申请上传链接，拿 batchId + 上传 URL</li>
  *   <li>{@link MinerUClient#uploadFile} 把源文件字节 PUT 上传到 MinerU OSS</li>
  *   <li>{@link MinerUPollingExecutor#submitAndAwait} 阻塞等待完成</li>
@@ -79,15 +83,32 @@ public class MinerUDocumentParser implements DocumentParser {
     private final MinerUPollingExecutor pollingExecutor;
     private final MinerUResultUnpacker resultUnpacker;
     private final MinerUProperties properties;
+    private final RedissonClient redissonClient;
 
     public MinerUDocumentParser(MinerUClient minerUClient,
                                 MinerUPollingExecutor pollingExecutor,
                                 MinerUResultUnpacker resultUnpacker,
-                                MinerUProperties properties) {
+                                MinerUProperties properties,
+                                RedissonClient redissonClient) {
         this.minerUClient = minerUClient;
         this.pollingExecutor = pollingExecutor;
         this.resultUnpacker = resultUnpacker;
         this.properties = properties;
+        this.redissonClient = redissonClient;
+    }
+
+    /**
+     * 启动时把许可数写入 Redis 信号量
+     * <p>
+     * setPermits 是幂等的，多实例启动都以配置为准；改配置后重启即生效
+     */
+    @PostConstruct
+    void initSemaphore() {
+        RPermitExpirableSemaphore semaphore =
+                redissonClient.getPermitExpirableSemaphore(properties.getSemaphoreName());
+        semaphore.setPermits(properties.getConcurrencyLimit());
+        log.info("MinerU 分布式解析限流初始化: semaphoreName={}, maxConcurrent={}",
+                properties.getSemaphoreName(), properties.getConcurrencyLimit());
     }
 
     @Override
@@ -113,6 +134,36 @@ public class MinerUDocumentParser implements DocumentParser {
             throw new ServiceException("MinerU 解析输入字节为空");
         }
 
+        // 跨实例限流：许可覆盖整条解析链路（申请上传 → 上传 → 轮询 → 下载 → 解包）
+        // 拿不到许可快速失败，不做无界阻塞——否则任务堆积会把解析线程池占满
+        String permitId = null;
+        RPermitExpirableSemaphore semaphore =
+                redissonClient.getPermitExpirableSemaphore(properties.getSemaphoreName());
+        try {
+            permitId = semaphore.tryAcquire(
+                    properties.getMaxWaitSeconds(),
+                    properties.getLeaseSeconds(),
+                    TimeUnit.SECONDS
+            );
+            if (permitId == null) {
+                throw new ServiceException("MinerU 解析任务过多，请稍后重试");
+            }
+            return doParseStructured(content, mimeType, options);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new ServiceException("MinerU 获取解析许可被中断");
+        } finally {
+            if (permitId != null) {
+                boolean released = semaphore.tryRelease(permitId);
+                if (!released) {
+                    // 说明许可已按租约自动过期：只告警，不掩盖业务异常
+                    log.warn("MinerU parse permit already expired or released, permitId={}", permitId);
+                }
+            }
+        }
+    }
+
+    private ParsedDocument doParseStructured(byte[] content, String mimeType, Map<String, Object> options) {
         String sourceFile = extractString(options, OPT_SOURCE_FILE, "");
         String documentId = extractString(options, OPT_DOCUMENT_ID, UUID.randomUUID().toString());
         // MinerU 靠 name 扩展名识别格式,缺文件名时按 mimeType 补全

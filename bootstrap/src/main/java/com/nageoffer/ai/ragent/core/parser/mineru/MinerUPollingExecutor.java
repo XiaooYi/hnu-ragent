@@ -29,20 +29,19 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * MinerU 共享轮询调度器 TODO 待重构
+ * MinerU 共享轮询调度器
  * <p>
- * B-lite 异步模型核心组件:把 HTTP 轮询从业务消费者线程剥离到独立调度池
+ * B-lite 异步模型核心组件:把 HTTP 轮询从业务消费者线程剥离到独立调度池。
+ * 全局 outstanding 并发由 {@link MinerUDocumentParser} 的分布式信号量控制。
  * <ul>
  *   <li>消费者线程仍阻塞 await(B-lite 本质,与真 B 区别)</li>
  *   <li>轮询动作由 4 个共享调度线程执行,数百个 outstanding 任务共用</li>
- *   <li>{@link Semaphore} 全局限制 outstanding 数,防止打爆 SaaS</li>
  * </ul>
  */
 @Slf4j
@@ -56,7 +55,6 @@ public class MinerUPollingExecutor {
     private final MinerUProperties properties;
 
     private ScheduledExecutorService scheduler;
-    private Semaphore concurrencyLimit;
 
     public MinerUPollingExecutor(MinerUClient client, MinerUProperties properties) {
         this.client = client;
@@ -66,9 +64,7 @@ public class MinerUPollingExecutor {
     @PostConstruct
     void init() {
         this.scheduler = Executors.newScheduledThreadPool(SCHEDULER_THREADS, namedFactory());
-        this.concurrencyLimit = new Semaphore(properties.getConcurrencyLimit());
-        log.info("MinerUPollingExecutor 启动: schedulerThreads={}, concurrencyLimit={}",
-                SCHEDULER_THREADS, properties.getConcurrencyLimit());
+        log.info("MinerUPollingExecutor 启动: schedulerThreads={}", SCHEDULER_THREADS);
     }
 
     /**
@@ -86,12 +82,6 @@ public class MinerUPollingExecutor {
             failed.completeExceptionally(new ServiceException("batchId 不能为空"));
             return failed;
         }
-
-        // 阻塞业务线程直到拿到并发许可
-        // 业务线程被阻塞是 B-lite 的本质,真 B 升级时改这里
-        concurrencyLimit.acquireUninterruptibly();
-        log.debug("MinerU 任务 {} 获取并发许可, 剩余 permits={}",
-                batchId, concurrencyLimit.availablePermits());
 
         CompletableFuture<MinerUStatus> future = new CompletableFuture<>();
         Instant deadline = Instant.now().plus(timeout);
@@ -128,13 +118,11 @@ public class MinerUPollingExecutor {
             } else if (status.failed()) {
                 completeExceptionally(future, new ServiceException(
                                 "MinerU 任务失败 batchId=" + batchId + " err=" + status.errorMessage()),
-                        holder, "FAILED");
+                        holder);
             } else if (Instant.now().isAfter(deadline)) {
                 completeExceptionally(future,
                         new TimeoutException("MinerU 任务超时 batchId=" + batchId),
-                        holder, "TIMEOUT");
-            } else {
-                log.debug("MinerU 任务 {} 仍在 {} 状态, 继续轮询", batchId, status.state());
+                        holder);
             }
         } catch (Exception e) {
             // 瞬时网络错误不立即终止,等下一轮重试;超时由 deadline 检查兜底
@@ -142,7 +130,7 @@ public class MinerUPollingExecutor {
             if (Instant.now().isAfter(deadline)) {
                 completeExceptionally(future,
                         new ServiceException("MinerU 轮询持续失败到超时 batchId=" + batchId + ": " + e.getMessage()),
-                        holder, "TIMEOUT_AFTER_FAILURES");
+                        holder);
             }
         }
     }
@@ -151,29 +139,22 @@ public class MinerUPollingExecutor {
                           MinerUStatus status,
                           ScheduledFuture<?>[] holder) {
         if (future.complete(status)) {
-            releaseResources(holder, "DONE");
+            cancelPolling(holder);
         }
     }
 
     private void completeExceptionally(CompletableFuture<MinerUStatus> future,
                                        Throwable error,
-                                       ScheduledFuture<?>[] holder,
-                                       String reason) {
+                                       ScheduledFuture<?>[] holder) {
         if (future.completeExceptionally(error)) {
-            releaseResources(holder, reason);
+            cancelPolling(holder);
         }
     }
 
-    private void releaseResources(ScheduledFuture<?>[] holder, String reason) {
-        try {
-            ScheduledFuture<?> task = holder[0];
-            if (task != null) {
-                task.cancel(false);
-            }
-        } finally {
-            concurrencyLimit.release();
-            log.debug("MinerU 任务释放并发许可 reason={}, 剩余 permits={}",
-                    reason, concurrencyLimit.availablePermits());
+    private void cancelPolling(ScheduledFuture<?>[] holder) {
+        ScheduledFuture<?> task = holder[0];
+        if (task != null) {
+            task.cancel(false);
         }
     }
 
