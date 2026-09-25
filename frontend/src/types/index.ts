@@ -31,6 +31,22 @@ export interface Message {
   createdAt?: string;
   feedback?: FeedbackValue;
   status?: MessageStatus;
+  /** 回答来源（文档级来源列表，仅 assistant 消息可能有） */
+  sources?: SourceRef[];
+}
+
+/**
+ * 回答来源（文档级）
+ * index 从 1 开始，与后端 SSE / 落库 / 行内引用角标共用同一编号
+ */
+export interface SourceRef {
+  index: number;
+  docId?: string | null;
+  docName?: string | null;
+  sourceType?: string | null;
+  fileType?: string | null;
+  url?: string | null;
+  excerpt?: string | null;
 }
 
 export interface StreamMetaPayload {
@@ -46,4 +62,5 @@ export interface MessageDeltaPayload {
 export interface CompletionPayload {
   messageId?: string | null;
   title?: string | null;
+  sources?: SourceRef[] | null;
 }

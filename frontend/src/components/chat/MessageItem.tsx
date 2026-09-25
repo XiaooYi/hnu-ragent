@@ -3,6 +3,7 @@ import { Brain, ChevronDown } from "lucide-react";
 
 import { FeedbackButtons } from "@/components/chat/FeedbackButtons";
 import { MarkdownRenderer } from "@/components/chat/MarkdownRenderer";
+import { SourcesPanel } from "@/components/chat/SourcesPanel";
 import { ThinkingIndicator } from "@/components/chat/ThinkingIndicator";
 import { cn } from "@/lib/utils";
 import type { Message } from "@/types";
@@ -90,6 +91,7 @@ export const MessageItem = React.memo(function MessageItem({ message, isLast }: 
           {message.status === "error" ? (
             <p className="text-xs text-rose-500">生成已中断。</p>
           ) : null}
+          <SourcesPanel sources={message.sources} />
           {showFeedback ? (
             <FeedbackButtons
               messageId={message.id}
