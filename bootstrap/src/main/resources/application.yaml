@@ -170,6 +170,13 @@ ai:
       endpoints:
         chat: /v1/chat/completions
         embedding: /v1/embeddings
+    # DeepSeek 官方开放平台：思考开关走 thinking 对象方言
+    # 默认不参与模型路由，启用需设置 DEEPSEEK_API_KEY 并把它加入 ai.chat.tiers.*.candidates
+    deepseek:
+      url: https://api.deepseek.com
+      api-key: ${DEEPSEEK_API_KEY:}
+      endpoints:
+        chat: /v1/chat/completions
 
   selection:
     failure-threshold: 2
@@ -204,6 +211,12 @@ ai:
         provider: aihubmix
         model: gpt-5.4
         priority: 5
+      # DeepSeek 候选：默认不被任何档位引用（需设置 DEEPSEEK_API_KEY 并加入 ai.chat.tiers.*.candidates 才参与路由）
+      - id: deepseek-chat
+        provider: deepseek
+        model: deepseek-chat
+        supports-thinking: true
+        priority: 6
 
   embedding:
     default-model: qwen3.7-text-embedding

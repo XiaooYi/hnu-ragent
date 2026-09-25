@@ -49,6 +49,12 @@ public enum ModelProvider {
     AI_HUB_MIX("aihubmix"),
 
     /**
+     * DeepSeek 官方开放平台
+     * 思考方言为 thinking 对象，与 DashScope 系的 enable_thinking 布尔不同
+     */
+    DEEP_SEEK("deepseek"),
+
+    /**
      * 空实现，用于测试或占位
      */
     NOOP("noop");
