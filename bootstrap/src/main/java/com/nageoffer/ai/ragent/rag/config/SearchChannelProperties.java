@@ -65,6 +65,11 @@ public class SearchChannelProperties implements InitializingBean {
          * 关键词检索配置（仅当 rag.keyword.type=es 时该通道才存在）
          */
         private Keyword keyword = new Keyword();
+
+        /**
+         * 联网检索配置（You.com Search）
+         */
+        private WebSearch webSearch = new WebSearch();
     }
 
     /**
@@ -143,6 +148,44 @@ public class SearchChannelProperties implements InitializingBean {
         public int resolveRecallBudget(int candidateLimitFallback) {
             return recallBudget > 0 ? recallBudget : candidateLimitFallback;
         }
+    }
+
+    @Data
+    public static class WebSearch {
+
+        /**
+         * 是否启用
+         * <p>
+         * 默认关闭。开启后还需能解析到 API Key（配置 {@code api-key}，为空回退环境变量
+         * {@code YDC_API_KEY}），缺一通道不生效
+         */
+        private boolean enabled = false;
+
+        /**
+         * 最多返回的结果条数（网页 + 新闻合计）
+         * <p>
+         * 默认 5，上限 20；向 You.com 传的是「每 section」数量，合并后由通道统一截断到此值
+         */
+        private int count = 5;
+
+        /**
+         * 请求超时（秒）
+         */
+        private int timeoutSeconds = 10;
+
+        /**
+         * You.com Search API Key
+         * <p>
+         * 建议留空，此时回退读取环境变量 {@code YDC_API_KEY}，避免密钥落入配置文件
+         */
+        private String apiKey = "";
+
+        /**
+         * You.com Search API 地址
+         * <p>
+         * 一般无需修改，测试时可指向本地 stub
+         */
+        private String apiUrl = "https://ydc-index.io/v1/search";
     }
 
     @Data

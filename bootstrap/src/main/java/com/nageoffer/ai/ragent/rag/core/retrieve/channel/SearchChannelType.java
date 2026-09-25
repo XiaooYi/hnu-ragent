@@ -41,6 +41,12 @@ public enum SearchChannelType {
     KEYWORD_ES,
 
     /**
+     * 联网检索
+     * 基于外部 Web 搜索 API（You.com Search）的实时网络召回，与本地知识库通道互补
+     */
+    WEB_SEARCH,
+
+    /**
      * 混合检索
      * 结合多种检索策略
      */
