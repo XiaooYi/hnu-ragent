@@ -2,6 +2,7 @@ import { Navigate, createBrowserRouter } from "react-router-dom";
 
 import { LoginPage } from "@/pages/LoginPage";
 import { ChatPage } from "@/pages/ChatPage";
+import { DocPreviewPage } from "@/pages/DocPreviewPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { AdminLayout } from "@/pages/admin/AdminLayout";
 import { DashboardPage } from "@/pages/admin/dashboard/DashboardPage";
@@ -82,6 +83,15 @@ export const router = createBrowserRouter([
     element: (
       <RequireAuth>
         <ChatPage />
+      </RequireAuth>
+    )
+  },
+  {
+    // 来源预览：回答里的本地文件来源点开后按类型直出正文
+    path: "/preview/:docId",
+    element: (
+      <RequireAuth>
+        <DocPreviewPage />
       </RequireAuth>
     )
   },

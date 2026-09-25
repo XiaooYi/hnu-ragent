@@ -1,4 +1,5 @@
 import { FileText, Link2 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 import { resolveSourceItems } from "@/lib/chatSources";
 import type { SourceRef } from "@/types";
@@ -36,6 +37,15 @@ export function SourcesPanel({ sources }: SourcesPanelProps) {
               {item.title}
               <Link2 className="ml-1 inline h-3 w-3" />
             </a>
+          ) : item.previewPath ? (
+            <Link
+              className="font-medium text-foreground underline-offset-2 hover:underline"
+              to={item.previewPath}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {item.title}
+            </Link>
           ) : (
             <span className="font-medium text-foreground">{item.title}</span>
           );

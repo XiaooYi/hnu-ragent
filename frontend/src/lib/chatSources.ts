@@ -16,6 +16,8 @@ export interface SourceViewItem {
   excerpt: string;
   url: string | null;
   openInNewTab: boolean;
+  /** 本地文件来源的站内预览地址；没有 docId 或带外链时为 null */
+  previewPath: string | null;
 }
 
 const normalizeText = (value?: string | null): string => (value ?? "").trim();
@@ -40,13 +42,15 @@ export const resolveSourceItems = (sources?: SourceRef[] | null): SourceViewItem
     .filter((source) => source && Number.isFinite(source.index))
     .map((source) => {
       const url = normalizeText(source.url) || null;
+      const docId = normalizeText(source.docId);
       return {
         index: source.index,
         title: resolveSourceTitle(source),
         typeLabel: resolveSourceTypeLabel(source),
         excerpt: normalizeText(source.excerpt),
         url,
-        openInNewTab: Boolean(url)
+        openInNewTab: Boolean(url),
+        previewPath: !url && docId ? `/preview/${docId}` : null
       };
     });
 };

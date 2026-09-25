@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Check, FileUp, FileImage, PlayCircle, RefreshCw, Trash2, Pencil, FileBarChart, X, Eye, MoreHorizontal, FileText, FileSpreadsheet, Link as LinkIcon, Download } from "lucide-react";
 import { toast } from "sonner";
@@ -35,19 +35,15 @@ import {
   uploadDocuments,
   getChunkStrategies,
   getChunkLogsPage,
-  previewDocument,
   fetchDocumentFile
 } from "@/services/knowledgeService";
 import { getIngestionPipelines, type IngestionPipeline } from "@/services/ingestionService";
 import { getSystemSettings } from "@/services/settingsService";
-import { MarkdownRenderer } from "@/components/chat/MarkdownRenderer";
-import { csvToMarkdown } from "@/lib/csvToMarkdown";
+import { DocumentPreview } from "@/components/document/DocumentPreview";
+import { isImageType, isSpreadsheetType } from "@/lib/documentPreview";
 import { buildUploadPayload, fileExtension, isTableFile } from "@/lib/knowledgeUpload";
 
 // xlsx 预览依赖较重(exceljs + x-data-spreadsheet)，懒加载避免拖累主包
-const SpreadsheetPreview = lazy(() =>
-  import("@/components/admin/SpreadsheetPreview").then(m => ({ default: m.SpreadsheetPreview }))
-);
 import { getErrorMessage } from "@/utils/error";
 
 const STATUS_OPTIONS = [
@@ -98,16 +94,6 @@ const formatSize = (size?: number | null) => {
   if (size < 1024 * 1024) return `${parseFloat((size / 1024).toFixed(1))} KB`;
   if (size < 1024 * 1024 * 1024) return `${parseFloat((size / 1024 / 1024).toFixed(1))} MB`;
   return `${parseFloat((size / 1024 / 1024 / 1024).toFixed(1))} GB`;
-};
-
-const parseFrontMatter = (content: string): { head: string | null; body: string } => {
-  if (content.startsWith("---\n")) {
-    const end = content.indexOf("\n---\n", 4);
-    if (end > 0) {
-      return { head: content.substring(4, end), body: content.substring(end + 5) };
-    }
-  }
-  return { head: null, body: content };
 };
 
 const formatSourceLabel = (sourceType?: string | null) => {
@@ -161,11 +147,6 @@ const formatChunkStrategy = (strategy?: string | null) => {
 // 表格类文件：走 block-aware 按行切分 + key-val 嵌入，配置面板只暴露真正生效的参数
 const TABLE_FILE_EXTS = ["xlsx", "xls", "csv"];
 const isTableExt = (ext?: string | null) => !!ext && TABLE_FILE_EXTS.includes(ext.toLowerCase());
-// xlsx/xls 走 @js-preview/excel 在线预览(保留样式)，csv 转 markdown 复用 MarkdownRenderer
-const isSpreadsheetType = (ext?: string | null) => ext === "xlsx" || ext === "xls";
-// png/jpg/svg 图片直接用 <img> 拉源文件预览
-const isImageType = (ext?: string | null) => ext === "png" || ext === "jpg" || ext === "jpeg" || ext === "svg";
-
 const FILE_TYPE_MAP: Record<string, { icon: typeof FileText; color: string }> = {
   pdf:         { icon: FileText, color: "text-red-500" },
   markdown:    { icon: FileText, color: "text-blue-500" },
@@ -238,9 +219,6 @@ export function KnowledgeDocumentsPage() {
   const [logData, setLogData] = useState<PageResult<KnowledgeDocumentChunkLog> | null>(null);
   const [logLoading, setLogLoading] = useState(false);
   const [previewTarget, setPreviewTarget] = useState<KnowledgeDocument | null>(null);
-  const [previewContent, setPreviewContent] = useState("");
-  const [previewLoading, setPreviewLoading] = useState(false);
-
   const documents = pageData?.records || [];
   const [pipelineMap, setPipelineMap] = useState<Map<string, string>>(new Map());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -527,28 +505,9 @@ export function KnowledgeDocumentsPage() {
     loadChunkLogs(String(doc.id));
   };
 
-  const handlePreview = async (doc: KnowledgeDocument) => {
+  // 预览内容由共享的 DocumentPreview 自行按类型拉取，这里只负责打开弹窗
+  const handlePreview = (doc: KnowledgeDocument) => {
     setPreviewTarget(doc);
-    setPreviewContent("");
-    // pdf 走 iframe、xlsx/xls 走 SpreadsheetPreview、png/jpg 走 <img>，均自行拉取源文件，无需预取内容
-    if (doc.fileType === "pdf" || isSpreadsheetType(doc.fileType) || isImageType(doc.fileType)) {
-      return;
-    }
-    setPreviewLoading(true);
-    try {
-      if (doc.fileType === "csv") {
-        const buffer = await fetchDocumentFile(String(doc.id));
-        setPreviewContent(csvToMarkdown(new TextDecoder("utf-8").decode(buffer)));
-      } else {
-        const content = await previewDocument(String(doc.id));
-        setPreviewContent(content);
-      }
-    } catch (error) {
-      toast.error(getErrorMessage(error, "加载预览失败"));
-      setPreviewTarget(null);
-    } finally {
-      setPreviewLoading(false);
-    }
   };
 
   const handleDownload = async (doc: KnowledgeDocument) => {
@@ -1222,42 +1181,14 @@ export function KnowledgeDocumentsPage() {
               <X className="h-3.5 w-3.5" />
             </DialogClose>
           </div>
-          {previewLoading ? (
-            <div className="py-8 text-center text-muted-foreground">加载中...</div>
-          ) : previewTarget?.fileType === "pdf" ? (
-            <iframe
-              className="flex-1 w-full border-0"
-              src={`${import.meta.env.VITE_API_BASE_URL || ""}/knowledge-base/docs/${previewTarget.id}/file`}
-              title={previewTarget.docName || ""}
-            />
-          ) : isSpreadsheetType(previewTarget?.fileType) && previewTarget ? (
-            <Suspense fallback={<div className="py-8 text-center text-muted-foreground">加载中...</div>}>
-              <SpreadsheetPreview docId={String(previewTarget.id)} />
-            </Suspense>
-          ) : isImageType(previewTarget?.fileType) && previewTarget ? (
-            <div className="flex-1 overflow-auto flex items-center justify-center bg-muted/30 p-4">
-              <img
-                className="max-w-full max-h-full object-contain"
-                src={`${import.meta.env.VITE_API_BASE_URL || ""}/knowledge-base/docs/${previewTarget.id}/file`}
-                alt={previewTarget.docName || ""}
+          {previewTarget ? (
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <DocumentPreview
+                docId={String(previewTarget.id)}
+                fileType={previewTarget.fileType}
+                docName={previewTarget.docName}
               />
             </div>
-          ) : previewContent ? (
-            (() => {
-              const { head, body } = parseFrontMatter(previewContent);
-              return (
-                <div className="flex-1 overflow-y-auto sidebar-scroll">
-                  {head ? (
-                    <pre className="mx-6 mt-4 overflow-auto rounded-lg border bg-slate-50 px-4 py-3 font-mono text-xs leading-relaxed text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400">
-                      {head}
-                    </pre>
-                  ) : null}
-                  <div className="px-6 py-4">
-                    <MarkdownRenderer content={body} />
-                  </div>
-                </div>
-              );
-            })()
           ) : null}
         </DialogContent>
       </Dialog>

@@ -29,6 +29,7 @@ test("本地文件来源带出文件类型且没有外链", () => {
   assert.equal(items[0].url, null);
   assert.equal(items[0].openInNewTab, false);
   assert.equal(items[0].excerpt, "申请条件……");
+  assert.equal(items[0].previewPath, "/preview/doc-1", "本地文件来源应可站内预览");
 });
 
 test("url/feishu 来源可新窗口打开", () => {
@@ -39,6 +40,7 @@ test("url/feishu 来源可新窗口打开", () => {
   assert.equal(items[0].url, "https://www.hnu.edu.cn/notice");
   assert.equal(items[0].openInNewTab, true);
   assert.equal(items[0].typeLabel, "URL");
+  assert.equal(items[0].previewPath, null, "带外链的来源不站内预览");
 });
 
 test("缺少文件类型时回退来源类型，名称缺失时给占位标题", () => {
@@ -46,6 +48,7 @@ test("缺少文件类型时回退来源类型，名称缺失时给占位标题",
   assert.equal(resolveSourceTypeLabel({ index: 3, sourceType: "feishu" }), "FEISHU");
   assert.equal(resolveSourceTypeLabel({ index: 3 }), "文档");
   assert.equal(resolveSourceTitle({ index: 3 }), "来源 3");
+  assert.equal(resolveSourceItems([{ index: 3, docName: "无 docId" }])[0].previewPath, null);
 });
 
 test("空来源与非法序号被忽略", () => {

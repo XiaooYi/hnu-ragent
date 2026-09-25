@@ -7,8 +7,8 @@
 | 阶段 | 内容 | 状态 |
 | --- | --- | --- |
 | **UP-18a（本文）** | 来源装配、SSE 下发、消息落库、历史消息回显、前端来源列表 | 已落地 |
-| UP-18b | 本地文档预览页（`docId` → 原文提取与渲染） | 未开始 |
-| UP-12b | 行内引用角标 `[N](#cite-N)`（依赖 UP-18a 的编号源） | 未开始 |
+| UP-18b | 本地文档预览页（`docId` → 原文提取与渲染） | 已落地，见 [`up-18b-document-preview.md`](up-18b-document-preview.md) |
+| UP-12b | 行内引用角标 `[N](#cite-N)`（依赖 UP-18a 的编号源） | 已落地，见 [`up-12b-inline-citation.md`](up-12b-inline-citation.md) |
 
 ## 功能介绍
 
