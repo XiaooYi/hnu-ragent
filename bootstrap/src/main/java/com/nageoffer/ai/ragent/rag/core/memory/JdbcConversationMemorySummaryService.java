@@ -124,13 +124,21 @@ public class JdbcConversationMemorySummaryService implements ConversationMemoryS
             if (latestUserTurns.isEmpty()) {
                 return;
             }
-            String cutoffId = resolveCutoffId(latestUserTurns);
-            if (StrUtil.isBlank(cutoffId)) {
+            // 边界一：原文窗口起点，用于判断已有摘要是否仍覆盖当前窗口
+            String historyStartId = resolveHistoryStartId(latestUserTurns);
+            if (StrUtil.isBlank(historyStartId)) {
                 return;
             }
 
             String afterId = resolveSummaryStartId(conversationId, userId, latestSummary);
-            if (afterId != null && Long.parseLong(afterId) >= Long.parseLong(cutoffId)) {
+            if (afterId != null && Long.parseLong(afterId) >= Long.parseLong(historyStartId)) {
+                return;
+            }
+
+            // 边界二：摘要截止点，放在原文窗口中部
+            // 摘要与原文窗口保持约一半重叠，重叠滑出窗口后才刷新：既降低调用频率，又避免历史记忆空洞
+            String summaryCutoffId = resolveSummaryCutoffId(latestUserTurns);
+            if (StrUtil.isBlank(summaryCutoffId)) {
                 return;
             }
 
@@ -138,7 +146,7 @@ public class JdbcConversationMemorySummaryService implements ConversationMemoryS
                     conversationId,
                     userId,
                     afterId,
-                    cutoffId
+                    summaryCutoffId
             );
             if (CollUtil.isEmpty(toSummarize)) {
                 return;
@@ -253,7 +261,13 @@ public class JdbcConversationMemorySummaryService implements ConversationMemoryS
         return conversationGroupService.findMaxMessageIdAtOrBefore(conversationId, userId, after);
     }
 
-    private String resolveCutoffId(List<ConversationMessageDO> latestUserTurns) {
+    /**
+     * 原文窗口的起点（最早一条用户消息）
+     * <p>
+     * 只用于判断「已有摘要是否仍覆盖窗口」。原先它同时充当摘要截止边界，
+     * 结果是窗口每右移一轮就生成一次新摘要——每轮都额外调一次 LLM
+     */
+    private String resolveHistoryStartId(List<ConversationMessageDO> latestUserTurns) {
         if (CollUtil.isEmpty(latestUserTurns)) {
             return null;
         }
@@ -261,6 +275,20 @@ public class JdbcConversationMemorySummaryService implements ConversationMemoryS
         // 倒序列表的最后一个就是最早的
         ConversationMessageDO oldest = latestUserTurns.get(latestUserTurns.size() - 1);
         return oldest == null ? null : oldest.getId();
+    }
+
+    /**
+     * 摘要截止边界（原文窗口中部）
+     * <p>
+     * 与原文窗口保持约一半重叠，重叠部分滑出窗口后才刷新摘要，避免每轮都调 LLM
+     */
+    private String resolveSummaryCutoffId(List<ConversationMessageDO> latestUserTurns) {
+        if (CollUtil.isEmpty(latestUserTurns)) {
+            return null;
+        }
+
+        ConversationMessageDO overlapBoundary = latestUserTurns.get((latestUserTurns.size() - 1) / 2);
+        return overlapBoundary == null ? null : overlapBoundary.getId();
     }
 
     private String resolveLastMessageId(List<ConversationMessageDO> toSummarize) {
