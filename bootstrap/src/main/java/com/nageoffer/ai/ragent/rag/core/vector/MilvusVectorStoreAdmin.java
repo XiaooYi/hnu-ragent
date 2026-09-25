@@ -24,6 +24,7 @@ import io.milvus.v2.common.ConsistencyLevel;
 import io.milvus.v2.common.DataType;
 import io.milvus.v2.common.IndexParam;
 import io.milvus.v2.service.collection.request.CreateCollectionReq;
+import io.milvus.v2.service.collection.request.DropCollectionReq;
 import io.milvus.v2.service.collection.request.HasCollectionReq;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -125,5 +126,26 @@ public class MilvusVectorStoreAdmin implements VectorStoreAdmin {
         return milvusClient.hasCollection(
                 HasCollectionReq.builder().collectionName(logicalName).build()
         );
+    }
+
+    /**
+     * 幂等销毁：collection 不存在时跳过（重试安全）
+     */
+    @Override
+    public void dropVectorSpace(String collectionName) {
+        if (collectionName == null || collectionName.isBlank()) {
+            return;
+        }
+        boolean exists = Boolean.TRUE.equals(milvusClient.hasCollection(
+                HasCollectionReq.builder().collectionName(collectionName).build()
+        ));
+        if (!exists) {
+            log.info("Milvus collection 不存在，跳过销毁, collection={}", collectionName);
+            return;
+        }
+        milvusClient.dropCollection(
+                DropCollectionReq.builder().collectionName(collectionName).build()
+        );
+        log.info("已销毁 Milvus collection, collection={}", collectionName);
     }
 }

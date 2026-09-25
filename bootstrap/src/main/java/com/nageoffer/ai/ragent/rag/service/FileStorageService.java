@@ -77,6 +77,15 @@ public interface FileStorageService {
     void createBucket(String bucket);
 
     /**
+     * 删除 bucket（幂等：不存在视为成功）
+     * <p>
+     * 先清空桶内对象再删桶，用于知识库删除时回收其独占 bucket
+     *
+     * @param bucket bucket 名
+     */
+    void deleteBucket(String bucket);
+
+    /**
      * 把内部存储定位符转为浏览器可直连的公开预览 URL
      * <p>
      * 形如 {@code s3://ragent-assets/xxx.jpg} → {@code http://{rustfs}/ragent-assets/xxx.jpg}

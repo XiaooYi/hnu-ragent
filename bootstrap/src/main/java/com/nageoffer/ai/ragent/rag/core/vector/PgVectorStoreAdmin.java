@@ -61,4 +61,19 @@ public class PgVectorStoreAdmin implements VectorStoreAdmin {
             return false;
         }
     }
+
+    /**
+     * PG 为「单表共享 + metadata.collection_name 区分」，销毁一个逻辑库等于删掉它的向量行；
+     * 共享 HNSW 索引属于全表，不随单个知识库删除
+     */
+    @Override
+    public void dropVectorSpace(String collectionName) {
+        if (collectionName == null || collectionName.isBlank()) {
+            return;
+        }
+        // noinspection SqlDialectInspection,SqlNoDataSourceInspection
+        int deleted = jdbcTemplate.update(
+                "DELETE FROM t_knowledge_vector WHERE metadata->>'collection_name' = ?", collectionName);
+        log.info("已清理知识库残留向量, collection={}, rows={}", collectionName, deleted);
+    }
 }

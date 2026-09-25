@@ -22,6 +22,7 @@ import com.nageoffer.ai.ragent.rag.dto.StoredFileDTO;
 import com.nageoffer.ai.ragent.rag.service.FileStorageService;
 import com.nageoffer.ai.ragent.rag.util.FileTypeDetector;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.tika.Tika;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -29,7 +30,10 @@ import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.BucketAlreadyOwnedByYouException;
+import software.amazon.awssdk.services.s3.model.Delete;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
+import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
@@ -39,6 +43,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.List;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -46,6 +51,7 @@ import java.time.Duration;
 import java.util.UUID;
 
 @Service
+@Slf4j
 public class S3FileStorageService implements FileStorageService {
 
     private final S3Client s3Client;
@@ -149,6 +155,43 @@ public class S3FileStorageService implements FileStorageService {
         } catch (BucketAlreadyOwnedByYouException e) {
             // 幂等：已拥有视为成功
         }
+    }
+
+    /**
+     * 幂等删除 bucket：先清空对象再删桶
+     * <p>
+     * S3 不允许删除非空桶，知识库被删除时桶里往往还留着原文件；逐页列举 + 批量删除后再删桶。
+     * bucket 不存在视为成功（重试安全）
+     */
+    @Override
+    public void deleteBucket(String bucket) {
+        validateBucketName(bucket);
+        if (!bucketExists(bucket)) {
+            return;
+        }
+
+        String continuationToken = null;
+        do {
+            String token = continuationToken;
+            ListObjectsV2Response page = s3Client.listObjectsV2(b -> {
+                b.bucket(bucket);
+                if (token != null) {
+                    b.continuationToken(token);
+                }
+            });
+
+            List<ObjectIdentifier> objects = page.contents().stream()
+                    .map(obj -> ObjectIdentifier.builder().key(obj.key()).build())
+                    .toList();
+            if (!objects.isEmpty()) {
+                s3Client.deleteObjects(b -> b.bucket(bucket)
+                        .delete(Delete.builder().objects(objects).build()));
+            }
+            continuationToken = Boolean.TRUE.equals(page.isTruncated()) ? page.nextContinuationToken() : null;
+        } while (continuationToken != null);
+
+        s3Client.deleteBucket(b -> b.bucket(bucket));
+        log.info("已删除知识库 bucket, bucket={}", bucket);
     }
 
     @Override

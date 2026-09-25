@@ -34,4 +34,14 @@ public interface VectorStoreAdmin {
      * 只判断存在性（不创建）
      */
     boolean vectorSpaceExists(VectorSpaceId spaceId);
+
+    /**
+     * 幂等：销毁向量空间（与 {@link #ensureVectorSpace} 对应）
+     * <p>
+     * - Milvus：删除该知识库对应的 collection（不存在则跳过）
+     * - PG：删除共享表中属于该 collection 的残留向量行（不动共享 HNSW 索引）
+     *
+     * @param collectionName 知识库 collection 名称
+     */
+    void dropVectorSpace(String collectionName);
 }
