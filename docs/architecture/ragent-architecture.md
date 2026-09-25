@@ -346,6 +346,72 @@ pwsh -File scripts/import-huda-intent-tree.ps1 `
 - TOPIC 节点绑定的是 `kbId`，因此对应的知识库必须先建好并完成文档灌库，否则节点参与分类后仍检索不到内容。
 - `scripts/hnu-kb-intent-tree.test.mjs` 是同一批工作的 Node 版本测试，但其依赖的 `scripts/hnu-kb-intent-tree.mjs` 未纳入仓库，当前无法执行；可执行版本是 `scripts/tests/huda-intent-tree.Tests.ps1`。
 
+### 3.8 欢迎页示例问题导入脚本
+
+欢迎页「试试这些校园问题」区块展示的推荐问法存在 `t_sample_question`，管理后台「示例问题」页面（`/admin/sample-questions`）可直接增删改。欢迎页每次只随机展示 3 条：后端 `GET /rag/sample-questions` 走 `SampleQuestionServiceImpl.listRandomQuestions()`，用 `ORDER BY RANDOM() LIMIT 3`（`DEFAULT_LIMIT = 3`）取数；前端 `WelcomeScreen` 还会再 `slice(0, 3)`，示例问题为空时回退到内置的三条默认推荐问法。因此库里问题越多，欢迎页轮换的随机性越好。
+
+#### 3.8.1 脚本清单
+
+| 文件 | 作用 |
+|------|------|
+| `scripts/sample-questions.psm1` | 预设定义（标题 / 描述 / 问题）与导入逻辑：登录、分页盘点现有问题、按 `question` 去重后创建 |
+| `scripts/import-sample-questions.ps1` | 命令行入口：换取 Authorization、打印计划、按 `-Apply` 决定是否写入 |
+| `scripts/tests/sample-questions.Tests.ps1` | 断言脚本：数量不少于 10、标题与问题去重、字段长度符合 `t_sample_question` 列宽、脚本默认不写库 |
+
+模块导出 5 个函数：
+
+| 函数 | 说明 |
+|------|------|
+| `Get-SampleQuestionPlan` | 把预设转换成待创建列表，并校验标题 / 描述 / 问题长度不超过 `title(64)`、`description(255)`、`question(255)` |
+| `Get-SampleQuestionKey` | 生成去重键：去掉全部空白后转小写 |
+| `Connect-RagentSession` | 调用 `POST /auth/login` 换取 Authorization token，不打印凭证 |
+| `Get-SampleQuestionInventory` | 按 `current` / `size` 翻页读取 `GET /sample-questions`，返回全部未删除的示例问题 |
+| `Invoke-SampleQuestionImport` | 对计划逐条判断：已存在输出 `SKIP`，缺失时输出 `DRY-CREATE` 或写入 `POST /sample-questions` |
+
+#### 3.8.2 依赖的接口
+
+| 接口 | 用途 |
+|------|------|
+| `POST /auth/login` | 未提供 `-Authorization` 时用账号密码换 token；也可直接传前端 Authorization 头 |
+| `GET /sample-questions?current=&size=` | 分页读取现有示例问题，用于去重 |
+| `POST /sample-questions` | 创建示例问题，请求体对应 `SampleQuestionCreateRequest`（`title` / `description` / `question`） |
+
+#### 3.8.3 使用方式
+
+```powershell
+# 1) 预演：登录、盘点现有问题并打印计划，不发送任何写请求
+pwsh -File scripts/import-sample-questions.ps1 `
+  -BaseUrl 'http://localhost:9090/api/ragent' `
+  -Username admin -Password $env:RAGENT_PASSWORD `
+  -DryRun
+
+# 2) 确认无误后写入；重复执行只会输出 SKIP
+pwsh -File scripts/import-sample-questions.ps1 `
+  -BaseUrl 'http://<服务器地址>/api/ragent' `
+  -Username admin -Password $env:RAGENT_PASSWORD `
+  -Apply
+
+# 3) 断言预设仍然满足欢迎页与管理端展示要求
+pwsh -File scripts/tests/sample-questions.Tests.ps1
+```
+
+主要参数：
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `-BaseUrl` | `http://localhost:9090/api/ragent` | 对应 `server.servlet.context-path` |
+| `-Authorization` | `$env:RAGENT_AUTHORIZATION` | 已登录时的前端 Authorization 头，与 `-Username` / `-Password` 二选一 |
+| `-Username` / `-Password` | 空 / `$env:RAGENT_PASSWORD` | 未提供 Authorization 时先登录；脚本不会打印凭证 |
+| `-PageSize` | `100` | 盘点现有示例问题时的分页大小 |
+| `-Proxy` | 空 | 需要通过代理访问管理端时使用 |
+| `-DryRun` / `-Apply` | 都未指定时等同 DryRun | 两者互斥；未加 `-Apply` 时不会发送写请求 |
+
+#### 3.8.4 注意事项
+
+- 去重键是去掉空白后的 `question` 文本。改动预设措辞会被视为新问题并追加创建，需要覆盖已有问题时请先在管理后台编辑或删除。
+- 当前预设 12 条，覆盖校园生活、本科教学、专业培养方案、奖助学金和研究生管理五个知识库，配合欢迎页的随机 3 条取数形成轮换。
+- 全新环境的初始示例问题同时写在 `resources/database/init_data_pg.sql`（按 `question` 去重，可重复执行）。新增预设时两处要保持一致，否则新部署与已部署实例的欢迎页内容会不一致。
+
 ---
 
 ## 4. 检索引擎（Retrieval Engine）

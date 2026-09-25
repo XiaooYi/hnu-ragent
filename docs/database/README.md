@@ -13,6 +13,8 @@ Ragent 当前不使用模板中的 Flyway `docs/database/migrations/` 目录。�
 
 `deploy/compose.yaml` 挂载 `schema_pg.sql` 与 `init_data_pg.sql` 到 PostgreSQL 初始化目录。数据卷已经存在时，PostgreSQL 不会重复执行它们；禁止为“补上变更”而随意删除数据卷、重跑完整 schema 或直接改生产库。
 
+`init_data_pg.sql` 除管理员账号外，还写入欢迎页示例问题（`t_sample_question`，按 `question` 去重）。已部署实例的示例问题通过管理端接口维护，批量脚本见 `scripts/import-sample-questions.ps1` 与 `docs/architecture/ragent-architecture.md` §3.8；新增预设时需保持两处内容一致。
+
 ## 变更流程
 
 1. 先检查相关实体、Mapper、查询、索引和现有升级脚本，明确 PostgreSQL 与 pgvector 的兼容性。
