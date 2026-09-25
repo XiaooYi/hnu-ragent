@@ -10,6 +10,7 @@ import {
   Database,
   GitBranch,
   Layers,
+  Network,
   LayoutDashboard,
   Lightbulb,
   LogOut,
@@ -132,6 +133,11 @@ const menuGroups: MenuGroup[] = [
         label: "变更记录",
         icon: History
       },
+      {
+        path: "/admin/knowledge-graph",
+        label: "知识图谱",
+        icon: Network
+      },
     ]
   },
   {
@@ -164,6 +170,7 @@ const breadcrumbMap: Record<string, string> = {
   ingestion: "数据通道",
   traces: "链路追踪",
   "change-logs": "变更记录",
+  "knowledge-graph": "知识图谱",
   "sample-questions": "示例问题",
   mappings: "关键词映射",
   settings: "系统设置",

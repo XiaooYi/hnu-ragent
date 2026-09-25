@@ -80,9 +80,15 @@ public class RetrievedChunk {
     private String docName;
 
     /**
+     * 来源知识库 collection 名
+     * 图谱等跨库检索的通道在结果侧判定归属时写入，供下游按库推导意图归属；本地向量 / 关键词检索为 {@code null}
+     */
+    private String collectionName;
+
+    /**
      * 兼容三分量（id, text, score）的构造方式，{@code rerankScore} 置空表示尚未精排
      */
     public RetrievedChunk(String id, String text, Float score) {
-        this(id, text, score, null, null, null, null);
+        this(id, text, score, null, null, null, null, null);
     }
 }

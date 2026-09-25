@@ -50,7 +50,10 @@
 - `IntentDirectedSearchChannel` 仅在 `rag.search.channels.intent-directed.enabled=true` 且知识库意图得分不低于 `min-intent-score` 时启用。当前默认 `min-intent-score=0.4`。
 - `VectorGlobalSearchChannel` 在自身启用，并且意图定向检索未启用、最大意图得分低于 `confidence-threshold`，或仅有一个中等置信度意图时启用。当前默认 `confidence-threshold=0.6`。
 - `KeywordSearchChannel`（优先级 `5`）只在 `rag.keyword.type=es` 时存在，并且需要 `rag.search.channels.keyword.enabled=true` 才参与召回；它的检索范围由 `rag.search.channels.keyword.mode` 决定：`global` 取全部有效知识库、`intent` 只取意图命中的知识库、`both` 优先意图命中的知识库并在无命中时回退全库。
+- `GraphSearchChannel` 只在 `rag.graph.type=lightrag` 时存在，并且需要 `rag.search.channels.graph.enabled=true` 才参与召回；检索范围由 `rag.search.channels.graph.mode` 决定（与关键词通道同款语义）。图谱证据按 `file_path` 解析出的 `{collectionName}_{docId}` **等值**判定归属：命中目标库的进主份，其余进补充份；本轮实现只保留主份并对残留记 WARN。
+- `YouComWebSearchChannel` 需要 `rag.search.channels.web-search.enabled=true` **且**能解析到 API Key（`api-key` 或环境变量 `YDC_API_KEY`）才参与召回；联网结果无本地库归属（`collectionName` / `docId` 为 null），分数为按名次递减的中性分 `1/(rank+1)`，任何失败（超时 / 非 2xx / 解析失败）降级为空结果。
 - 关键词通道与向量全局通道的「全库范围」都必须来自 `KbCollectionProvider.listActiveCollections()`（未删除知识库的 collection），不得使用索引名通配，避免命中已删除库的残留数据。
+- 图谱 / 联网这类「跨库或外部」通道的结果必须携带可判定归属或可溯源的字段（图谱走 `collectionName`/`docId`，联网走 `id`=url），不得把无法归属的证据混进主份。
 - 所有通道的取数深度只由 `rag.search.scope.recall-budget` 决定（`<=0` 时跟随 `rag.search.fusion.rerank-candidate-limit`）。通道内**不得**再乘通道级倍数；节点级 `topK` 是唯一允许的显式覆写。`recall-budget>0` 且小于 `rag.search.default-top-k` 属于配置矛盾，启动即失败。
 - 通道**不再有优先级语义**：`SearchChannel` 不声明 `getPriority()`，引擎按通道类型枚举序稳定派发（只为日志可复现）。跨通道顺序一律由「按 key 去重 + RRF 融合」决定，禁止以声明顺序影响结果。
 - 通道出口必须使用 `ChunkRanking.BY_SCORE_DESC` 统一排序（分数降序、空分沉底、同分按 chunk id 稳定），空结果必须由 `SearchChannel.emptyResult(latencyMs)` 构造并携带真实耗时。
@@ -61,7 +64,8 @@
 
 ## 扩展约束
 
-- 新通道实现 `SearchChannel`，声明确定的优先级与启用条件，不能在 Controller 或 Pipeline 内硬编码分支。
+- 新通道实现 `SearchChannel`，声明确定的后端注册条件（`@ConditionalOnProperty`）与启用条件（`isEnabled`），不能在 Controller 或 Pipeline 内硬编码分支；通道**不得**声明优先级，执行顺序由 `SearchChannelType` 枚举序稳定决定，仅用于日志可复现。
+- 新增通道开关时必须在 `RetrievalChannelConfigValidator.SPECS` 登记「后端类型键 + 通道启用键」，使「通道打开但后端未装配」的配置在启动期即失败。
 - 新后处理器实现 `SearchResultPostProcessor`，声明稳定顺序，并说明它与去重、重排和 TopK 的相对位置。
 - 后处理器不得修改输入集合以外的会话或持久化状态，除非该副作用被单独设计、记录和测试。
 - 每个候选结果应保留可用于 Trace 和排障的来源信息；不要为了简化显示而丢失通道来源。

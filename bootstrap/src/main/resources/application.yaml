@@ -56,6 +56,17 @@ rag:
       analyzer: ik_max_word      # 写入分词器（需安装 IK 插件）
       search-analyzer: ik_smart  # 查询分词器（需安装 IK 插件）
 
+  # 知识图谱检索（LightRAG 微服务：实体/关系抽取与图存储都在服务侧，本仓库不直连 Neo4j）
+  # none：不注册图谱客户端、图谱通道与写入同步装饰器，与「从未引入图谱」运行期等价
+  # lightrag：启用图谱后端，写入向量时同步维护图谱，并可按 rag.search.channels.graph.enabled 开启图谱召回
+  graph:
+    type: none  # 可选 none / lightrag
+    embedding-model: ""  # 图谱侧 embedding 模型标识（服务端配置为准，此处仅作记录）
+    lightrag:
+      base-url: http://127.0.0.1:9621
+      api-key: ${LIGHTRAG_API_KEY:}  # 本地部署可留空；留空则不发送 X-API-Key 头
+      query-mode: hybrid  # naive / local / global / hybrid / mix；hybrid 只回图结构关联的证据，与向量/关键词正交
+
   default:
     collection-name: rag_default_store
     dimension: 1536
@@ -134,6 +145,10 @@ rag:
         timeout-seconds: 10
         api-key: ${YDC_API_KEY:}  # 建议走环境变量，不要把明文 Key 写进配置
         api-url: https://ydc-index.io/v1/search
+      # 图谱检索通道（仅当 rag.graph.type=lightrag 时该通道才存在）
+      graph:
+        enabled: false  # 置 true 前必须先把 rag.graph.type 设为 lightrag，否则启动校验会直接拦截
+        mode: both  # 可选 global / intent / both
 
     # 多通道结果融合：向量分与关键词分量纲不同，用 RRF 按名次融合
     fusion:

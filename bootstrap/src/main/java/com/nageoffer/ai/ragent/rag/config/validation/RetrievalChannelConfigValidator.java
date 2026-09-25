@@ -71,7 +71,9 @@ public final class RetrievalChannelConfigValidator {
 
     private static final List<ChannelSpec> SPECS = List.of(
             new ChannelSpec("关键词检索", "rag.keyword.type", "es",
-                    "rag.search.channels.keyword.enabled", "并配置 rag.keyword.es.*（uris / index / 分词器）")
+                    "rag.search.channels.keyword.enabled", "并配置 rag.keyword.es.*（uris / index / 分词器）"),
+            new ChannelSpec("图谱检索", "rag.graph.type", "lightrag",
+                    "rag.search.channels.graph.enabled", "并配置 rag.graph.lightrag.*（base-url / query-mode）")
     );
 
     /**

@@ -82,7 +82,7 @@
 
 | 编号 | 功能 | 功能文档 | 状态 |
 | --- | --- | --- | --- |
-| UP-27 | 知识图谱（Neo4j）与图谱检索通道 | `features/up-27-knowledge-graph.md` | 未开始 |
+| UP-27 | 知识图谱（LightRAG）与图谱检索通道 | [`features/up-27-knowledge-graph.md`](features/up-27-knowledge-graph.md) | 已落地（含验证；默认 `rag.graph.type=none`；前端自绘 SVG 可视化） |
 | UP-26 | You.com 联网检索通道 | [`features/up-26-web-search-channel.md`](features/up-26-web-search-channel.md) | 已落地（含验证；默认关闭，需 `YDC_API_KEY`） |
 | UP-28 | 审计日志与变更记录 | [`features/up-28-audit-log.md`](features/up-28-audit-log.md) | 已落地（含验证；审计落库改为自带 AOP 实现，未引入 bizlog-sdk） |
 | UP-29 | 系统配置页与设置接口 | `features/up-29-system-settings.md` | 未开始 |

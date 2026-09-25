@@ -16,6 +16,7 @@
     "test:tier-settings": "node --test tests/settingsTiers.test.mjs",
     "test:change-logs": "node --test tests/changeLogDiff.test.mjs",
     "test:retrieval-settings": "node --test tests/settingsRetrieval.test.mjs",
+    "test:knowledge-graph": "node --test tests/graphLayout.test.mjs",
     "preview": "vite preview",
     "lint": "eslint . --ext .ts,.tsx --max-warnings 0",
     "format": "prettier --write ."

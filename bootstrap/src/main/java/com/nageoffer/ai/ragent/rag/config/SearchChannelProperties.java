@@ -70,6 +70,11 @@ public class SearchChannelProperties implements InitializingBean {
          * 联网检索配置（You.com Search）
          */
         private WebSearch webSearch = new WebSearch();
+
+        /**
+         * 图谱检索配置（仅当 rag.graph.type=lightrag 时该通道才存在）
+         */
+        private Graph graph = new Graph();
     }
 
     /**
@@ -186,6 +191,21 @@ public class SearchChannelProperties implements InitializingBean {
          * 一般无需修改，测试时可指向本地 stub
          */
         private String apiUrl = "https://ydc-index.io/v1/search";
+    }
+
+    @Data
+    public static class Graph {
+
+        /**
+         * 是否启用图谱检索通道
+         * 默认关闭：rag.graph.type 默认 none，置 true 会与「后端未装配」矛盾并被启动校验拦截
+         */
+        private boolean enabled = false;
+
+        /**
+         * 检索范围模式：global（全库）/ intent（仅意图域）/ both（有意图走意图域，否则全库）
+         */
+        private String mode = "both";
     }
 
     @Data
