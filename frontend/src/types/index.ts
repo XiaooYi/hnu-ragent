@@ -33,6 +33,20 @@ export interface Message {
   status?: MessageStatus;
   /** 回答来源（文档级来源列表，仅 assistant 消息可能有） */
   sources?: SourceRef[];
+  /** 已生成的推荐追问（undefined/[]=已生成但无合适追问；未生成时由 recommendedState 表示） */
+  recommended?: string[];
+  recommendedState?: "idle" | "loading" | "ready" | "error";
+  recommendedOpen?: boolean;
+  /** 消息结束状态：NORMAL / INTERRUPTED / REJECTED */
+  messageStatus?: string | null;
+}
+
+/**
+ * 推荐追问接口返回
+ */
+export interface RecommendedQuestionsPayload {
+  status: "SUCCESS" | "EMPTY" | "FAILED";
+  questions: string[];
 }
 
 /**
@@ -63,4 +77,5 @@ export interface CompletionPayload {
   messageId?: string | null;
   title?: string | null;
   sources?: SourceRef[] | null;
+  messageStatus?: string | null;
 }

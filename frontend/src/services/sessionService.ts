@@ -14,6 +14,12 @@ export interface ConversationMessageVO {
   thinkingContent?: string | null;
   thinkingDuration?: number | null;
   vote: number | null;
+  /** 回答来源（文档级来源列表） */
+  sources?: Array<{ index: number; docName?: string | null }> | null;
+  /** 已生成的推荐追问；null=未生成，[]=已生成但无合适追问 */
+  recommendedQuestions?: string[] | null;
+  /** 消息结束状态：NORMAL / INTERRUPTED / REJECTED */
+  messageStatus?: string | null;
   createTime?: string;
 }
 

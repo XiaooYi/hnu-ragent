@@ -13,7 +13,7 @@
 | 阶段 | 内容 | 状态 |
 | --- | --- | --- |
 | **UP-19a（本文）** | 后端：grounding 片段装配、消息字段与迁移（`grounding_chunks` / `recommended_questions` / `reply_to_message_id` / `message_status`）、生成器（FAST 档）、服务与接口（GET 缓存 / POST 幂等生成）、消息状态贯通落库与 SSE | 已落地 |
-| UP-19b | 前端：回答下方推荐追问列表（点击即追问）+ 生成按钮 + 历史会话回显 | 未开始 |
+| UP-19b | 前端：回答下方推荐追问列表（点击即追问）+ 生成按钮 + 历史会话回显 | 已落地（见下文 UP-19b 章节） |
 | UP-20 剩余 | 消息顺序决胜键（雪花 id）等前端顺序稳定性细节 | 未开始 |
 
 ## 功能介绍
@@ -119,3 +119,54 @@ flowchart LR
 
 - `grounding_chunks` 与 `sources`（UP-18a）职责分离：前者供推荐生成（片段更长），后者供来源面板与预览（摘录 100 字），两者都不进入正式回答的提示词上下文。
 - 中断（`INTERRUPTED`）的回答不生成推荐；`REJECTED` 同理由 UP-20 的前端与消息顺序细节补齐。
+
+# UP-19b 前端推荐追问
+
+## 功能介绍
+
+后端（UP-19a）已经能按需生成推荐追问，但用户看不到也点不了。前端补齐三段体验：
+
+1. **入口按钮**：助手消息操作行上的「推荐问题」按钮（`Sparkles` + 展开箭头），点击才请求——避免每条消息都自动调模型；
+2. **追问面板**：展开后显示加载骨架 / 问题列表 / 「暂无推荐问题」/ 失败可重试；点击某条问题即作为新提问发送；
+3. **历史回显**：重新打开会话时，已生成过推荐的消息（`recommendedQuestions` 非 `null`，含空数组负缓存）直接以「已就绪」渲染，不再请求接口。
+
+状态挂在**消息对象**上（`recommended` / `recommendedState` / `recommendedOpen`），天然按消息隔离，不会出现「展开 A 却显示 B 的问题」。
+
+## 验收标准
+
+1. **按需加载**：`recommendedState` 为 `idle` 时点击按钮 → 置 `loading` 并调 `POST /conversations/messages/{id}/recommended-questions`；已 `ready` 时点击只切换展开态，不发请求。
+2. **三态渲染**：`SUCCESS` → 列表；`EMPTY` → 「暂无推荐问题」；`FAILED` → 错误文案 + 重试按钮（重试再次发请求）。
+3. **点击即追问**：点击某条推荐问题把它作为用户消息发送（复用现有发送链路），发送后自动收起面板。
+4. **历史回显**：`listMessages` 返回 `recommendedQuestions` 为空数组时也视为「已就绪（无推荐）」，不会重复请求。
+5. **条件显示**：仅对「已生成完成（`done`）且 `messageStatus` 为 `NORMAL`」的助手消息显示推荐入口；中断（`INTERRUPTED`）的回答不显示。
+6. **可执行验证**：
+
+```bash
+cd frontend && npm run test:chat-recommendations && npm run build
+```
+
+期望结果：单测通过、构建通过。
+
+## 代码位置（UP-19b）
+
+| 作用 | 位置 |
+| --- | --- |
+| 接口调用 | `frontend/src/services/chatService.ts`（`getRecommendedQuestions` / `generateRecommendedQuestions`） |
+| 展示规则（纯函数） | `frontend/src/lib/chatRecommendations.ts` |
+| 面板与按钮 | `frontend/src/components/chat/RecommendedQuestions.tsx`、`RecommendedQuestionsButton.tsx` |
+| 消息渲染接线 | `frontend/src/components/chat/MessageItem.tsx` |
+| 状态与动作 | `frontend/src/stores/chatStore.ts`（`loadRecommended` / `toggleRecommended`）、`frontend/src/types/index.ts` |
+| 单元测试 | `frontend/tests/chatRecommendations.test.mjs` |
+
+## 相关图表（UP-19b）
+
+```mermaid
+stateDiagram-v2
+    [*] --> idle: 消息渲染（历史无推荐 / 新回答完成）
+    idle --> loading: 点击「推荐问题」
+    loading --> ready: SUCCESS / EMPTY
+    loading --> error: FAILED
+    error --> loading: 点击重试
+    ready --> idle: 收起（保留已加载结果）
+    ready --> [*]: 点击某条问题 → 作为新提问发送
+```

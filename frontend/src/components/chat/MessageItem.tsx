@@ -4,8 +4,11 @@ import { Brain, ChevronDown } from "lucide-react";
 import { FeedbackButtons } from "@/components/chat/FeedbackButtons";
 import { MarkdownRenderer } from "@/components/chat/MarkdownRenderer";
 import { SourcesPanel } from "@/components/chat/SourcesPanel";
+import { RecommendedQuestions } from "@/components/chat/RecommendedQuestions";
+import { RecommendedQuestionsButton } from "@/components/chat/RecommendedQuestionsButton";
 import { ThinkingIndicator } from "@/components/chat/ThinkingIndicator";
 import { cn } from "@/lib/utils";
+import { shouldOfferRecommendations } from "@/lib/chatRecommendations";
 import type { Message } from "@/types";
 
 interface MessageItemProps {
@@ -25,6 +28,7 @@ export const MessageItem = React.memo(function MessageItem({ message, isLast }: 
   const hasThinking = Boolean(message.thinking && message.thinking.trim().length > 0);
   const hasContent = message.content.trim().length > 0;
   const isWaiting = message.status === "streaming" && !isThinking && !hasContent;
+  const showRecommendations = shouldOfferRecommendations(message) && !message.id.startsWith("assistant-");
 
   if (isUser) {
     return (
@@ -92,6 +96,12 @@ export const MessageItem = React.memo(function MessageItem({ message, isLast }: 
             <p className="text-xs text-rose-500">生成已中断。</p>
           ) : null}
           <SourcesPanel sources={message.sources} />
+          {showRecommendations ? (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <RecommendedQuestionsButton message={message} />
+            </div>
+          ) : null}
+          {showRecommendations ? <RecommendedQuestions message={message} /> : null}
           {showFeedback ? (
             <FeedbackButtons
               messageId={message.id}

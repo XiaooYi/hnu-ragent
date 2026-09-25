@@ -8,7 +8,8 @@ import {
   deleteSession as deleteSessionRequest,
   renameSession as renameSessionRequest
 } from "@/services/sessionService";
-import { stopTask, submitFeedback } from "@/services/chatService";
+import { stopTask, submitFeedback, generateRecommendedQuestions } from "@/services/chatService";
+import { initialRecommendationState, needsRecommendationFetch, resolveRecommendationState } from "@/lib/chatRecommendations";
 import { buildQuery } from "@/utils/helpers";
 import { createStreamResponse } from "@/hooks/useStreamResponse";
 import { storage } from "@/utils/storage";
@@ -40,6 +41,10 @@ interface ChatState {
   appendStreamContent: (delta: string) => void;
   appendThinkingContent: (delta: string) => void;
   submitFeedback: (messageId: string, feedback: FeedbackValue) => Promise<void>;
+  /** 展开 / 收起推荐追问面板；首次展开时按需生成 */
+  toggleRecommended: (messageId: string) => void;
+  /** 按需生成推荐追问（失败可重试） */
+  loadRecommended: (messageId: string) => Promise<void>;
 }
 
 function mapVoteToFeedback(vote?: number | null): FeedbackValue {
@@ -190,6 +195,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
         thinkingDuration: item.thinkingDuration || undefined,
         isDeepThinking: Boolean(item.thinkingContent),
         sources: item.sources && item.sources.length > 0 ? item.sources : undefined,
+        ...initialRecommendationState(item.recommendedQuestions),
+        recommended: item.recommendedQuestions ?? undefined,
+        messageStatus: item.messageStatus ?? null,
         createdAt: item.createTime,
         feedback: mapVoteToFeedback(item.vote),
         status: "done"
@@ -333,6 +341,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
                     status: "done",
                     isThinking: false,
                     sources: payload.sources && payload.sources.length > 0 ? payload.sources : message.sources,
+                    messageStatus: payload.messageStatus ?? message.messageStatus,
                     thinkingDuration:
                       message.thinkingDuration ?? computeThinkingDuration(state.thinkingStartAt)
                   }
@@ -348,6 +357,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
                     status: "done",
                     isThinking: false,
                     sources: payload.sources && payload.sources.length > 0 ? payload.sources : message.sources,
+                    messageStatus: payload.messageStatus ?? message.messageStatus,
                     thinkingDuration:
                       message.thinkingDuration ?? computeThinkingDuration(state.thinkingStartAt)
                   }
@@ -525,6 +535,47 @@ export const useChatStore = create<ChatState>((set, get) => ({
         )
       }));
       toast.error((error as Error).message || "反馈保存失败");
+    }
+  },
+
+  toggleRecommended: (messageId) => {
+    const message = get().messages.find((item) => item.id === messageId);
+    if (!message) return;
+    const nextOpen = !message.recommendedOpen;
+    set((state) => ({
+      messages: state.messages.map((item) =>
+        item.id === messageId ? { ...item, recommendedOpen: nextOpen } : item
+      )
+    }));
+    // 展开且尚未生成时才请求；已就绪（含空数组负缓存）直接展示
+    if (nextOpen && needsRecommendationFetch(message)) {
+      void get().loadRecommended(messageId);
+    }
+  },
+
+  loadRecommended: async (messageId) => {
+    set((state) => ({
+      messages: state.messages.map((item) =>
+        item.id === messageId ? { ...item, recommendedState: "loading" } : item
+      )
+    }));
+    try {
+      const payload = await generateRecommendedQuestions(messageId);
+      const { state: nextState, questions } = resolveRecommendationState(payload);
+      set((storeState) => ({
+        messages: storeState.messages.map((item) =>
+          item.id === messageId
+            ? { ...item, recommendedState: nextState, recommended: questions }
+            : item
+        )
+      }));
+    } catch (error) {
+      set((state) => ({
+        messages: state.messages.map((item) =>
+          item.id === messageId ? { ...item, recommendedState: "error" } : item
+        )
+      }));
+      console.error(error);
     }
   }
 }));

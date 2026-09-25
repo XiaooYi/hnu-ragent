@@ -12,6 +12,7 @@
     "test:chat-sources": "node --test tests/chatSources.test.mjs",
     "test:chat-citations": "node --test tests/chatCitations.test.mjs",
     "test:document-preview": "node --test tests/documentPreview.test.mjs",
+    "test:chat-recommendations": "node --test tests/chatRecommendations.test.mjs",
     "preview": "vite preview",
     "lint": "eslint . --ext .ts,.tsx --max-warnings 0",
     "format": "prettier --write ."

@@ -79,6 +79,8 @@ public class ConversationMessageServiceImpl implements ConversationMessageServic
                         .eq(ConversationMessageDO::getUserId, userId)
                         .eq(ConversationMessageDO::getDeleted, 0)
                         .orderBy(true, asc, ConversationMessageDO::getCreateTime)
+                        // 决胜键：同一秒内多条消息的 createTime 可能相同，追加雪花 id 保证顺序稳定
+                        .orderByAsc(ConversationMessageDO::getId)
                         .last(limit != null, "limit " + limit)
         );
         if (records == null || records.isEmpty()) {
