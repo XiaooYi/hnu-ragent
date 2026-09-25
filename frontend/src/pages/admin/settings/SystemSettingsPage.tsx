@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import type { SystemSettings } from "@/services/settingsService";
 import { getSystemSettings } from "@/services/settingsService";
+import { tierRows } from "@/lib/settingsTiers";
 import { getErrorMessage } from "@/utils/error";
 
 const BoolBadge = ({ value }: { value: boolean }) => (
@@ -192,13 +193,49 @@ export function SystemSettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Chat 模型配置</CardTitle>
-          <CardDescription>默认模型与候选列表</CardDescription>
+          <CardDescription>档位路由与候选注册表</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
-            <InfoItem label="Default Model" value={ai.chat.defaultModel} />
-            <InfoItem label="Deep Thinking Model" value={ai.chat.deepThinkingModel} />
+            <InfoItem label="Default Tier" value={ai.chat.defaultTier ?? "-"} />
+            <InfoItem label="Deep Thinking Tier" value={ai.chat.deepThinkingTier ?? "-"} />
           </div>
+          <div className="space-y-2">
+            <div className="text-xs font-medium text-muted-foreground">
+              档位（Tiers）：每个档位的候选按序回退，Timeout 为该档位的调用预算（流式为首包预算）
+            </div>
+            <Table className="min-w-[560px]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[140px]">Tier</TableHead>
+                  <TableHead>候选（有序）</TableHead>
+                  <TableHead className="w-[160px]">Timeout (ms/候选)</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {tierRows(ai.chat.tiers).length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-muted-foreground">
+                      未配置档位
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  tierRows(ai.chat.tiers).map((row) => (
+                    <TableRow key={row.name}>
+                      <TableCell className="font-medium">{row.name}</TableCell>
+                      <TableCell>{row.candidates}</TableCell>
+                      <TableCell>{row.timeout}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          <div className="space-y-2">
+            <div className="text-xs font-medium text-muted-foreground">
+              候选注册表（Candidates）：chat 组的 Default Model / Deep Thinking Model 为兼容字段，不再参与路由
+              {ai.chat.defaultModel ? `（default-model: ${ai.chat.defaultModel}）` : ""}
+            </div>
           <Table className="min-w-[720px]">
             <TableHeader>
               <TableRow>
@@ -221,6 +258,7 @@ export function SystemSettingsPage() {
               ))}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 

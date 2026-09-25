@@ -101,9 +101,24 @@ public class SystemSettingsVO {
         @Data
         @Builder
         public static class ModelGroup {
+            // defaultModel / deepThinkingModel 供 embedding / rerank / vlm 使用；chat 组路由已改走档位（tiers）
             private String defaultModel;
             private String deepThinkingModel;
             private List<ModelCandidate> candidates;
+            // 以下为 chat 组的档位机制字段，embedding / rerank / vlm 为 null
+            private String defaultTier;
+            private String deepThinkingTier;
+            private Map<String, TierConfig> tiers;
+        }
+
+        /**
+         * 档位配置：一组有序候选 + 一个调用预算（流式为首包预算，同步为整段上限）
+         */
+        @Data
+        @Builder
+        public static class TierConfig {
+            private List<String> candidates;
+            private Long timeoutMs;
         }
 
         @Data

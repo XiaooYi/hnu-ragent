@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | **UP-22a（本文）** | 档位枚举、档位化候选选择、启动期档位校验、`LLMService` 档位 API、高频调用点迁到 fast 档 | 已落地 |
 | UP-22b | MCP 提参三态校验（`McpExtractionResult`） | 已落地，见 [`up-22b-mcp-extraction-states.md`](up-22b-mcp-extraction-states.md) |
-| UP-22c | 设置页/接口暴露档位配置 | 未开始 |
+| UP-22c | 设置页/接口暴露档位配置 | 已落地，见 [`up-22c-tier-settings.md`](up-22c-tier-settings.md) |
 
 ## 功能介绍
 

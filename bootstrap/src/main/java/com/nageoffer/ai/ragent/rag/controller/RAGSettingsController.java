@@ -36,6 +36,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -119,9 +120,9 @@ public class RAGSettingsController {
 
         return AISettings.builder()
                 .providers(providers)
-                .chat(toModelGroup(props.getChat()))
-                .embedding(toModelGroup(props.getEmbedding()))
-                .rerank(toModelGroup(props.getRerank()))
+                .chat(toModelGroup(props.getChat(), true))
+                .embedding(toModelGroup(props.getEmbedding(), false))
+                .rerank(toModelGroup(props.getRerank(), false))
                 .selection(props.getSelection() == null
                         ? null
                         : AISettings.Selection.builder()
@@ -136,7 +137,10 @@ public class RAGSettingsController {
                 .build();
     }
 
-    private AISettings.ModelGroup toModelGroup(AIModelProperties.ModelGroup group) {
+    /**
+     * 只有 chat 组走档位路由，其余模型组仍按 defaultModel + priority 排序，因此不暴露档位字段
+     */
+    private AISettings.ModelGroup toModelGroup(AIModelProperties.ModelGroup group, boolean chatGroup) {
         if (group == null) {
             return null;
         }
@@ -157,7 +161,28 @@ public class RAGSettingsController {
                                     .supportsThinking(c.getSupportsThinking())
                                     .build())
                           .collect(Collectors.toList()))
+                .defaultTier(chatGroup ? group.getDefaultTier() : null)
+                .deepThinkingTier(chatGroup ? group.getDeepThinkingTier() : null)
+                .tiers(chatGroup ? toTiers(group.getTiers()) : null)
                 .build();
+    }
+
+    /**
+     * 档位映射，保持 yaml 中的声明顺序（前端按该顺序之外的既定顺序展示）
+     */
+    private Map<String, AISettings.TierConfig> toTiers(Map<String, AIModelProperties.TierConfig> tiers) {
+        if (tiers == null || tiers.isEmpty()) {
+            return null;
+        }
+        return tiers.entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        e -> AISettings.TierConfig.builder()
+                                .candidates(e.getValue() == null ? null : e.getValue().getCandidates())
+                                .timeoutMs(e.getValue() == null ? null : e.getValue().getTimeoutMs())
+                                .build(),
+                        (left, right) -> left,
+                        LinkedHashMap::new));
     }
 
     private String maskApiKey(String apiKey) {

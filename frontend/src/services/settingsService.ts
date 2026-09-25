@@ -1,4 +1,5 @@
 import { api } from "@/services/api";
+import type { TierConfig } from "@/lib/settingsTiers";
 
 export interface SystemSettings {
   upload: {
@@ -54,9 +55,14 @@ export interface SystemSettings {
 }
 
 export interface ModelGroup {
+  // chat 组的 defaultModel / deepThinkingModel 已不参与路由，仅作兼容字段返回
   defaultModel?: string | null;
   deepThinkingModel?: string | null;
   candidates: ModelCandidate[];
+  // 档位机制字段，仅 chat 组有值；embedding / rerank 为 null
+  defaultTier?: string | null;
+  deepThinkingTier?: string | null;
+  tiers?: Record<string, TierConfig> | null;
 }
 
 export interface ModelCandidate {

@@ -70,9 +70,9 @@
 
 | 编号 | 功能 | 功能文档 | 状态 |
 | --- | --- | --- | --- |
-| UP-22 | 模型调用档位机制 | [`features/up-22-model-tiers.md`](features/up-22-model-tiers.md) | 已落地（UP-22a 档位机制 + UP-22b MCP 提参三态）；设置页暴露见 UP-22c |
+| UP-22 | 模型调用档位机制 | [`features/up-22-model-tiers.md`](features/up-22-model-tiers.md) | 已落地（UP-22a 档位机制 + UP-22b MCP 提参三态 + UP-22c 设置暴露） |
 | UP-22b | MCP 提参三态校验 | [`features/up-22b-mcp-extraction-states.md`](features/up-22b-mcp-extraction-states.md) | 已落地（含验证） |
-| UP-22c | 档位设置暴露（设置接口与前端设置页） | 见 UP-22 文档 | 未开始 |
+| UP-22c | 档位设置暴露（设置接口与前端设置页） | [`features/up-22c-tier-settings.md`](features/up-22c-tier-settings.md) | 已落地（含验证） |
 | UP-21 | 模型调用健壮性（空白响应/熔断名额/候选顺序） | [`features/up-21-model-call-robustness.md`](features/up-21-model-call-robustness.md) | 已落地（含验证） |
 | UP-24 | DeepSeek 供应商 | [`features/up-24-deepseek-provider.md`](features/up-24-deepseek-provider.md) | 已落地（含验证） |
 | UP-25 | `enable_thinking` 自定义参数 | [`features/up-25-enable-thinking.md`](features/up-25-enable-thinking.md) | 已落地（含验证） |
