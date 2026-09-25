@@ -13,6 +13,7 @@ Ragent 的文档按 AI dev template 的“上下文、规则、数据、示例�
 | [`database/`](database/) | 数据库初始化、升级和迁移约定 | 修改表结构、索引或数据脚本 |
 | [`examples/`](examples/) | 可运行或可核对的接口与摄取示例 | 调试文档摄取和接口调用 |
 | [`releases/`](releases/) | 发版记录 | 查阅版本变更 |
+| [`upstream/`](upstream/) | 与上游 `nageoffer/ragent` 的分叉判定、功能差异与落地路线 | 对齐上游能力、补齐缺失功能 |
 | [`assets/`](assets/) | 文档图示和编辑资源 | 架构图、部署图和 README 媒体 |
 | [`archive/`](archive/) | 已合并或仅保留历史的文档 | 追溯旧方案，不作为当前实现依据 |
 
@@ -23,5 +24,6 @@ Ragent 的文档按 AI dev template 的“上下文、规则、数据、示例�
 - 检索不变量：[`rules/retrieval-invariants.md`](rules/retrieval-invariants.md)
 - 数据库脚本：[`database/README.md`](database/README.md)
 - 文档摄取示例：[`examples/pdf/pdf-ingestion-example.md`](examples/pdf/pdf-ingestion-example.md)
+- 上游对齐入口：[`upstream/README.md`](upstream/README.md)（分叉点 [`upstream/fork-divergence.md`](upstream/fork-divergence.md)、差异清单 [`upstream/feature-gap.md`](upstream/feature-gap.md)、路线图 [`upstream/roadmap.md`](upstream/roadmap.md)）
 
 `archive/` 中的文档可能包含历史包路径、旧配置或旧结论。需要实现当前功能时，应以 `architecture/`、`rules/`、代码和测试为准；如果历史内容仍然有效，应先迁回正式文档并更新验证依据。
