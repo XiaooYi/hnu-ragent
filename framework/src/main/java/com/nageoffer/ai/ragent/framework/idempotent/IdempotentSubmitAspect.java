@@ -20,6 +20,9 @@ package com.nageoffer.ai.ragent.framework.idempotent;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.digest.DigestUtil;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonSerializer;
 import com.nageoffer.ai.ragent.framework.context.UserContext;
 import com.nageoffer.ai.ragent.framework.exception.ClientException;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +36,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
@@ -47,7 +51,23 @@ import java.util.Objects;
 public final class IdempotentSubmitAspect {
 
     private final RedissonClient redissonClient;
-    private final Gson gson = new Gson();
+    /**
+     * 上传接口的防重复摘要只使用文件元信息，不读取文件内容：
+     * 直接把 MultipartFile 交给 Gson 反射序列化会把字节内容展开成大字符串（大文件会占满内存甚至栈溢出），
+     * 且内部状态不稳定会导致同一请求两次得到不同摘要，防重复能力失效
+     */
+    private final Gson gson = new GsonBuilder()
+            .registerTypeHierarchyAdapter(
+                    MultipartFile.class,
+                    (JsonSerializer<MultipartFile>) (file, type, context) -> {
+                        JsonObject json = new JsonObject();
+                        json.addProperty("name", file.getName());
+                        json.addProperty("originalFilename", file.getOriginalFilename());
+                        json.addProperty("contentType", file.getContentType());
+                        json.addProperty("size", file.getSize());
+                        return json;
+                    })
+            .create();
 
     @Value("${app.eval.enabled:false}")
     private boolean evalEnabled;
