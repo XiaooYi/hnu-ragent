@@ -86,9 +86,14 @@ public class RemoteFileFetcher {
             checkSizeLimit(maxBytes, headResponse.contentLength());
             String etag = trimOrNull(headResponse.etag());
             String headLastModified = trimOrNull(headResponse.lastModified());
-            boolean etagMatch = StringUtils.hasText(etag) && etag.equals(trimOrNull(lastEtag));
-            boolean modifiedMatch = StringUtils.hasText(headLastModified) && headLastModified.equals(trimOrNull(lastModified));
-            if (etagMatch || modifiedMatch) {
+            String previousEtag = trimOrNull(lastEtag);
+            boolean etagComparable = StringUtils.hasText(etag) && StringUtils.hasText(previousEtag);
+            // ETag 是内容指纹，可比较时以它为准；仅当任一侧缺少 ETag 时才回退 Last-Modified，
+            // 避免「ETag 已变化但 Last-Modified 相同」被误判为未变化而漏刷新
+            boolean unchanged = etagComparable
+                    ? etag.equals(previousEtag)
+                    : StringUtils.hasText(headLastModified) && headLastModified.equals(trimOrNull(lastModified));
+            if (unchanged) {
                 return RemoteFetchResult.skipped("远程文件未变化", etag, headLastModified, lastContentHash);
             }
         }
