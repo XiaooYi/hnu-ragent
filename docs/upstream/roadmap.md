@@ -61,8 +61,8 @@
 | --- | --- | --- | --- |
 | UP-18 | 回答来源与文档预览 | [`features/up-18-answer-sources.md`](features/up-18-answer-sources.md) | 已落地（UP-18a 来源链路 + UP-18b 预览页） |
 | UP-18b | 本地文档预览页（docId → 原文提取与渲染） | [`features/up-18b-document-preview.md`](features/up-18b-document-preview.md) | 已落地（含验证） |
-| UP-19 | 相关推荐追问 | `features/up-19-follow-up-questions.md` | 未开始 |
-| UP-20 | 消息结束状态与顺序稳定性 | `features/up-20-stream-order.md` | 未开始 |
+| UP-19 | 相关推荐追问 | `features/up-19-follow-up-questions.md` | 未开始（与 UP-20 耦合，同批实现，见下） |
+| UP-20 | 消息结束状态与顺序稳定性 | `features/up-20-stream-order.md` | 未开始（与 UP-19 同批实现） |
 | UP-38 | 任务取消与中断反馈 | `features/up-38-task-cancellation.md` | 未开始 |
 
 ### 批次 6：模型与供应商
@@ -103,6 +103,17 @@
 | UP-44 | 前端与仪表盘体验 | `features/up-44-dashboard.md` | 未开始 |
 
 ## 每项功能的完成定义（DoD）
+
+### 批次五的实施顺序说明（2026-09-26 复核上游代码后补充）
+
+上游把「推荐追问」与「消息结束状态」放在同一批提交里（`190fc067` 加字段与生成器，`1308dee7` 加消息状态与
+`replyToMessageId` 并把推荐生成改成按需触发），两者共享同一套消息字段，因此本仓库同批实现、分两个提交：
+
+| 步骤 | 内容 |
+| --- | --- |
+| UP-19a | 后端：`GroundingChunk` + 装配器、`recommended_questions` / `grounding_chunks` / `reply_to_message_id` / `message_status` 字段与迁移脚本、生成器（FAST 档）、服务与接口（GET 缓存 / POST 幂等生成）、VO 暴露 |
+| UP-19b | 前端：回答下方推荐追问列表（点击即追问）+ 「换一批/生成」按钮调用接口 |
+| UP-20 | 消息状态语义（NORMAL / INTERRUPTED / REJECTED）贯通落库、SSE 完成事件与前端；消息顺序决胜键 |
 
 一项功能只有在下列条件全部满足时才标记为 `已落地（含验证）`：
 
