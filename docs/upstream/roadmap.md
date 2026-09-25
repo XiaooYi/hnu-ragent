@@ -40,7 +40,8 @@
 | --- | --- | --- | --- |
 | UP-10 | 意图关联多知识库 Collection（UP-03 依赖本项引入的多 Collection 字段） | [`features/up-10-intent-multi-collection.md`](features/up-10-intent-multi-collection.md) | 已落地（含验证） |
 | UP-03 | 意图缓存反序列化容错（依赖 UP-10） | `features/up-03-intent-cache-robustness.md` | 未开始 |
-| UP-12 | 检索结果元数据富化与上下文渲染 | `features/up-12-context-enrichment.md` | 未开始 |
+| UP-12 | 检索结果元数据富化与上下文渲染 | [`features/up-12-context-enrichment.md`](features/up-12-context-enrichment.md) | 已落地（回表富化 + 按文档聚合渲染；行内引用角标拆到 UP-12b） |
+| UP-12b | 行内引用角标 `[N](#cite-N)`（依赖 UP-18a 的来源编号） | 见 UP-12 文档末尾分工 | 未开始 |
 | UP-30 | 数据库 v1.1.0 升级脚本体系 | [`features/up-30-db-upgrades.md`](features/up-30-db-upgrades.md) | 已落地（含验证） |
 | UP-11 | 意图歧义澄清重构 | `features/up-11-ambiguity-rewrite.md` | 未开始 |
 
@@ -58,7 +59,8 @@
 
 | 编号 | 功能 | 功能文档 | 状态 |
 | --- | --- | --- | --- |
-| UP-18 | 回答来源与文档预览 | `features/up-18-answer-sources.md` | 未开始 |
+| UP-18 | 回答来源与文档预览 | [`features/up-18-answer-sources.md`](features/up-18-answer-sources.md) | 部分落地：来源装配/下发/落库/面板已落地（UP-18a）；文档预览页待做（UP-18b） |
+| UP-18b | 本地文档预览页（docId → 原文提取与渲染） | 见 UP-18 文档 | 未开始 |
 | UP-19 | 相关推荐追问 | `features/up-19-follow-up-questions.md` | 未开始 |
 | UP-20 | 消息结束状态与顺序稳定性 | `features/up-20-stream-order.md` | 未开始 |
 | UP-38 | 任务取消与中断反馈 | `features/up-38-task-cancellation.md` | 未开始 |
