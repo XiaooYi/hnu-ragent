@@ -27,8 +27,8 @@
 
 | 编号 | 功能 | 功能文档 | 状态 |
 | --- | --- | --- | --- |
-| UP-06 | Elasticsearch 关键词检索通道 | `features/up-06-es-keyword-channel.md` | 未开始 |
-| UP-01 | 检索通道配置一致性校验（通道后端类型引入后才有意义，随 UP-06 落地） | `features/up-01-channel-config-validation.md` | 未开始 |
+| UP-06 | Elasticsearch 关键词检索通道 | [`features/up-06-es-keyword-channel.md`](features/up-06-es-keyword-channel.md) | 已落地（含验证） |
+| UP-01 | 检索通道配置一致性校验（依赖 UP-06 引入的后端类型开关） | [`features/up-01-channel-config-validation.md`](features/up-01-channel-config-validation.md) | 已落地（含验证） |
 | UP-07 | 全局召回预算与通道统一 | `features/up-07-recall-budget.md` | 未开始 |
 | UP-08 | 通道级超时降级 | `features/up-08-channel-timeout-degrade.md` | 未开始 |
 | UP-09 | Rerank 证据相关性闸门 | `features/up-09-evidence-gate.md` | 未开始 |
