@@ -22,6 +22,7 @@ import com.nageoffer.ai.ragent.framework.mq.MessageWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.client.producer.SendResult;
+import org.apache.rocketmq.client.producer.SendStatus;
 import org.apache.rocketmq.client.producer.TransactionSendResult;
 import org.apache.rocketmq.common.message.MessageConst;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
@@ -81,8 +82,13 @@ public class RocketMQProducerAdapter implements MessageQueueProducer {
         try {
             sendResult = rocketMQTemplate.sendMessageInTransaction(topic, message, null);
         } catch (Throwable ex) {
+            // 未成功发送就不会有本地事务监听器消费该回调，必须注销，避免回调表无界增长
+            transactionListener.unregisterLocalTransaction(txId);
             log.error("[生产者] {} - 事务消息发送失败，topic: {}, keys: {}", bizDesc, topic, keys, ex);
             throw ex;
+        }
+        if (sendResult.getSendStatus() != SendStatus.SEND_OK) {
+            transactionListener.unregisterLocalTransaction(txId);
         }
 
         log.info("[生产者] {} - 事务消息发送结果: {}, 本地事务状态: {}, 消息ID: {}, Keys: {}",
