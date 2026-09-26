@@ -118,3 +118,18 @@ export async function getAgentMemories(): Promise<AgentMemory[]> {
 export async function forgetAgentMemory(id: string): Promise<void> {
   await api.delete(`/agent/memories/${encodeURIComponent(id)}`);
 }
+
+export interface AgentDashboard {
+  windowDays: number;
+  conversations: number;
+  messages: number;
+  assistantMessages: number;
+  statusCounts: Record<string, number>;
+  avgDurationMs: number;
+  activeMemories: number;
+  toolUsage: { toolId: string; calls: number; avgLatencyMs: number }[];
+}
+
+export async function getAgentDashboard(days = 7): Promise<AgentDashboard> {
+  return api.get<AgentDashboard, AgentDashboard>("/agent/dashboard", { params: { days } });
+}

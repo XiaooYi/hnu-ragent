@@ -7,20 +7,32 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
+  getAgentDashboard,
   forgetAgentMemory,
   getAgentMemories,
   getAgentSkills,
   getAgentTools,
   type AgentMemory,
+  type AgentDashboard,
   type AgentSkill,
   type AgentTool
 } from "@/services/agentService";
 import { getErrorMessage } from "@/utils/error";
 
+const Metric = ({ label, value }: { label: string; value: string | number }) => (
+  <div className="rounded-lg border border-slate-200/70 bg-white px-3 py-2">
+    <div className="text-xs text-muted-foreground">{label}</div>
+    <div className="truncate text-sm font-medium text-slate-800" title={String(value)}>
+      {value}
+    </div>
+  </div>
+);
+
 export function AgentAdminPage() {
   const [tools, setTools] = useState<AgentTool[]>([]);
   const [skills, setSkills] = useState<AgentSkill[]>([]);
   const [memories, setMemories] = useState<AgentMemory[]>([]);
+  const [dashboard, setDashboard] = useState<AgentDashboard | null>(null);
   const [loading, setLoading] = useState(true);
 
   const loadAll = async () => {
@@ -34,6 +46,7 @@ export function AgentAdminPage() {
       setTools(toolList || []);
       setSkills(skillList || []);
       setMemories(memoryList || []);
+      setDashboard(await getAgentDashboard(7));
     } catch (error) {
       toast.error(getErrorMessage(error, "加载 Agent 配置失败（请确认 ai.agent.enabled=true）"));
     } finally {
@@ -69,6 +82,61 @@ export function AgentAdminPage() {
           </Button>
         </div>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>近 7 天运行指标</CardTitle>
+          <CardDescription>
+            只统计你自己的数据：会话与消息数、结束状态分布、平均耗时、工具使用次数与平均耗时
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {dashboard == null ? (
+            <div className="text-sm text-muted-foreground">暂无指标（Agent 未启用或尚无运行记录）</div>
+          ) : (
+            <>
+              <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+                <Metric label="会话数" value={dashboard.conversations} />
+                <Metric label="消息数" value={dashboard.messages} />
+                <Metric label="回答数" value={dashboard.assistantMessages} />
+                <Metric label="平均耗时" value={`${dashboard.avgDurationMs} ms`} />
+                <Metric label="生效记忆" value={dashboard.activeMemories} />
+                <Metric
+                  label="状态分布"
+                  value={Object.entries(dashboard.statusCounts || {})
+                    .map(([status, count]) => `${status}:${count}`)
+                    .join(" / ") || "-"}
+                />
+              </div>
+              <div>
+                <div className="mb-1 text-xs font-medium text-muted-foreground">工具使用</div>
+                {dashboard.toolUsage.length === 0 ? (
+                  <div className="text-sm text-muted-foreground">窗口内没有工具调用</div>
+                ) : (
+                  <Table className="min-w-[520px]">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[240px]">工具</TableHead>
+                        <TableHead className="w-[120px]">调用次数</TableHead>
+                        <TableHead>平均耗时</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {dashboard.toolUsage.map((usage) => (
+                        <TableRow key={usage.toolId}>
+                          <TableCell className="font-medium">{usage.toolId}</TableCell>
+                          <TableCell>{usage.calls}</TableCell>
+                          <TableCell>{usage.avgLatencyMs} ms</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

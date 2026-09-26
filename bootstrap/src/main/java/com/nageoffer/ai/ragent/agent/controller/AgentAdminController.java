@@ -18,9 +18,11 @@
 package com.nageoffer.ai.ragent.agent.controller;
 
 import com.nageoffer.ai.ragent.agent.controller.vo.AgentMemoryVO;
+import com.nageoffer.ai.ragent.agent.controller.vo.AgentDashboardVO;
 import com.nageoffer.ai.ragent.agent.controller.vo.AgentSkillVO;
 import com.nageoffer.ai.ragent.agent.controller.vo.AgentToolVO;
 import com.nageoffer.ai.ragent.agent.service.AgentMemoryService;
+import com.nageoffer.ai.ragent.agent.service.AgentDashboardService;
 import com.nageoffer.ai.ragent.agent.skill.AgentSkillService;
 import com.nageoffer.ai.ragent.agent.tool.AgentToolCatalog;
 import com.nageoffer.ai.ragent.framework.convention.Result;
@@ -31,6 +33,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
@@ -48,6 +51,7 @@ public class AgentAdminController {
     private final AgentToolCatalog agentToolCatalog;
     private final AgentSkillService agentSkillService;
     private final AgentMemoryService agentMemoryService;
+    private final AgentDashboardService agentDashboardService;
 
     /**
      * 当前可用的工具（含读写属性与来源），供管理台核对确认策略是否符合预期
@@ -90,6 +94,14 @@ public class AgentAdminController {
                         .build())
                 .toList();
         return Results.success(skills);
+    }
+
+    /**
+     * 运行指标（当前登录用户维度）：会话 / 消息 / 状态分布 / 平均耗时 / 工具使用 / 记忆条数
+     */
+    @GetMapping("/agent/dashboard")
+    public Result<AgentDashboardVO> dashboard(@RequestParam(defaultValue = "7") int days) {
+        return Results.success(agentDashboardService.summary(days));
     }
 
     /**
