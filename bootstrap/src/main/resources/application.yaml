@@ -41,6 +41,14 @@ rocketmq:
 milvus:
   uri: http://192.168.227.128:19530
 
+# 场景初始化器：一键装入「知识库 + 示例文档 + 示例问题 + 示例意图树」
+# 默认关闭；打开一次执行完就应关回 false（它会写业务表）
+initializer:
+  enabled: false
+  scenario: hnu          # 对应 resources/initializer/<scenario>/
+  mode: seed             # seed（灌数据）/ cleanup（清理该数据集写入的数据）
+  fail-fast: true        # 任一步失败即中断，配置错误尽早暴露
+
 rag:
   vector:
     type: pg  # 可选 milvus / pg

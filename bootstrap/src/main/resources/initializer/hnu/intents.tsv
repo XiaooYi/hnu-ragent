@@ -1,0 +1,9 @@
+# 列：code	名称	level(0域/1类/2主题)	父code	kind(0知识库/1系统/2工具)	说明	示例问题(|分隔)
+# KB 类型的叶子节点会自动绑定本数据集的 collection，无需手写库名
+init_hnu	湖大校内制度	0		1	学校层面的制度与常见问题入口	校内规定有哪些
+init_hnu_teaching	教学与学籍	1	init_hnu	1	培养方案、学籍处理、转专业、选课等教学口事务	转专业需要哪些材料|选课什么时候开始
+init_hnu_teaching_major	转专业与学籍	2	init_hnu_teaching	0	转专业条件、学籍异动、补考重修等具体规定	转专业需要哪些材料|挂科之后怎么申请补考
+init_hnu_funding	奖助与资助	1	init_hnu	1	奖学金、助学金、助学贷款的申请与评定	国家励志奖学金的申请条件是什么
+init_hnu_funding_scholarship	奖助学金评定	2	init_hnu_funding	0	各类奖助学金的评定标准与材料要求	国家励志奖学金的申请条件是什么|奖学金什么时候评定
+init_hnu_student_life	学生事务与生活	1	init_hnu	1	宿舍、社团、竞赛、就业等非教学事务	宿舍晚归会有什么处理
+init_hnu_student_life_competition	学科竞赛与学分认定	2	init_hnu_student_life	0	竞赛级别认定与对应学分、奖励	参加学科竞赛可以认定多少学分
