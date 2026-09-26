@@ -105,7 +105,7 @@
 | UP-40 | MCP 身份透传 | [`features/up-39-mcp-tool-kit.md`](features/up-39-mcp-tool-kit.md) | 部分落地：服务端读取 `_meta` 身份与缺身份回绝已落地（含验证）；调用侧透传随批次八 |
 | UP-37 | LangFuse 链路追踪 | 见架构决策 P3 | 待 P1 |
 | UP-41 | 初始化器与场景示例 | 见架构决策 P4 | 待 P1 |
-| UP-44 | 前端与仪表盘体验 | 见架构决策 P3 | 待 P1 |
+| UP-44 | 前端与仪表盘体验 | [`features/up-44-agent-frontend.md`](features/up-44-agent-frontend.md) | Agent 对话页（工具过程 + 确认卡 + 历史会话）已落地（含验证）；仪表盘等其余前端项见文档「与上游的差异」 |
 
 ## 每项功能的完成定义（DoD）
 
