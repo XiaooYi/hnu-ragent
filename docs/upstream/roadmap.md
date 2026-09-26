@@ -61,7 +61,7 @@
 | --- | --- | --- | --- |
 | UP-18 | 回答来源与文档预览 | [`features/up-18-answer-sources.md`](features/up-18-answer-sources.md) | 已落地（UP-18a 来源链路 + UP-18b 预览页） |
 | UP-18b | 本地文档预览页（docId → 原文提取与渲染） | [`features/up-18b-document-preview.md`](features/up-18b-document-preview.md) | 已落地（含验证） |
-| UP-19 | 相关推荐追问 | [`features/up-19-follow-up-questions.md`](features/up-19-follow-up-questions.md) | 部分落地：后端（grounding / 生成 / 接口 / 字段与迁移）已落地（UP-19a）；前端待做（UP-19b） |
+| UP-19 | 相关推荐追问 | [`features/up-19-follow-up-questions.md`](features/up-19-follow-up-questions.md) | 已落地（UP-19a 后端 + UP-19b 前端） |
 | UP-19b | 前端推荐追问列表与生成按钮 | [`features/up-19-follow-up-questions.md`](features/up-19-follow-up-questions.md) | 已落地（含验证） |
 | UP-20 | 消息结束状态与顺序稳定性 | 见 UP-19 文档 | 已落地：状态与提问引用贯通（UP-19a）+ 消息顺序决胜键（雪花 id） |
 | UP-38 | 任务取消与中断反馈 | [`features/up-38-task-cancellation.md`](features/up-38-task-cancellation.md) | 已落地（RAG 侧：统一取消判定 + 停止态）；Agent 侧随批次八 |
@@ -101,8 +101,8 @@
 | UP-34 | Agent 写操作确认流程 | [`features/up-34-write-confirmation.md`](features/up-34-write-confirmation.md) | 服务端语义 + `confirm` 事件 + `POST /agent/confirm` 已落地（含验证）；确认卡前端见文档「与上游的差异」 |
 | UP-35 | Skills 体系 | [`features/up-35-skills.md`](features/up-35-skills.md) | 手册注入主链路已落地（含验证）；技能管理台与原生 Skill Tool 见文档「与上游的差异」 |
 | UP-36 | Agent 长期记忆 | [`features/up-36-agent-memory.md`](features/up-36-agent-memory.md) | 记忆主链路已落地（含验证）；抽取台账与上下文压缩见文档「与上游的差异」 |
-| UP-39 | MCP 工具目录与 Schema 构造器 | [`features/up-39-mcp-tool-kit.md`](features/up-39-mcp-tool-kit.md) | 部分落地：`McpToolSchema` / `McpToolException` / `McpToolResults` 已落地（含验证）；工具目录重构（`AgentToolCatalog`）随批次八 |
-| UP-40 | MCP 身份透传 | [`features/up-39-mcp-tool-kit.md`](features/up-39-mcp-tool-kit.md) | 部分落地：服务端读取 `_meta` 身份与缺身份回绝已落地（含验证）；调用侧透传随批次八 |
+| UP-39 | MCP 工具目录与 Schema 构造器 | [`features/up-39-mcp-tool-kit.md`](features/up-39-mcp-tool-kit.md)、[`features/up-32-agent-runtime.md`](features/up-32-agent-runtime.md) | 已落地：`McpToolSchema` / `McpToolException` / `McpToolResults` + Agent 工具目录（含只读判定与确认策略） |
+| UP-40 | MCP 身份透传 | [`features/up-39-mcp-tool-kit.md`](features/up-39-mcp-tool-kit.md) | 已落地：客户端统一出口透传 `_meta` 用户身份（`McpClientToolExecutor` + `McpCallMeta`），服务端读取与缺身份回绝 |
 | UP-37 | LangFuse 链路追踪 | 见架构决策 P3 | 待 P1 |
 | UP-41 | 初始化器与场景示例 | 见架构决策 P4 | 待 P1 |
 | UP-44 | 前端与仪表盘体验 | [`features/up-44-agent-frontend.md`](features/up-44-agent-frontend.md) | Agent 对话页（工具过程 + 确认卡 + 历史会话）已落地（含验证）；仪表盘等其余前端项见文档「与上游的差异」 |

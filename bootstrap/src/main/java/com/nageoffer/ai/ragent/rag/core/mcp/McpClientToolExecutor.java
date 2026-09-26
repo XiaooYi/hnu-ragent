@@ -22,6 +22,7 @@ import io.modelcontextprotocol.spec.McpSchema.CallToolRequest;
 import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
 import io.modelcontextprotocol.spec.McpSchema.TextContent;
 import io.modelcontextprotocol.spec.McpSchema.Tool;
+import com.nageoffer.ai.ragent.framework.context.UserContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -49,7 +50,10 @@ public class McpClientToolExecutor implements McpToolExecutor {
         long startMs = System.currentTimeMillis();
         try {
             Map<String, Object> args = parameters != null ? parameters : Map.of();
-            CallToolResult result = mcpClient.callTool(new CallToolRequest(toolDefinition.name(), args));
+            // 透传登录身份：mcp-server 侧用户态工具据此圈定数据范围；_meta 是 client-supplied 扩展点，
+            // 只用于数据范围而非认证决策
+            CallToolResult result = mcpClient.callTool(
+                    new CallToolRequest(toolDefinition.name(), args, callMeta()));
             log.info("MCP 远程工具调用完成, toolId={}, params={}, contentSize={}, elapsed={}ms",
                     toolDefinition.name(), args,
                     result.content() != null ? result.content().size() : 0,
@@ -65,5 +69,16 @@ public class McpClientToolExecutor implements McpToolExecutor {
                     .isError(true)
                     .build();
         }
+    }
+
+    /**
+     * 调用元信息：只带登录用户，取不到时返回 null（不发送空的 {@code _meta}）
+     */
+    private Map<String, Object> callMeta() {
+        String userId = UserContext.getUserId();
+        if (userId == null || userId.isBlank()) {
+            return null;
+        }
+        return Map.of(McpCallMeta.USER_ID, userId);
     }
 }

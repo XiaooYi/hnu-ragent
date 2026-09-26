@@ -109,5 +109,6 @@ flowchart TD
 - 上游在 `c2dcc12c` 里把**内置示例工具**（资产 / 请假 / 工单等）一并重构到链式 API。本仓库的示例工具
   （天气 / 工单 / 销售）保持原状，避免为了示例工具做无收益的大面积改动；**新增工具必须使用**
   `McpToolSchema` + `McpToolResults`，规则写在 `docs/upstream/features/up-39-mcp-tool-kit.md`（本文）里。
-- 上游的身份透传还包含调用侧（Agent 的 `McpToolBridge` 往 `_meta` 里塞 userId）。本仓库尚无 Agent 运行时，
-  该部分随批次八落地；服务端侧（读取 + 回绝语义）本轮已就绪。
+- 上游的身份透传调用侧在 Agent 的 `McpToolBridge`；本仓库落在 **MCP 客户端**统一出口
+  `McpClientToolExecutor`（任何调用方，含 RAG 主链路的 MCP 检索与 Agent 工具目录，都自动带上身份），
+  键名常量见 `McpCallMeta.USER_ID`（与 mcp-server 的 `McpToolResults.META_USER_ID` 必须一致）。
