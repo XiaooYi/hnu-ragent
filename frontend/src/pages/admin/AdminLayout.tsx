@@ -7,6 +7,7 @@ import {
   ChevronsRight,
   ClipboardList,
   History,
+  Bot,
   Database,
   GitBranch,
   Layers,
@@ -138,6 +139,11 @@ const menuGroups: MenuGroup[] = [
         label: "知识图谱",
         icon: Network
       },
+      {
+        path: "/admin/agent",
+        label: "Agent 配置",
+        icon: Bot
+      },
     ]
   },
   {
@@ -171,6 +177,7 @@ const breadcrumbMap: Record<string, string> = {
   traces: "链路追踪",
   "change-logs": "变更记录",
   "knowledge-graph": "知识图谱",
+  agent: "Agent 配置",
   "sample-questions": "示例问题",
   mappings: "关键词映射",
   settings: "系统设置",

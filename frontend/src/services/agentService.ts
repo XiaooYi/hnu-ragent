@@ -70,3 +70,51 @@ export async function confirmAgentTool(
 ): Promise<string> {
   return api.post<string, string>("/agent/confirm", { toolId, arguments: args });
 }
+
+export interface AgentToolParameterView {
+  name: string;
+  type: string;
+  description: string;
+  required: boolean;
+  enumValues: string[];
+}
+
+export interface AgentTool {
+  id: string;
+  name: string;
+  description: string;
+  readOnly: boolean;
+  requiresConfirmation: boolean;
+  source: string;
+  parameters: AgentToolParameterView[];
+}
+
+export interface AgentSkill {
+  name: string;
+  description: string;
+  triggers: string[];
+  content: string;
+}
+
+export interface AgentMemory {
+  id: string;
+  content: string;
+  sourceType: string;
+  createTime?: string | null;
+}
+
+export async function getAgentTools(): Promise<AgentTool[]> {
+  return api.get<AgentTool[], AgentTool[]>("/agent/tools");
+}
+
+export async function getAgentSkills(): Promise<AgentSkill[]> {
+  return api.get<AgentSkill[], AgentSkill[]>("/agent/skills");
+}
+
+export async function getAgentMemories(): Promise<AgentMemory[]> {
+  return api.get<AgentMemory[], AgentMemory[]>("/agent/memories");
+}
+
+export async function forgetAgentMemory(id: string): Promise<void> {
+  await api.delete(`/agent/memories/${encodeURIComponent(id)}`);
+}

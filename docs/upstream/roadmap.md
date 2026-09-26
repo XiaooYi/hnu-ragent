@@ -97,7 +97,7 @@
 | --- | --- | --- | --- |
 | UP-31 | Spring Boot 4 升级 | [`features/up-32-agent-architecture-decision.md`](features/up-32-agent-architecture-decision.md)（决策 3 / P4） | 待决策（单独一轮，先跑通构建与测试基线） |
 | UP-32 | Agent 执行架构（不拆模块，包边界内聚） | [`features/up-32-agent-architecture-decision.md`](features/up-32-agent-architecture-decision.md)、[`features/up-32-agent-runtime.md`](features/up-32-agent-runtime.md) | P0 基建 + P1（引擎核心 + 会话持久化 + `/agent/chat` SSE + v1.2.0 建表）已落地（含验证）；P2 Skills / 长期记忆、P3 写确认 / 前端待续 |
-| UP-33 | 智能体管理与配置 | 见架构决策 P3 | 待 P1 |
+| UP-33 | 智能体管理与配置 | [`features/up-33-agent-admin.md`](features/up-33-agent-admin.md) | 工具/技能/记忆视图与记忆失效已落地（接口 + 页面）；智能体配置编辑见文档「与上游的差异」 |
 | UP-34 | Agent 写操作确认流程 | [`features/up-34-write-confirmation.md`](features/up-34-write-confirmation.md) | 服务端语义 + `confirm` 事件 + `POST /agent/confirm` 已落地（含验证）；确认卡前端见文档「与上游的差异」 |
 | UP-35 | Skills 体系 | [`features/up-35-skills.md`](features/up-35-skills.md) | 手册注入主链路已落地（含验证）；技能管理台与原生 Skill Tool 见文档「与上游的差异」 |
 | UP-36 | Agent 长期记忆 | [`features/up-36-agent-memory.md`](features/up-36-agent-memory.md) | 记忆主链路已落地（含验证）；抽取台账与上下文压缩见文档「与上游的差异」 |

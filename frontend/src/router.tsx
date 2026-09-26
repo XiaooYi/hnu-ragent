@@ -18,6 +18,7 @@ import { RagTraceDetailPage } from "@/pages/admin/traces/RagTraceDetailPage";
 import { SystemSettingsPage } from "@/pages/admin/settings/SystemSettingsPage";
 import { BizChangeLogPage } from "@/pages/admin/change-logs/BizChangeLogPage";
 import { KnowledgeGraphPage } from "@/pages/admin/knowledge-graph/KnowledgeGraphPage";
+import { AgentAdminPage } from "@/pages/admin/agent/AgentAdminPage";
 import { AgentChatPage } from "@/pages/AgentChatPage";
 import { SampleQuestionPage } from "@/pages/admin/sample-questions/SampleQuestionPage";
 import { QueryTermMappingPage } from "@/pages/admin/query-term-mapping/QueryTermMappingPage";
@@ -165,6 +166,10 @@ export const router = createBrowserRouter([
       {
         path: "knowledge-graph",
         element: <KnowledgeGraphPage />
+      },
+      {
+        path: "agent",
+        element: <AgentAdminPage />
       },
       {
         path: "settings",
