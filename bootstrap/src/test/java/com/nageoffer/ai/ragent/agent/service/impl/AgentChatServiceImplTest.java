@@ -23,6 +23,7 @@ import com.nageoffer.ai.ragent.agent.dto.AgentStep;
 import com.nageoffer.ai.ragent.agent.dto.AgentStreamEvent;
 import com.nageoffer.ai.ragent.agent.engine.AgentEngine;
 import com.nageoffer.ai.ragent.agent.service.AgentConversationService;
+import com.nageoffer.ai.ragent.agent.service.AgentMemoryService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -40,7 +41,8 @@ import static org.mockito.Mockito.mock;
 class AgentChatServiceImplTest {
 
     private final AgentChatServiceImpl service = new AgentChatServiceImpl(
-            mock(AgentEngine.class), mock(AgentConversationService.class), new ObjectMapper());
+            mock(AgentEngine.class), mock(AgentConversationService.class), mock(AgentMemoryService.class),
+            new ObjectMapper());
 
     @Test
     @DisplayName("事件顺序：meta → tool → message → finish")

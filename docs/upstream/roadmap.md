@@ -100,7 +100,7 @@
 | UP-33 | 智能体管理与配置 | 见架构决策 P3 | 待 P1 |
 | UP-34 | Agent 写操作确认流程 | 见架构决策 P3（默认拒绝 + 显式确认） | 待 P1 |
 | UP-35 | Skills 体系 | 见架构决策 P2 | 待 P1 |
-| UP-36 | Agent 长期记忆 | 见架构决策 P2 | 待 P1 |
+| UP-36 | Agent 长期记忆 | [`features/up-36-agent-memory.md`](features/up-36-agent-memory.md) | 记忆主链路已落地（含验证）；抽取台账与上下文压缩见文档「与上游的差异」 |
 | UP-39 | MCP 工具目录与 Schema 构造器 | [`features/up-39-mcp-tool-kit.md`](features/up-39-mcp-tool-kit.md) | 部分落地：`McpToolSchema` / `McpToolException` / `McpToolResults` 已落地（含验证）；工具目录重构（`AgentToolCatalog`）随批次八 |
 | UP-40 | MCP 身份透传 | [`features/up-39-mcp-tool-kit.md`](features/up-39-mcp-tool-kit.md) | 部分落地：服务端读取 `_meta` 身份与缺身份回绝已落地（含验证）；调用侧透传随批次八 |
 | UP-37 | LangFuse 链路追踪 | 见架构决策 P3 | 待 P1 |

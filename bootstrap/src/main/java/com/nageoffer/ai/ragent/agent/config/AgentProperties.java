@@ -64,4 +64,30 @@ public class AgentProperties {
      * 单次工具调用的结果最大字符数，超出截断，避免观察结果把上下文撑爆
      */
     private Integer maxObservationChars = 4000;
+
+    /**
+     * 长期记忆
+     */
+    private Memory memory = new Memory();
+
+    @Data
+    public static class Memory {
+
+        /**
+         * 是否启用长期记忆（抽取 + 召回）
+         * <p>
+         * 默认关闭：抽取要额外调一次模型，开启前先确认收益（记忆写错比不写更糟）
+         */
+        private Boolean enabled = false;
+
+        /**
+         * 单轮最多注入几条记忆
+         */
+        private Integer recallLimit = 5;
+
+        /**
+         * 单轮对话最多沉淀几条新事实
+         */
+        private Integer maxFactsPerTurn = 3;
+    }
 }

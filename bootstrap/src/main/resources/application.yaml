@@ -186,6 +186,11 @@ ai:
     top-p: 0.3
     allowed-tools: []   # 空表示目录内全部可用；可写 [ knowledge_search, youcom_search ] 收窄
     max-observation-chars: 4000  # 单次工具结果截断长度，避免观察结果撑爆上下文
+    # 长期记忆：跨会话保留用户事实（偏好/背景/约束）。默认关闭——抽取要多调一次模型，且写错比不写更糟
+    memory:
+      enabled: false
+      recall-limit: 5        # 单轮最多注入几条记忆
+      max-facts-per-turn: 3  # 单轮最多沉淀几条新事实
 
   providers:
     ollama:

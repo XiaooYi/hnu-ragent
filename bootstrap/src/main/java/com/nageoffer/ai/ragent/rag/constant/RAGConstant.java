@@ -139,6 +139,11 @@ public class RAGConstant {
     public static final String AGENT_REACT_PROMPT_PATH = "prompt/agent-react.st";
 
     /**
+     * Agent 长期记忆抽取提示词
+     */
+    public static final String AGENT_MEMORY_EXTRACT_PROMPT_PATH = "prompt/agent-memory-extract.st";
+
+    /**
      * MCP-only 场景提示词模板路径
      * 仅动态数据片段时使用
      */

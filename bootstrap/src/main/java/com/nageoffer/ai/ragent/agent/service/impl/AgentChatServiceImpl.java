@@ -26,6 +26,7 @@ import com.nageoffer.ai.ragent.agent.engine.AgentEngine;
 import com.nageoffer.ai.ragent.agent.enums.AgentSSEEventType;
 import com.nageoffer.ai.ragent.agent.service.AgentChatService;
 import com.nageoffer.ai.ragent.agent.service.AgentConversationService;
+import com.nageoffer.ai.ragent.agent.service.AgentMemoryService;
 import com.nageoffer.ai.ragent.framework.cancellation.TaskCancellation;
 import com.nageoffer.ai.ragent.framework.web.SseEmitterSender;
 import lombok.RequiredArgsConstructor;
@@ -53,6 +54,7 @@ public class AgentChatServiceImpl implements AgentChatService {
 
     private final AgentEngine agentEngine;
     private final AgentConversationService conversationService;
+    private final AgentMemoryService agentMemoryService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -65,9 +67,11 @@ public class AgentChatServiceImpl implements AgentChatService {
             resolvedConversationId = conversationService.ensureConversation(conversationId, question);
             userMessageId = conversationService.saveUserMessage(resolvedConversationId, question);
 
+            List<String> memories = agentMemoryService.recall(question);
             AgentRunResult result = agentEngine.run(AgentRequest.builder()
                     .question(question)
                     .conversationId(resolvedConversationId)
+                    .memories(memories)
                     .build());
 
             for (AgentStreamEvent event : assembleEvents(resolvedConversationId, result)) {
@@ -76,6 +80,7 @@ public class AgentChatServiceImpl implements AgentChatService {
 
             conversationService.saveAssistantMessage(resolvedConversationId, userMessageId, result.answer(),
                     toBlocksJson(result.steps()), "NORMAL", result.elapsedMs());
+            rememberQuietly(question, result.answer());
             sender.complete();
         } catch (Exception e) {
             if (TaskCancellation.isCancellation(e)) {
@@ -168,6 +173,17 @@ public class AgentChatServiceImpl implements AgentChatService {
         } catch (Exception e) {
             log.warn("Agent 工具块序列化失败，已跳过", e);
             return null;
+        }
+    }
+
+    /**
+     * 记忆沉淀 best-effort：写记忆失败不能影响已经答完的这一轮
+     */
+    private void rememberQuietly(String question, String answer) {
+        try {
+            agentMemoryService.remember(question, answer);
+        } catch (Exception e) {
+            log.warn("Agent 记忆沉淀失败，已跳过", e);
         }
     }
 }

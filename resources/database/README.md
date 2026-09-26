@@ -32,6 +32,7 @@ upgrades/
 | v1.1.0-005 | `upgrades/v1.1.0/005_message_recommendations.sql` | `t_message` 新增 `reply_to_message_id` / `grounding_chunks` / `recommended_questions` / `message_status` |
 | v1.1.0-006 | `upgrades/v1.1.0/006_biz_change_log.sql` | 新增 `t_biz_change_log`（业务数据变更审计日志） |
 | v1.2.0-001 | `upgrades/v1.2.0/001_agent_conversation_message.sql` | 新增 `t_agent_conversation` / `t_agent_message`（Agent 会话与消息） |
+| v1.2.0-002 | `upgrades/v1.2.0/002_agent_memory.sql` | 新增 `t_agent_memory`（Agent 长期记忆，失效不物理删除） |
 
 ## 维护约定
 

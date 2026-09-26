@@ -19,22 +19,27 @@ package com.nageoffer.ai.ragent.agent.dto;
 
 import lombok.Builder;
 
+import java.util.List;
+
 /**
  * 一次 Agent 运行的输入
  *
  * @param question       用户问题（已做查询改写时可传改写后的问题）
  * @param conversationId 会话 id，仅用于日志与后续记忆挂载，引擎本身不读会话内容
  * @param maxSteps       覆盖配置的步数上限，非正表示用配置值
+ * @param memories       长期记忆召回结果，注入提示词；为空表示本次没有可用记忆
  */
 @Builder
 public record AgentRequest(String question,
                            String conversationId,
-                           Integer maxSteps) {
+                           Integer maxSteps,
+                           List<String> memories) {
 
     public AgentRequest {
         if (question == null || question.isBlank()) {
             throw new IllegalArgumentException("Agent 问题不能为空");
         }
+        memories = memories == null ? List.of() : List.copyOf(memories);
     }
 
     public int resolveMaxSteps(int fallback) {

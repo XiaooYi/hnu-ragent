@@ -79,7 +79,7 @@ public class ReActAgentEngine implements AgentEngine {
                 throw new CancellationException("Agent run cancelled");
             }
             long stepStart = System.currentTimeMillis();
-            String raw = callModel(request.question(), observations);
+            String raw = callModel(request, observations);
             JsonNode node = parseNode(raw);
             if (node == null) {
                 // 协议不合规：整段文本当作最终回答，不因为格式问题让整轮失败
@@ -129,12 +129,13 @@ public class ReActAgentEngine implements AgentEngine {
                 System.currentTimeMillis() - startTime);
     }
 
-    private String callModel(String question, List<String> observations) {
+    private String callModel(AgentRequest request, List<String> observations) {
         String prompt = promptTemplateLoader.render(
                 RAGConstant.AGENT_REACT_PROMPT_PATH,
                 Map.of(
                         "tools", toolCatalog.describeForPrompt(),
-                        "question", question,
+                        "memories", renderMemories(request.memories()),
+                        "question", request.question(),
                         "observations", observations.isEmpty()
                                 ? "（还没有观察结果）"
                                 : "已获得的观察结果：\n" + String.join("\n\n", observations)
@@ -147,6 +148,19 @@ public class ReActAgentEngine implements AgentEngine {
                 .thinking(false)
                 .build();
         return llmService.chat(chatRequest, Tier.STANDARD);
+    }
+
+    /**
+     * 记忆块渲染：没有记忆时给一句「暂无」，避免提示词里出现空段落让模型误解
+     */
+    private String renderMemories(List<String> memories) {
+        if (memories == null || memories.isEmpty()) {
+            return "（暂无）";
+        }
+        return memories.stream()
+                .filter(memory -> memory != null && !memory.isBlank())
+                .map(memory -> "- " + memory.trim())
+                .collect(java.util.stream.Collectors.joining("\n"));
     }
 
     /**

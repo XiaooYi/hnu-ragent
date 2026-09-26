@@ -150,6 +150,19 @@ CREATE TABLE t_agent_message (
 CREATE INDEX idx_agent_msg_conv ON t_agent_message (conversation_id, user_id, create_time);
 COMMENT ON TABLE t_agent_message IS 'Agent 消息记录';
 
+CREATE TABLE t_agent_memory (
+    id            VARCHAR(20)  NOT NULL PRIMARY KEY,
+    user_id       VARCHAR(20)  NOT NULL,
+    content       VARCHAR(500) NOT NULL,
+    source_type   VARCHAR(16)  NOT NULL,
+    invalid_at    TIMESTAMP,
+    superseded_by VARCHAR(20),
+    create_time   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+-- 部分索引：读路径只查 ACTIVE，失效行不进索引
+CREATE INDEX idx_agent_memory_active ON t_agent_memory (user_id) WHERE invalid_at IS NULL;
+COMMENT ON TABLE t_agent_memory IS 'Agent 长期记忆事实表';
+
 -- ============================================
 -- Business Change Audit Tables
 -- ============================================
@@ -575,6 +588,15 @@ COMMENT ON COLUMN t_agent_message.duration_ms IS '助手消息耗时（毫秒）
 COMMENT ON COLUMN t_agent_message.create_time IS '创建时间';
 COMMENT ON COLUMN t_agent_message.update_time IS '更新时间';
 COMMENT ON COLUMN t_agent_message.deleted IS '是否删除 0：正常 1：删除';
+
+-- t_agent_memory
+COMMENT ON COLUMN t_agent_memory.id IS '主键 ID';
+COMMENT ON COLUMN t_agent_memory.user_id IS '用户 ID';
+COMMENT ON COLUMN t_agent_memory.content IS '记忆内容（一句话事实）';
+COMMENT ON COLUMN t_agent_memory.source_type IS '来源类型：PREFERENCE / FACT / CONTEXT';
+COMMENT ON COLUMN t_agent_memory.invalid_at IS '失效时间；NULL 表示生效中';
+COMMENT ON COLUMN t_agent_memory.superseded_by IS '取代该条记忆的新记忆 ID';
+COMMENT ON COLUMN t_agent_memory.create_time IS '创建时间';
 
 -- t_biz_change_log
 COMMENT ON COLUMN t_biz_change_log.id IS '主键 ID';
