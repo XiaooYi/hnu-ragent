@@ -95,7 +95,7 @@
 
 | 编号 | 功能 | 功能文档 | 状态 |
 | --- | --- | --- | --- |
-| UP-31 | Spring Boot 4 升级 | [`features/up-31-spring-boot4.md`](features/up-31-spring-boot4.md) | 已落地（含验证）：Boot 4.1.0 + MyBatis-Plus boot4 starter 3.5.17 + Sa-Token boot4 starter 1.45.0 + Redisson 4.6.1 + RocketMQ 2.3.6；补 Jackson 2 `ObjectMapper` bean，收口 OkHttp/Okio 冲突并锁 ES 客户端 8.18.8 |
+| UP-31 | Spring Boot 4 升级 | [`features/up-31-spring-boot4.md`](features/up-31-spring-boot4.md) | 已落地（含验证）：Boot 4.1.0 + MyBatis-Plus boot4 starter 3.5.17 + Sa-Token boot4 starter 1.45.0 + Redisson 4.6.1 + RocketMQ 2.3.6 + `spring-boot-jackson2`；收口 OkHttp/Okio 冲突并锁 ES 客户端 8.18.8。测试结果与 Boot 3 基线一致（291 项 / 0 失败 / 17 环境错误） |
 | UP-32 | Agent 执行架构（不拆模块，包边界内聚） | [`features/up-32-agent-architecture-decision.md`](features/up-32-agent-architecture-decision.md)、[`features/up-32-agent-runtime.md`](features/up-32-agent-runtime.md) | P0 基建 + P1（引擎核心 + 会话持久化 + `/agent/chat` SSE + v1.2.0 建表）已落地（含验证）；P2 Skills / 长期记忆、P3 写确认 / 前端待续 |
 | UP-33 | 智能体管理与配置 | [`features/up-33-agent-admin.md`](features/up-33-agent-admin.md) | 工具/技能/记忆视图与记忆失效已落地（接口 + 页面）；智能体配置编辑见文档「与上游的差异」 |
 | UP-34 | Agent 写操作确认流程 | [`features/up-34-write-confirmation.md`](features/up-34-write-confirmation.md) | 服务端语义 + `confirm` 事件 + `POST /agent/confirm` 已落地（含验证）；确认卡前端见文档「与上游的差异」 |

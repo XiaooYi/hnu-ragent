@@ -46,6 +46,17 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <!--
+          Spring Boot 4 默认 JSON 实现换成 Jackson 3（tools.jackson），容器里不再有
+          com.fasterxml.jackson.databind.ObjectMapper bean；本项目既有代码（意图缓存、审计快照、
+          图谱客户端、记忆抽取解析等）基于 Jackson 2，这里引官方适配模块恢复 Jackson 2 自动配置，
+          而不是手写一个 ObjectMapper bean —— 前者能继续尊重 spring.jackson.* 属性与模块注册。
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-jackson2</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
