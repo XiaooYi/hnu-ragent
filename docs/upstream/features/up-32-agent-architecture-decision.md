@@ -8,6 +8,12 @@ UP-36 长期记忆、UP-37 LangFuse、UP-39/40 工具目录与身份透传、UP-
 再逐阶段实现。上游在这一批里单次提交涉及数百个文件与一次 Spring Boot 大版本升级，
 不做分阶段与决策记录直接搬运，风险不可控。
 
+> 说明：本文是**决策记录**，因此不含「功能介绍 / 验收标准 / 代码位置 / 相关图表」四节实现模板。
+> 批次八各阶段的**实现文档**（四节齐全）见：本目录下 `up-32-agent-runtime.md`、`up-33-agent-admin.md`、
+> `up-34-write-confirmation.md`、`up-35-skills.md`、`up-36-agent-memory.md`、`up-37-langfuse.md`、
+> `up-39-mcp-tool-kit.md`、`up-41-initializer.md`、`up-44-agent-frontend.md`、`up-44-agent-dashboard.md`、
+> `up-44-frontend-remainder.md`、`up-31-spring-boot4.md`、`up-17-agent-context.md`。
+
 ## 一、上游 Agent 体系的真实范围（调研结论）
 
 上游 `agent` 模块（约 131 个源文件）由这些部分构成：
