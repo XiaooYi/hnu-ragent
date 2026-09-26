@@ -28,18 +28,21 @@ import java.util.List;
  * @param conversationId 会话 id，仅用于日志与后续记忆挂载，引擎本身不读会话内容
  * @param maxSteps       覆盖配置的步数上限，非正表示用配置值
  * @param memories       长期记忆召回结果，注入提示词；为空表示本次没有可用记忆
+ * @param skills         命中的技能手册正文，注入提示词；为空表示本次没有匹配技能
  */
 @Builder
 public record AgentRequest(String question,
                            String conversationId,
                            Integer maxSteps,
-                           List<String> memories) {
+                           List<String> memories,
+                           List<String> skills) {
 
     public AgentRequest {
         if (question == null || question.isBlank()) {
             throw new IllegalArgumentException("Agent 问题不能为空");
         }
         memories = memories == null ? List.of() : List.copyOf(memories);
+        skills = skills == null ? List.of() : List.copyOf(skills);
     }
 
     public int resolveMaxSteps(int fallback) {

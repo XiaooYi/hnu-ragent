@@ -191,6 +191,11 @@ ai:
       enabled: false
       recall-limit: 5        # 单轮最多注入几条记忆
       max-facts-per-turn: 3  # 单轮最多沉淀几条新事实
+    # 技能手册：classpath 下 agent/skills/*.md，触发词命中时注入提示词（静态文本，无额外模型调用）
+    skills:
+      enabled: true
+      max-skills: 2          # 单轮最多注入几份手册
+      location: classpath*:agent/skills/*.md
 
   providers:
     ollama:

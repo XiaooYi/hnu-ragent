@@ -135,6 +135,7 @@ public class ReActAgentEngine implements AgentEngine {
                 Map.of(
                         "tools", toolCatalog.describeForPrompt(),
                         "memories", renderMemories(request.memories()),
+                        "skills", renderSkills(request.skills()),
                         "question", request.question(),
                         "observations", observations.isEmpty()
                                 ? "（还没有观察结果）"
@@ -161,6 +162,18 @@ public class ReActAgentEngine implements AgentEngine {
                 .filter(memory -> memory != null && !memory.isBlank())
                 .map(memory -> "- " + memory.trim())
                 .collect(java.util.stream.Collectors.joining("\n"));
+    }
+
+    /**
+     * 技能块渲染：命中的手册逐份给出，没有命中时明确「无」，避免模型把空段落当约束
+     */
+    private String renderSkills(List<String> skills) {
+        if (skills == null || skills.isEmpty()) {
+            return "（本次没有命中技能手册）";
+        }
+        return skills.stream()
+                .filter(skill -> skill != null && !skill.isBlank())
+                .collect(java.util.stream.Collectors.joining("\n\n"));
     }
 
     /**

@@ -27,6 +27,8 @@ import com.nageoffer.ai.ragent.agent.enums.AgentSSEEventType;
 import com.nageoffer.ai.ragent.agent.service.AgentChatService;
 import com.nageoffer.ai.ragent.agent.service.AgentConversationService;
 import com.nageoffer.ai.ragent.agent.service.AgentMemoryService;
+import com.nageoffer.ai.ragent.agent.skill.AgentSkill;
+import com.nageoffer.ai.ragent.agent.skill.AgentSkillService;
 import com.nageoffer.ai.ragent.framework.cancellation.TaskCancellation;
 import com.nageoffer.ai.ragent.framework.web.SseEmitterSender;
 import lombok.RequiredArgsConstructor;
@@ -55,6 +57,7 @@ public class AgentChatServiceImpl implements AgentChatService {
     private final AgentEngine agentEngine;
     private final AgentConversationService conversationService;
     private final AgentMemoryService agentMemoryService;
+    private final AgentSkillService agentSkillService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -68,10 +71,14 @@ public class AgentChatServiceImpl implements AgentChatService {
             userMessageId = conversationService.saveUserMessage(resolvedConversationId, question);
 
             List<String> memories = agentMemoryService.recall(question);
+            List<String> skills = agentSkillService.match(question, 0).stream()
+                    .map(AgentSkill::render)
+                    .toList();
             AgentRunResult result = agentEngine.run(AgentRequest.builder()
                     .question(question)
                     .conversationId(resolvedConversationId)
                     .memories(memories)
+                    .skills(skills)
                     .build());
 
             for (AgentStreamEvent event : assembleEvents(resolvedConversationId, result)) {

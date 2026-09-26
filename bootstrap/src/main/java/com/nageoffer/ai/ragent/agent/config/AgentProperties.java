@@ -70,6 +70,11 @@ public class AgentProperties {
      */
     private Memory memory = new Memory();
 
+    /**
+     * 技能手册
+     */
+    private Skills skills = new Skills();
+
     @Data
     public static class Memory {
 
@@ -89,5 +94,21 @@ public class AgentProperties {
          * 单轮对话最多沉淀几条新事实
          */
         private Integer maxFactsPerTurn = 3;
+    }
+
+    @Data
+    public static class Skills {
+
+        /**
+         * 是否启用技能手册注入
+         * <p>
+         * 默认开启：技能手册是随代码发布的静态文本，不产生额外模型调用；关闭时只影响提示词内容
+         */
+        private Boolean enabled = true;
+
+        /**
+         * 单轮最多注入几份手册
+         */
+        private Integer maxSkills = 2;
     }
 }

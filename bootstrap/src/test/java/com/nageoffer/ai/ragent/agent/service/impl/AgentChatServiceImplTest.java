@@ -24,6 +24,7 @@ import com.nageoffer.ai.ragent.agent.dto.AgentStreamEvent;
 import com.nageoffer.ai.ragent.agent.engine.AgentEngine;
 import com.nageoffer.ai.ragent.agent.service.AgentConversationService;
 import com.nageoffer.ai.ragent.agent.service.AgentMemoryService;
+import com.nageoffer.ai.ragent.agent.skill.AgentSkillService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -42,7 +43,7 @@ class AgentChatServiceImplTest {
 
     private final AgentChatServiceImpl service = new AgentChatServiceImpl(
             mock(AgentEngine.class), mock(AgentConversationService.class), mock(AgentMemoryService.class),
-            new ObjectMapper());
+            mock(AgentSkillService.class), new ObjectMapper());
 
     @Test
     @DisplayName("事件顺序：meta → tool → message → finish")
