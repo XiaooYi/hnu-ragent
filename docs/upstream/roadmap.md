@@ -50,7 +50,7 @@
 | 编号 | 功能 | 功能文档 | 状态 |
 | --- | --- | --- | --- |
 | UP-13 | 分块策略重构（贪心打包/重叠/图片合并） | [`features/up-13-chunking-refactor.md`](features/up-13-chunking-refactor.md) | 已落地（含验证；旧策略模式与 VectorChunk 按差异说明保留） |
-| UP-17 | 会话摘要与上下文裁剪 | [`features/up-17-memory-compaction.md`](features/up-17-memory-compaction.md) | 部分落地：摘要刷新边界已修（含验证）；Agent 侧上下文裁剪随 UP-36 |
+| UP-17 | 会话摘要与上下文裁剪 | [`features/up-17-memory-compaction.md`](features/up-17-memory-compaction.md)、[`features/up-17-agent-context.md`](features/up-17-agent-context.md) | 已落地：RAG 侧摘要刷新边界 + Agent 侧多轮上下文装配与压缩（均含验证） |
 | UP-15 | 知识库删除异步资源清理 | [`features/up-15-async-cleanup.md`](features/up-15-async-cleanup.md) | 已落地（含验证） |
 | UP-16 | MinerU 并发控制重构 | [`features/up-16-mineru-semaphore.md`](features/up-16-mineru-semaphore.md) | 已落地（含验证） |
 | UP-14 | 文件存储抽象 | [`features/up-14-storage-abstraction.md`](features/up-14-storage-abstraction.md) | 已落地（含验证） |
@@ -95,7 +95,7 @@
 
 | 编号 | 功能 | 功能文档 | 状态 |
 | --- | --- | --- | --- |
-| UP-31 | Spring Boot 4 升级 | [`features/up-32-agent-architecture-decision.md`](features/up-32-agent-architecture-decision.md)（决策 3 / P4） | 待决策（单独一轮，先跑通构建与测试基线） |
+| UP-31 | Spring Boot 4 升级 | [`features/up-32-agent-architecture-decision.md`](features/up-32-agent-architecture-decision.md)（决策 3 / P4） | **被环境阻塞（待决策）**：本地 m2 只有 `spring-boot-dependencies:4.0.0` 与 `spring-core:7.0.3`，`spring-boot-starter-web` 等 4.x 构件缺失，离线（`mvnw -o`）无法解析；需先把依赖下载进本地仓库（需要放开网络）或确认不做该升级 |
 | UP-32 | Agent 执行架构（不拆模块，包边界内聚） | [`features/up-32-agent-architecture-decision.md`](features/up-32-agent-architecture-decision.md)、[`features/up-32-agent-runtime.md`](features/up-32-agent-runtime.md) | P0 基建 + P1（引擎核心 + 会话持久化 + `/agent/chat` SSE + v1.2.0 建表）已落地（含验证）；P2 Skills / 长期记忆、P3 写确认 / 前端待续 |
 | UP-33 | 智能体管理与配置 | [`features/up-33-agent-admin.md`](features/up-33-agent-admin.md) | 工具/技能/记忆视图与记忆失效已落地（接口 + 页面）；智能体配置编辑见文档「与上游的差异」 |
 | UP-34 | Agent 写操作确认流程 | [`features/up-34-write-confirmation.md`](features/up-34-write-confirmation.md) | 服务端语义 + `confirm` 事件 + `POST /agent/confirm` 已落地（含验证）；确认卡前端见文档「与上游的差异」 |

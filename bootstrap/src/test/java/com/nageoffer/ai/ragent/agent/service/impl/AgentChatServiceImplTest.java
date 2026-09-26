@@ -22,7 +22,9 @@ import com.nageoffer.ai.ragent.agent.dto.AgentRunResult;
 import com.nageoffer.ai.ragent.agent.dto.AgentStep;
 import com.nageoffer.ai.ragent.agent.dto.AgentStreamEvent;
 import com.nageoffer.ai.ragent.agent.engine.AgentEngine;
+import com.nageoffer.ai.ragent.agent.config.AgentProperties;
 import com.nageoffer.ai.ragent.agent.service.AgentConversationService;
+import com.nageoffer.ai.ragent.agent.service.AgentHistoryAssembler;
 import com.nageoffer.ai.ragent.agent.service.AgentMemoryService;
 import com.nageoffer.ai.ragent.agent.skill.AgentSkillService;
 import com.nageoffer.ai.ragent.agent.tool.AgentToolCatalog;
@@ -46,7 +48,8 @@ import static org.mockito.Mockito.when;
 class AgentChatServiceImplTest {
 
     private final AgentChatServiceImpl service = new AgentChatServiceImpl(
-            mock(AgentEngine.class), mock(AgentConversationService.class), mock(AgentMemoryService.class),
+            mock(AgentEngine.class), new AgentProperties(), mock(AgentConversationService.class),
+            mock(AgentHistoryAssembler.class), mock(AgentMemoryService.class),
             mock(AgentSkillService.class), mock(AgentToolCatalog.class), provider(), new ObjectMapper());
 
     /**

@@ -219,6 +219,11 @@ ai:
     # 写操作确认：默认开启（默认拒绝语义），关闭等于允许模型自主写数据
     confirm:
       required: true
+    # 多轮上下文：保留最近若干轮完整问答，更早的轮次压成「仅问题」摘要，整体受字符预算约束
+    history:
+      enabled: true
+      keep-turns: 4
+      max-chars: 2000
 
   providers:
     ollama:

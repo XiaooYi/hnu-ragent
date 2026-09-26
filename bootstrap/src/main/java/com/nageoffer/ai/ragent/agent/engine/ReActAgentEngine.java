@@ -149,6 +149,7 @@ public class ReActAgentEngine implements AgentEngine {
                         "tools", toolCatalog.describeForPrompt(),
                         "memories", renderMemories(request.memories()),
                         "skills", renderSkills(request.skills()),
+                        "history", StrUtil.blankToDefault(request.history(), "（本次是新会话的第一轮）"),
                         "question", request.question(),
                         "observations", observations.isEmpty()
                                 ? "（还没有观察结果）"

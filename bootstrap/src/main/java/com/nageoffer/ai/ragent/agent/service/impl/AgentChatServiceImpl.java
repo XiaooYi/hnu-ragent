@@ -22,10 +22,13 @@ import com.nageoffer.ai.ragent.agent.dto.AgentRequest;
 import com.nageoffer.ai.ragent.agent.dto.AgentRunResult;
 import com.nageoffer.ai.ragent.agent.dto.AgentStep;
 import com.nageoffer.ai.ragent.agent.dto.AgentStreamEvent;
+import com.nageoffer.ai.ragent.agent.config.AgentProperties;
+import com.nageoffer.ai.ragent.agent.dao.entity.AgentMessageDO;
 import com.nageoffer.ai.ragent.agent.engine.AgentEngine;
 import com.nageoffer.ai.ragent.agent.enums.AgentSSEEventType;
 import com.nageoffer.ai.ragent.agent.service.AgentChatService;
 import com.nageoffer.ai.ragent.agent.service.AgentConversationService;
+import com.nageoffer.ai.ragent.agent.service.AgentHistoryAssembler;
 import com.nageoffer.ai.ragent.agent.service.AgentMemoryService;
 import com.nageoffer.ai.ragent.agent.skill.AgentSkill;
 import com.nageoffer.ai.ragent.agent.skill.AgentSkillService;
@@ -59,7 +62,9 @@ import java.util.Map;
 public class AgentChatServiceImpl implements AgentChatService {
 
     private final AgentEngine agentEngine;
+    private final AgentProperties agentProperties;
     private final AgentConversationService conversationService;
+    private final AgentHistoryAssembler agentHistoryAssembler;
     private final AgentMemoryService agentMemoryService;
     private final AgentSkillService agentSkillService;
     private final AgentToolCatalog agentToolCatalog;
@@ -80,11 +85,13 @@ public class AgentChatServiceImpl implements AgentChatService {
             List<String> skills = agentSkillService.match(question, 0).stream()
                     .map(AgentSkill::render)
                     .toList();
+            String history = resolveHistory(resolvedConversationId);
             AgentRunResult result = agentEngine.run(AgentRequest.builder()
                     .question(question)
                     .conversationId(resolvedConversationId)
                     .memories(memories)
                     .skills(skills)
+                    .history(history)
                     .build());
 
             for (AgentStreamEvent event : assembleEvents(resolvedConversationId, result)) {
@@ -229,6 +236,27 @@ public class AgentChatServiceImpl implements AgentChatService {
             agentMemoryService.remember(question, answer);
         } catch (Exception e) {
             log.warn("Agent 记忆沉淀失败，已跳过", e);
+        }
+    }
+
+    /**
+     * 装配历史（含压缩）：本轮提问已落库，装配前要把它排除，否则模型会把当前问题当成历史
+     */
+    private String resolveHistory(String conversationId) {
+        if (!Boolean.TRUE.equals(agentProperties.getHistory().getEnabled())) {
+            return "";
+        }
+        try {
+            List<AgentMessageDO> messages = conversationService.listMessages(conversationId);
+            if (messages == null || messages.isEmpty()) {
+                return "";
+            }
+            // 去掉最后一条（就是本次提问）
+            List<AgentMessageDO> history = messages.subList(0, messages.size() - 1);
+            return agentHistoryAssembler.assemble(history);
+        } catch (Exception e) {
+            log.warn("装配 Agent 历史失败，本轮按无历史处理, conversationId={}", conversationId, e);
+            return "";
         }
     }
 

@@ -29,13 +29,15 @@ import java.util.List;
  * @param maxSteps       覆盖配置的步数上限，非正表示用配置值
  * @param memories       长期记忆召回结果，注入提示词；为空表示本次没有可用记忆
  * @param skills         命中的技能手册正文，注入提示词；为空表示本次没有匹配技能
+ * @param history        多轮上下文（最近若干轮 + 更早轮次的问题摘要），为空表示首轮
  */
 @Builder
 public record AgentRequest(String question,
                            String conversationId,
                            Integer maxSteps,
                            List<String> memories,
-                           List<String> skills) {
+                           List<String> skills,
+                           String history) {
 
     public AgentRequest {
         if (question == null || question.isBlank()) {

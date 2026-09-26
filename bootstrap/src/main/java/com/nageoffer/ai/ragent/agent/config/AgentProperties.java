@@ -88,6 +88,11 @@ public class AgentProperties {
      */
     private Confirm confirm = new Confirm();
 
+    /**
+     * 多轮上下文
+     */
+    private History history = new History();
+
     @Data
     public static class Memory {
 
@@ -134,5 +139,26 @@ public class AgentProperties {
          * 默认开启：Agent 调写工具前必须先拿到用户确认（默认拒绝语义），关掉它等于允许模型自主写数据
          */
         private Boolean required = true;
+    }
+
+    @Data
+    public static class History {
+
+        /**
+         * 是否带上历史（默认开启）
+         * <p>
+         * 关掉后 Agent 每轮都是「失忆」状态，只适合单轮工具调用场景
+         */
+        private Boolean enabled = true;
+
+        /**
+         * 保留几轮完整问答；更早的轮次压成「仅问题」摘要
+         */
+        private Integer keepTurns = 4;
+
+        /**
+         * 历史块字符预算；超出时从更早的轮次开始丢
+         */
+        private Integer maxChars = 2000;
     }
 }
