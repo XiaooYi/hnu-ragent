@@ -75,6 +75,19 @@ public class AgentProperties {
      */
     private Skills skills = new Skills();
 
+    /**
+     * 声明为只读的工具 id（本地工具已自行声明，这里主要给 MCP 工具用）
+     * <p>
+     * MCP 协议无法表达读写属性，默认一律按写操作处理；确认过确实只读的工具（如联网检索）在此登记，
+     * 否则每次调用都会走人工确认
+     */
+    private List<String> readOnlyTools = new ArrayList<>();
+
+    /**
+     * 写操作确认
+     */
+    private Confirm confirm = new Confirm();
+
     @Data
     public static class Memory {
 
@@ -110,5 +123,16 @@ public class AgentProperties {
          * 单轮最多注入几份手册
          */
         private Integer maxSkills = 2;
+    }
+
+    @Data
+    public static class Confirm {
+
+        /**
+         * 写操作是否需要人工确认
+         * <p>
+         * 默认开启：Agent 调写工具前必须先拿到用户确认（默认拒绝语义），关掉它等于允许模型自主写数据
+         */
+        private Boolean required = true;
     }
 }

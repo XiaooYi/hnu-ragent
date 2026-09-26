@@ -99,6 +99,36 @@ class AgentToolCatalogTest {
     }
 
     @Test
+    @DisplayName("写操作确认策略：非只读工具需要确认，登记为只读的 MCP 工具不需要")
+    void decidesConfirmationPolicy() {
+        AgentToolCatalog catalog = catalog(localTool(), mcpRegistry(Map.of("order_create", "下单")));
+
+        assertFalse(catalog.requiresConfirmation("knowledge_search"));
+        assertTrue(catalog.requiresConfirmation("order_create"), "MCP 工具默认按写操作处理");
+        assertFalse(catalog.requiresConfirmation("unknown_tool"), "目录外的工具不需要确认，直接拒绝执行");
+
+        properties.setReadOnlyTools(List.of("order_create"));
+        assertFalse(catalog.requiresConfirmation("order_create"), "确认过确实只读后不再每次确认");
+
+        properties.setReadOnlyTools(List.of());
+        properties.getConfirm().setRequired(false);
+        assertFalse(catalog.requiresConfirmation("order_create"), "关掉确认开关即允许直接执行");
+    }
+
+    @Test
+    @DisplayName("确认卡参数说明取本地工具的参数描述，未知参数回退原值")
+    void describesConfirmFields() {
+        AgentToolCatalog catalog = catalog(localTool(), null);
+
+        Map<String, String> fields = catalog.describeArguments("knowledge_search",
+                Map.of("query", "转专业", "unknown", "x"));
+
+        assertEquals("检索关键词", fields.get("query"));
+        assertEquals("x", fields.get("unknown"));
+        assertTrue(catalog.describeArguments("knowledge_search", null).isEmpty());
+    }
+
+    @Test
     @DisplayName("执行本地工具与 MCP 工具，MCP 错误结果带错误前缀")
     void executesBothSources() {
         McpToolExecutor failing = mock(McpToolExecutor.class);

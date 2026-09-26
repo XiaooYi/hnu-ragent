@@ -29,6 +29,8 @@ import com.nageoffer.ai.ragent.agent.service.AgentConversationService;
 import com.nageoffer.ai.ragent.agent.service.AgentMemoryService;
 import com.nageoffer.ai.ragent.agent.skill.AgentSkill;
 import com.nageoffer.ai.ragent.agent.skill.AgentSkillService;
+import com.nageoffer.ai.ragent.agent.tool.AgentToolCatalog;
+import com.nageoffer.ai.ragent.framework.exception.ClientException;
 import com.nageoffer.ai.ragent.framework.cancellation.TaskCancellation;
 import com.nageoffer.ai.ragent.framework.web.SseEmitterSender;
 import lombok.RequiredArgsConstructor;
@@ -58,6 +60,7 @@ public class AgentChatServiceImpl implements AgentChatService {
     private final AgentConversationService conversationService;
     private final AgentMemoryService agentMemoryService;
     private final AgentSkillService agentSkillService;
+    private final AgentToolCatalog agentToolCatalog;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -86,8 +89,13 @@ public class AgentChatServiceImpl implements AgentChatService {
             }
 
             conversationService.saveAssistantMessage(resolvedConversationId, userMessageId, result.answer(),
-                    toBlocksJson(result.steps()), "NORMAL", result.elapsedMs());
-            rememberQuietly(question, result.answer());
+                    toBlocksJson(result.steps()),
+                    result.stopReason() == AgentRunResult.StopReason.CONFIRM_REQUIRED ? "CONFIRM_PENDING" : "NORMAL",
+                    result.elapsedMs());
+            if (result.stopReason() != AgentRunResult.StopReason.CONFIRM_REQUIRED) {
+                // 待确认的那一轮没有真实回答，不值得沉淀记忆
+                rememberQuietly(question, result.answer());
+            }
             sender.complete();
         } catch (Exception e) {
             if (TaskCancellation.isCancellation(e)) {
@@ -110,6 +118,23 @@ public class AgentChatServiceImpl implements AgentChatService {
             sender.sendEvent(AgentSSEEventType.FINISH.getValue(), Map.of("reason", "FAILED"));
             sender.complete();
         }
+    }
+
+    /**
+     * 用户确认后执行写操作
+     */
+    @Override
+    public String executeConfirmed(String toolId, Map<String, Object> arguments) {
+        if (toolId == null || toolId.isBlank()) {
+            throw new ClientException("待确认的工具不能为空");
+        }
+        boolean available = agentToolCatalog.listTools().stream()
+                .anyMatch(tool -> tool.id().equals(toolId));
+        if (!available) {
+            throw new ClientException("工具不存在或未启用：" + toolId);
+        }
+        log.info("用户已确认写操作，开始执行, toolId={}", toolId);
+        return agentToolCatalog.execute(toolId, arguments);
     }
 
     /**
@@ -140,6 +165,15 @@ public class AgentChatServiceImpl implements AgentChatService {
         if (result.stopReason() == AgentRunResult.StopReason.MAX_STEPS) {
             events.add(new AgentStreamEvent(AgentSSEEventType.HINT.getValue(),
                     Map.of("message", "已达到单轮工具调用上限，本次基于已有信息作答")));
+        }
+
+        if (result.pendingCall() != null) {
+            events.add(new AgentStreamEvent(AgentSSEEventType.CONFIRM.getValue(), Map.of(
+                    "toolId", result.pendingCall().toolId(),
+                    "arguments", result.pendingCall().arguments(),
+                    "fieldLabels", result.pendingCall().fieldLabels(),
+                    "stepIndex", result.pendingCall().stepIndex()
+            )));
         }
 
         events.add(new AgentStreamEvent(AgentSSEEventType.MESSAGE.getValue(),

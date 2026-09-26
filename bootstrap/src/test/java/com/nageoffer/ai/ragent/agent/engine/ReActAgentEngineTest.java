@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -172,6 +173,21 @@ class ReActAgentEngineTest {
         }
     }
 
+    @Test
+    @DisplayName("命中写操作时先要确认，不执行工具")
+    void asksForConfirmationOnWriteTool() {
+        modelOutputs.add("{\"thought\":\"需要下单\",\"action\":{\"tool\":\"order_create\",\"arguments\":{\"sku\":\"A\"}}}");
+
+        AgentRunResult result = engine.run(AgentRequest.builder().question("帮我下单").build());
+
+        assertEquals(AgentRunResult.StopReason.CONFIRM_REQUIRED, result.stopReason());
+        assertNotNull(result.pendingCall());
+        assertEquals("order_create", result.pendingCall().toolId());
+        assertEquals(1, result.pendingCall().stepIndex());
+        assertTrue(result.answer().contains("需要你确认"));
+        assertEquals(1, result.steps().size());
+    }
+
     private AgentToolCatalog catalog() {
         return new AgentToolCatalog(List.of(), null, properties) {
             @Override
@@ -183,6 +199,16 @@ class ReActAgentEngineTest {
             @Override
             public String describeForPrompt() {
                 return "工具目录";
+            }
+
+            @Override
+            public boolean requiresConfirmation(String toolId) {
+                return "order_create".equals(toolId);
+            }
+
+            @Override
+            public Map<String, String> describeArguments(String toolId, Map<String, Object> arguments) {
+                return Map.of("sku", "商品编码");
             }
         };
     }

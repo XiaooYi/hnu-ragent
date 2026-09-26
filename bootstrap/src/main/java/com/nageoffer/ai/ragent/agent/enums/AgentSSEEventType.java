@@ -51,6 +51,11 @@ public enum AgentSSEEventType {
     HINT("hint"),
 
     /**
+     * 等待用户确认写操作：{@code {toolId, arguments, fieldLabels, stepIndex}}
+     */
+    CONFIRM("confirm"),
+
+    /**
      * 结束（携带结束原因与耗时）
      */
     FINISH("finish");

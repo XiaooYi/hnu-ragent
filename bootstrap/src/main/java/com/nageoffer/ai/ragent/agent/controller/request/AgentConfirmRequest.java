@@ -15,30 +15,25 @@
  * limitations under the License.
  */
 
-package com.nageoffer.ai.ragent.agent.service;
+package com.nageoffer.ai.ragent.agent.controller.request;
 
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import lombok.Data;
 
 import java.util.Map;
 
 /**
- * Agent 对话
+ * 写操作确认请求
  */
-public interface AgentChatService {
+@Data
+public class AgentConfirmRequest {
 
     /**
-     * 跑一轮 Agent 并用 SSE 下发过程事件
-     *
-     * @param question       用户问题
-     * @param conversationId 会话 ID，为空则由服务端新建
-     * @param emitter        SSE 通道
+     * 待执行工具 id（必须在当前工具目录内）
      */
-    void streamChat(String question, String conversationId, SseEmitter emitter);
+    private String toolId;
 
     /**
-     * 用户确认后执行写操作，返回工具观察结果
-     * <p>
-     * 入参以用户提交为准；工具必须仍在目录内（白名单与启用状态生效）
+     * 用户确认后的入参（以用户提交为准，可修正模型给错的参数）
      */
-    String executeConfirmed(String toolId, Map<String, Object> arguments);
+    private Map<String, Object> arguments;
 }

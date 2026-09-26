@@ -196,6 +196,12 @@ ai:
       enabled: true
       max-skills: 2          # 单轮最多注入几份手册
       location: classpath*:agent/skills/*.md
+    # 声明为只读的工具 id：本地工具会自行声明，这里主要给 MCP 工具用
+    # MCP 协议无法表达读写属性，默认一律按写操作处理（每次调用都要人工确认）
+    read-only-tools: [ youcom_search ]
+    # 写操作确认：默认开启（默认拒绝语义），关闭等于允许模型自主写数据
+    confirm:
+      required: true
 
   providers:
     ollama:

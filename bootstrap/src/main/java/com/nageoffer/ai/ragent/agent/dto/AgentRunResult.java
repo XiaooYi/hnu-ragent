@@ -18,6 +18,7 @@
 package com.nageoffer.ai.ragent.agent.dto;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 一次 Agent 运行的结果
@@ -26,14 +27,39 @@ import java.util.List;
  * @param steps           过程步骤，供 SSE 展示与 trace 留痕
  * @param stopReason      结束原因
  * @param elapsedMs       总耗时
+ * @param pendingCall     需要用户确认的写操作调用；仅当 stopReason=CONFIRM_REQUIRED 时非空
  */
 public record AgentRunResult(String answer,
                              List<AgentStep> steps,
                              StopReason stopReason,
-                             long elapsedMs) {
+                             long elapsedMs,
+                             PendingToolCall pendingCall) {
 
     public AgentRunResult {
         steps = steps == null ? List.of() : List.copyOf(steps);
+    }
+
+    public AgentRunResult(String answer, List<AgentStep> steps, StopReason stopReason, long elapsedMs) {
+        this(answer, steps, stopReason, elapsedMs, null);
+    }
+
+    /**
+     * 待确认的写操作调用
+     *
+     * @param toolId        工具 id
+     * @param arguments     模型给出的入参
+     * @param fieldLabels   参数名 → 人工可读说明（确认卡渲染用）
+     * @param stepIndex     该调用发生在第几步
+     */
+    public record PendingToolCall(String toolId,
+                                  Map<String, Object> arguments,
+                                  Map<String, String> fieldLabels,
+                                  int stepIndex) {
+
+        public PendingToolCall {
+            arguments = arguments == null ? Map.of() : Map.copyOf(arguments);
+            fieldLabels = fieldLabels == null ? Map.of() : Map.copyOf(fieldLabels);
+        }
     }
 
     /**
@@ -45,6 +71,8 @@ public record AgentRunResult(String answer,
         /** 达到步数上限，用最后一次观察收口 */
         MAX_STEPS,
         /** 模型协议不合规（非 JSON），整段文本作为回答 */
-        FALLBACK_TEXT
+        FALLBACK_TEXT,
+        /** 命中写操作，等待用户确认后才执行 */
+        CONFIRM_REQUIRED
     }
 }

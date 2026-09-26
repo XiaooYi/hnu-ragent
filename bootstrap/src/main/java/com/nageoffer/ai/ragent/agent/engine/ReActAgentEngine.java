@@ -113,6 +113,19 @@ public class ReActAgentEngine implements AgentEngine {
                 continue;
             }
 
+            // 写操作默认拒绝：先交给用户确认，绝不替用户做主
+            if (toolCatalog.requiresConfirmation(toolId)) {
+                String answer = "这个操作会修改数据，需要你确认后才会执行：" + toolId;
+                steps.add(new AgentStep(index, thought, toolId, arguments, answer,
+                        System.currentTimeMillis() - stepStart));
+                log.info("Agent 命中写操作，等待用户确认, toolId={}, conversationId={}",
+                        toolId, request.conversationId());
+                return new AgentRunResult(answer, steps, AgentRunResult.StopReason.CONFIRM_REQUIRED,
+                        System.currentTimeMillis() - startTime,
+                        new AgentRunResult.PendingToolCall(toolId, arguments,
+                                toolCatalog.describeArguments(toolId, arguments), index));
+            }
+
             String observation = executeTool(toolId, arguments);
             lastObservation = observation;
             observations.add("第 " + index + " 步调用 " + toolId + " 的观察结果：\n" + observation);

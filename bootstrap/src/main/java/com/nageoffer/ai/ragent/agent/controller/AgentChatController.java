@@ -19,6 +19,7 @@ package com.nageoffer.ai.ragent.agent.controller;
 
 import com.nageoffer.ai.ragent.agent.controller.vo.AgentConversationVO;
 import com.nageoffer.ai.ragent.agent.controller.vo.AgentMessageVO;
+import com.nageoffer.ai.ragent.agent.controller.request.AgentConfirmRequest;
 import com.nageoffer.ai.ragent.agent.dao.entity.AgentConversationDO;
 import com.nageoffer.ai.ragent.agent.dao.entity.AgentMessageDO;
 import com.nageoffer.ai.ragent.agent.service.AgentChatService;
@@ -31,11 +32,14 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Agent 对话接口
@@ -60,6 +64,18 @@ public class AgentChatController {
         SseEmitter emitter = new SseEmitter(ragDefaultProperties.getSseTimeoutMs());
         agentChatService.streamChat(question, conversationId, emitter);
         return emitter;
+    }
+
+    /**
+     * 用户确认后执行写操作
+     * <p>
+     * 只执行用户显式确认过的这一次调用：工具 id 仍要在目录内（白名单与启用状态都生效），
+     * 入参以用户提交为准，不再回放模型当时的原参数
+     */
+    @PostMapping("/agent/confirm")
+    public Result<String> confirm(@RequestBody AgentConfirmRequest request) {
+        return Results.success(agentChatService.executeConfirmed(
+                request.getToolId(), request.getArguments() == null ? Map.of() : request.getArguments()));
     }
 
     /**

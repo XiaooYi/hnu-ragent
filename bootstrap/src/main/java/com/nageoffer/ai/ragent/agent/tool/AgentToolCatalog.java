@@ -59,15 +59,50 @@ public class AgentToolCatalog {
         List<AgentToolDescriptor> descriptors = new ArrayList<>();
         for (AgentTool tool : localTools) {
             descriptors.add(new AgentToolDescriptor(tool.id(), tool.name(), tool.description(),
-                    tool.parameters(), tool.readOnly(), AgentToolDescriptor.Source.LOCAL));
+                    tool.parameters(), tool.readOnly() || declaredReadOnly(tool.id()),
+                    AgentToolDescriptor.Source.LOCAL));
         }
         if (mcpToolRegistry != null) {
             for (Tool tool : mcpToolRegistry.listAllTools()) {
                 descriptors.add(new AgentToolDescriptor(tool.name(), tool.name(), tool.description(),
-                        List.of(), false, AgentToolDescriptor.Source.MCP));
+                        List.of(), declaredReadOnly(tool.name()), AgentToolDescriptor.Source.MCP));
             }
         }
         return applyWhitelist(descriptors);
+    }
+
+    /**
+     * 写操作是否需要先经用户确认：非只读且开了确认开关
+     */
+    public boolean requiresConfirmation(String toolId) {
+        if (!Boolean.TRUE.equals(agentProperties.getConfirm().getRequired())) {
+            return false;
+        }
+        return listTools().stream()
+                .filter(tool -> tool.id().equals(toolId))
+                .findFirst()
+                .map(tool -> !tool.readOnly())
+                .orElse(false);
+    }
+
+    /**
+     * 确认卡字段：模型给出的入参 + 人工可读的字段标题
+     */
+    public Map<String, String> describeArguments(String toolId, Map<String, Object> arguments) {
+        Map<String, String> fields = new LinkedHashMap<>();
+        if (arguments == null) {
+            return fields;
+        }
+        Map<String, AgentToolParameter> parameters = listTools().stream()
+                .filter(tool -> tool.id().equals(toolId))
+                .findFirst()
+                .map(AgentToolDescriptor::parameterMap)
+                .orElse(Map.of());
+        arguments.forEach((key, value) -> {
+            AgentToolParameter parameter = parameters.get(key);
+            fields.put(key, parameter == null ? String.valueOf(value) : parameter.description());
+        });
+        return fields;
     }
 
     /**
@@ -179,6 +214,11 @@ public class AgentToolCatalog {
             return "无";
         }
         return String.join(", ", tools.stream().map(AgentToolDescriptor::id).toList());
+    }
+
+    private boolean declaredReadOnly(String toolId) {
+        List<String> declared = agentProperties.getReadOnlyTools();
+        return declared != null && declared.contains(toolId);
     }
 
     /**
