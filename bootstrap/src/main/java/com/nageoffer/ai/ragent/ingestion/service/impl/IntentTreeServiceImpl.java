@@ -21,7 +21,7 @@ import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.lang.Assert;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.google.gson.Gson;
 import com.nageoffer.ai.ragent.audit.annotation.BizChangeLog;
 import com.nageoffer.ai.ragent.audit.constant.BizChangeBizType;

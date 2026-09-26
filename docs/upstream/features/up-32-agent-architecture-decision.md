@@ -85,7 +85,7 @@ Agent 会调用写工具（下单、改资产）。本仓库的定位是校内�
 | **P1 运行时** | `AgentEngine` 接口 + `ReActAgentEngine`（think/tool/observe 循环、最大步数、工具白名单、取消语义复用 `TaskCancellation`）、会话与消息持久化（v1.2.0）、`/agent/chat` SSE 接口与消息块协议 | P0 | 文档 + 单测 + 一次端到端冒烟（需真实 LLM Key） |
 | **P2 能力** | Skills（技能手册加载）、长期记忆（抽取 / 合并 / 上下文压缩）、知识库检索工具接入 Agent | P1 | 文档 + 单测 |
 | **P3 治理** | 写操作确认卡（UP-34）、Agent 管理后台（UP-33）、前端 Agent 聊天页与仪表盘（UP-44）、LangFuse 追踪（UP-37） | P1 | 文档 + 单测 + 前端构建通过 |
-| **P4 可选** | UP-31 Spring Boot 4 升级（可在任意阶段前插入，见决策 3）、UP-41 初始化器示例 | — | 文档 + 全量测试基线 |
+| **P4 可选** | UP-31 Spring Boot 4 升级（✅ 已独立轮落地，见 [`up-31-spring-boot4.md`](up-31-spring-boot4.md)）、UP-41 初始化器示例（✅ 已落地） | — | 文档 + 全量测试基线 |
 
 阶段验收统一口径：
 

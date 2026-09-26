@@ -14,21 +14,23 @@
 
     <properties>
         <java.version>17</java.version>
-        <spring-boot.version>3.5.7</spring-boot.version>
+        <spring-boot.version>4.1.0</spring-boot.version>
         <milvus-sdk.version>2.6.6</milvus-sdk.version>
         <tika.version>3.2.3</tika.version>
         <hutool-all.version>5.8.37</hutool-all.version>
-        <mybatis-plus-spring-boot3-starter.version>3.5.14</mybatis-plus-spring-boot3-starter.version>
+        <mybatis-plus-spring-boot4-starter.version>3.5.17</mybatis-plus-spring-boot4-starter.version>
         <s3.version>2.40.2</s3.version>
         <mockito-core.version>5.20.0</mockito-core.version>
-        <sa-token.version>1.43.0</sa-token.version>
+        <sa-token.version>1.45.0</sa-token.version>
         <transmittable-thread-local.version>2.14.5</transmittable-thread-local.version>
-        <redisson.version>4.0.0</redisson.version>
-        <rocketmq-spring-boot-starter.version>2.3.5</rocketmq-spring-boot-starter.version>
+        <redisson.version>4.6.1</redisson.version>
+        <rocketmq-spring-boot-starter.version>2.3.6</rocketmq-spring-boot-starter.version>
         <commonmark.version>0.22.0</commonmark.version>
         <batik.version>1.18</batik.version>
         <okhttp.version>4.12.0</okhttp.version>
         <mcp-sdk.version>1.1.2</mcp-sdk.version>
+        <elasticsearch-client.version>8.18.8</elasticsearch-client.version>
+        <okio.version>3.9.0</okio.version>
         <spotless-maven-plugin.version>2.22.1</spotless-maven-plugin.version>
         <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
         <maven.surefire.plugin.version>3.2.5</maven.surefire.plugin.version>
@@ -73,20 +75,59 @@
 
             <dependency>
                 <groupId>com.baomidou</groupId>
-                <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
-                <version>${mybatis-plus-spring-boot3-starter.version}</version>
+                <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
+                <version>${mybatis-plus-spring-boot4-starter.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>com.baomidou</groupId>
                 <artifactId>mybatis-plus-jsqlparser</artifactId>
-                <version>${mybatis-plus-spring-boot3-starter.version}</version>
+                <version>${mybatis-plus-spring-boot4-starter.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-extension</artifactId>
+                <version>${mybatis-plus-spring-boot4-starter.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>software.amazon.awssdk</groupId>
                 <artifactId>s3</artifactId>
                 <version>${s3.version}</version>
+            </dependency>
+
+            <!--
+              Elasticsearch 客户端刻意锁 8.x：本项目 EsClientConfig 用的是 ES 8 的 low-level REST client
+              （org.elasticsearch.client.RestClient + Apache HttpClient 4）。Spring Boot 4 默认管理 ES 9 客户端，
+              其传输层已换名（elasticsearch-rest5-client），直接跟随会要求先重写 ES 接入代码。
+              关键词检索默认关闭（rag.keyword.type=none），因此先锁版本保持可用，迁到 ES 9 客户端另行评估。
+            -->
+            <dependency>
+                <groupId>co.elastic.clients</groupId>
+                <artifactId>elasticsearch-java</artifactId>
+                <version>${elasticsearch-client.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.elasticsearch.client</groupId>
+                <artifactId>elasticsearch-rest-client</artifactId>
+                <version>${elasticsearch-client.version}</version>
+            </dependency>
+
+            <!--
+              Okio 锁 3.9：链路里同时存在 OkHttp 4.12（本项目代码用）与 okhttp-jvm 5.3.2
+              （OpenTelemetry 的 OKHttp sender 传递进来）。OkHttp 4.12 默认带的 okio 3.6 缺
+              okhttp-jvm 5.x 需要的 Okio.socket，会在运行期抛 NoSuchMethodError；统一到 3.9 后两者都能跑。
+            -->
+            <dependency>
+                <groupId>com.squareup.okio</groupId>
+                <artifactId>okio</artifactId>
+                <version>${okio.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.squareup.okio</groupId>
+                <artifactId>okio-jvm</artifactId>
+                <version>${okio.version}</version>
             </dependency>
 
             <dependency>
@@ -98,7 +139,7 @@
 
             <dependency>
                 <groupId>cn.dev33</groupId>
-                <artifactId>sa-token-spring-boot3-starter</artifactId>
+                <artifactId>sa-token-spring-boot4-starter</artifactId>
                 <version>${sa-token.version}</version>
             </dependency>
 

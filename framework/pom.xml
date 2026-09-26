@@ -48,7 +48,7 @@
 
         <dependency>
             <groupId>com.baomidou</groupId>
-            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+            <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
         </dependency>
 
         <dependency>
@@ -56,9 +56,15 @@
             <artifactId>mybatis-plus-jsqlparser</artifactId>
         </dependency>
 
+        <!-- MyBatis-Plus 3.5.17 起 extension 不再随 starter 传递，IService / ServiceImpl 由它提供 -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-extension</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>cn.dev33</groupId>
-            <artifactId>sa-token-spring-boot3-starter</artifactId>
+            <artifactId>sa-token-spring-boot4-starter</artifactId>
         </dependency>
 
         <dependency>
@@ -74,6 +80,17 @@
         <dependency>
             <groupId>org.apache.rocketmq</groupId>
             <artifactId>rocketmq-spring-boot-starter</artifactId>
+            <exclusions>
+                <!--
+                  RocketMQ 的 OTLP 导出器会带 okhttp-jvm 5.x，与本项目使用的 OkHttp 4.12 同名类冲突
+                  （运行期 NoSuchMethodError: Okio.socket）。本项目不使用 OTel 导出，
+                  直接排除该导出链，保持 OkHttp 版本单一。
+                -->
+                <exclusion>
+                    <groupId>io.opentelemetry</groupId>
+                    <artifactId>opentelemetry-exporter-otlp</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
     </dependencies>
 </project>

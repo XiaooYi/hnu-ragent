@@ -17,7 +17,7 @@
 
 package com.nageoffer.ai.ragent.ingestion.service;
 
-import com.baomidou.mybatisplus.extension.service.IService;
+import com.baomidou.mybatisplus.spring.service.IService;
 import com.nageoffer.ai.ragent.rag.dao.entity.IntentNodeDO;
 import com.nageoffer.ai.ragent.rag.controller.request.IntentNodeCreateRequest;
 import com.nageoffer.ai.ragent.rag.controller.vo.IntentNodeTreeVO;
