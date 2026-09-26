@@ -33,8 +33,10 @@ import com.nageoffer.ai.ragent.agent.tool.AgentToolCatalog;
 import com.nageoffer.ai.ragent.framework.exception.ClientException;
 import com.nageoffer.ai.ragent.framework.cancellation.TaskCancellation;
 import com.nageoffer.ai.ragent.framework.web.SseEmitterSender;
+import com.nageoffer.ai.ragent.rag.trace.LangfuseReporter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -61,6 +63,7 @@ public class AgentChatServiceImpl implements AgentChatService {
     private final AgentMemoryService agentMemoryService;
     private final AgentSkillService agentSkillService;
     private final AgentToolCatalog agentToolCatalog;
+    private final ObjectProvider<LangfuseReporter> langfuseReporterProvider;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -96,6 +99,7 @@ public class AgentChatServiceImpl implements AgentChatService {
                 // 待确认的那一轮没有真实回答，不值得沉淀记忆
                 rememberQuietly(question, result.answer());
             }
+            reportToLangfuse(resolvedConversationId, question, result);
             sender.complete();
         } catch (Exception e) {
             if (TaskCancellation.isCancellation(e)) {
@@ -225,6 +229,21 @@ public class AgentChatServiceImpl implements AgentChatService {
             agentMemoryService.remember(question, answer);
         } catch (Exception e) {
             log.warn("Agent 记忆沉淀失败，已跳过", e);
+        }
+    }
+
+    /**
+     * 上报 Agent 运行到 LangFuse（未启用时是空操作）
+     */
+    private void reportToLangfuse(String conversationId, String question, AgentRunResult result) {
+        LangfuseReporter reporter = langfuseReporterProvider.getIfAvailable();
+        if (reporter == null) {
+            return;
+        }
+        try {
+            reporter.reportAgentRun(conversationId, question, result);
+        } catch (Exception e) {
+            log.warn("Agent 运行上报 LangFuse 失败（不影响业务）, conversationId={}", conversationId, e);
         }
     }
 }

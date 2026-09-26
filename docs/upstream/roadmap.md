@@ -103,7 +103,7 @@
 | UP-36 | Agent 长期记忆 | [`features/up-36-agent-memory.md`](features/up-36-agent-memory.md) | 记忆主链路已落地（含验证）；抽取台账与上下文压缩见文档「与上游的差异」 |
 | UP-39 | MCP 工具目录与 Schema 构造器 | [`features/up-39-mcp-tool-kit.md`](features/up-39-mcp-tool-kit.md)、[`features/up-32-agent-runtime.md`](features/up-32-agent-runtime.md) | 已落地：`McpToolSchema` / `McpToolException` / `McpToolResults` + Agent 工具目录（含只读判定与确认策略） |
 | UP-40 | MCP 身份透传 | [`features/up-39-mcp-tool-kit.md`](features/up-39-mcp-tool-kit.md) | 已落地：客户端统一出口透传 `_meta` 用户身份（`McpClientToolExecutor` + `McpCallMeta`），服务端读取与缺身份回绝 |
-| UP-37 | LangFuse 链路追踪 | 见架构决策 P3 | 待 P1 |
+| UP-37 | LangFuse 链路追踪 | [`features/up-37-langfuse.md`](features/up-37-langfuse.md) | 已落地（含验证；默认关闭，RAG 运行与 Agent 工具步骤均上报） |
 | UP-41 | 初始化器与场景示例 | [`features/up-41-initializer.md`](features/up-41-initializer.md) | 已落地（含验证；应用内幂等初始化器，含 `hnu` 数据集与 cleanup 模式） |
 | UP-44 | 前端与仪表盘体验 | [`features/up-44-agent-frontend.md`](features/up-44-agent-frontend.md) | Agent 对话页（工具过程 + 确认卡 + 历史会话）已落地（含验证）；仪表盘等其余前端项见文档「与上游的差异」 |
 

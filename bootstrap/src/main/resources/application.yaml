@@ -171,6 +171,15 @@ rag:
   trace:
     enabled: true
     max-error-length: 1000
+    # LangFuse 上报（可选，默认关闭）：本地 trace 表负责单机排障，LangFuse 负责跨服务可视化
+    langfuse:
+      enabled: false
+      host: ""                 # 如 https://cloud.langfuse.com
+      public-key: ${LANGFUSE_PUBLIC_KEY:}
+      secret-key: ${LANGFUSE_SECRET_KEY:}
+      environment: default
+      timeout-ms: 3000
+      agent-enabled: true      # 是否连 Agent 运行（含工具步骤）一起上报
 
   # 图片解析（图生文）配置
   # 产出一段自包含的知识文本：既说清"图是什么"，又完整保留所有文字与层级

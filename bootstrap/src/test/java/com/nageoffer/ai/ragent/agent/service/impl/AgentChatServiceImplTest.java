@@ -26,6 +26,8 @@ import com.nageoffer.ai.ragent.agent.service.AgentConversationService;
 import com.nageoffer.ai.ragent.agent.service.AgentMemoryService;
 import com.nageoffer.ai.ragent.agent.skill.AgentSkillService;
 import com.nageoffer.ai.ragent.agent.tool.AgentToolCatalog;
+import com.nageoffer.ai.ragent.rag.trace.LangfuseReporter;
+import org.springframework.beans.factory.ObjectProvider;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -36,6 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Agent 事件组装：事件顺序、工具事件与消息块
@@ -44,7 +47,17 @@ class AgentChatServiceImplTest {
 
     private final AgentChatServiceImpl service = new AgentChatServiceImpl(
             mock(AgentEngine.class), mock(AgentConversationService.class), mock(AgentMemoryService.class),
-            mock(AgentSkillService.class), mock(AgentToolCatalog.class), new ObjectMapper());
+            mock(AgentSkillService.class), mock(AgentToolCatalog.class), provider(), new ObjectMapper());
+
+    /**
+     * LangFuse 未启用时容器里没有对应 bean
+     */
+    @SuppressWarnings("unchecked")
+    private static ObjectProvider<LangfuseReporter> provider() {
+        ObjectProvider<LangfuseReporter> provider = mock(ObjectProvider.class);
+        when(provider.getIfAvailable()).thenReturn(null);
+        return provider;
+    }
 
     @Test
     @DisplayName("事件顺序：meta → tool → message → finish")
