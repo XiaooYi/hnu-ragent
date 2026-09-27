@@ -26,5 +26,6 @@ Ragent 的文档按 AI dev template 的“上下文、规则、数据、示例�
 - 文档摄取示例：[`examples/pdf/pdf-ingestion-example.md`](examples/pdf/pdf-ingestion-example.md)
 - 上游对齐入口：[`upstream/README.md`](upstream/README.md)（分叉点 [`upstream/fork-divergence.md`](upstream/fork-divergence.md)、差异清单 [`upstream/feature-gap.md`](upstream/feature-gap.md)、路线图 [`upstream/roadmap.md`](upstream/roadmap.md)）
 - 线上排查案例（面试材料）：[`evaluation/case-retrieval-candidate-truncation.md`](evaluation/case-retrieval-candidate-truncation.md)
+- 批次二上线验证报告（8 项大功能逐项验收 + 面试讲法）：[`evaluation/batch-2-verification.md`](evaluation/batch-2-verification.md)
 
 `archive/` 中的文档可能包含历史包路径、旧配置或旧结论。需要实现当前功能时，应以 `architecture/`、`rules/`、代码和测试为准；如果历史内容仍然有效，应先迁回正式文档并更新验证依据。
