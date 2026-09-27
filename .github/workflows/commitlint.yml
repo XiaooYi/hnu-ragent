@@ -32,7 +32,12 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
-          if [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
-            BASE_SHA="$(git rev-list --max-parents=0 HEAD)"
+          # 强制推送或改写历史时，before 可能是全零，或指向一个已不在检出历史中的提交，
+          # 此时 git 无法解析该基线，commitlint 会直接报错而不是给出校验结论。
+          # 退化为只校验本次推送的提交，避免因为取不到基线导致整条流水线失败。
+          if [ -z "$BASE_SHA" ] \
+            || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ] \
+            || ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+            BASE_SHA="$(git rev-parse --verify "${GITHUB_SHA}^" 2>/dev/null || git rev-list --max-parents=0 "$GITHUB_SHA")"
           fi
           npx --no -- commitlint --from "$BASE_SHA" --to "$GITHUB_SHA" --verbose
