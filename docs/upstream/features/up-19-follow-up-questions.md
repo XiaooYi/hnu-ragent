@@ -170,3 +170,73 @@ stateDiagram-v2
     ready --> idle: 收起（保留已加载结果）
     ready --> [*]: 点击某条问题 → 作为新提问发送
 ```
+
+## 上线缺陷修复：JSONB 的 NULL 与空数组必须可区分（2026-09-27）
+
+批次二上线后，生产验证发现推荐追问**完全不可用**，本仓库在批次二之后修复。
+
+### 功能介绍
+
+推荐追问依赖 `recommended_questions` 的三态语义：`NULL`=未生成、`[]`=已生成但无合适追问（负缓存）、
+非空=生成成功。但 `StringListTypeHandler` 在读侧把 SQL `NULL` 归一化成了空数组：
+
+```java
+// 修复前
+private List<String> parse(String raw) {
+    if (raw == null || raw.isBlank()) {
+        return List.of();          // ← 把"未生成"读成了"已生成且为空"
+    }
+```
+
+于是 `RecommendedQuestionServiceImpl` 的两个分支全部走错：
+
+- `generate()`：`cached != null` 恒成立 → 直接返回 `EMPTY`，**不调模型、不落库**；
+- `getCached()`：永远返回 `EMPTY`，而不是"推荐问题尚未生成"，前端无从区分"没生成"与"没有可推荐的问题"。
+
+线上现象：`POST /conversations/messages/{id}/recommended-questions` **28ms** 返回 `EMPTY`，
+全表 464 条消息 `recommended_questions` 无一条非空。
+
+修复：读侧只在**值缺失**时返回 `null`，把"降级为空列表"的容错收敛到**JSON 非法**这一种情况。
+`collectionNames`（`IntentNodeDO`）复用同一个处理器，其读侧 `getEffectiveCollectionNames()` 已能容忍 `null`，
+且 `null` 与 `[]` 对它的语义一致，因此同一次修复对意图多库无行为影响。
+
+### 验收标准
+
+1. **NULL 读回 null**：列值为 `NULL` 时 `getNullableResult` 返回 `null`，不是空列表。
+2. **非法 JSON 仍不炸行**：列值不是合法 JSON 时降级为空列表并打 warn（保留原有容错目标）。
+3. **正常解析不变**：`["a","b"]` 按序解析为 `a`、`b`。
+4. **端到端**：`recommended_questions` 为 `NULL` 的助手消息调用生成接口时，**会真正调用 FAST 档模型**并落库
+   （`SUCCESS` 落非空数组、`EMPTY` 落空数组作为负缓存、`FAILED` 不落库）。
+5. 可执行验证：
+
+```bash
+./mvnw test -pl bootstrap -am '-Dtest=StringListTypeHandlerTest,IntentNodeTest,RecommendedQuestionGeneratorTest' -Dsurefire.failIfNoSpecifiedTests=false
+```
+
+期望结果：全部通过；其中 `nullColumnIsReadBackAsNullNotAsEmptyList` 在修复前必然失败（`expected: null but was: []`）。
+
+### 代码位置
+
+| 作用 | 位置 |
+| --- | --- |
+| 修复点（NULL 语义） | `bootstrap/src/main/java/com/nageoffer/ai/ragent/knowledge/dao/handler/StringListTypeHandler.java` |
+| 三态消费方 | `bootstrap/src/main/java/com/nageoffer/ai/ragent/rag/service/impl/RecommendedQuestionServiceImpl.java` |
+| 复用同一处理器的字段 | `rag/dao/entity/ConversationMessageDO.java`（`recommendedQuestions`）、`rag/dao/entity/IntentNodeDO.java`（`collectionNames`） |
+| 单元测试 | `bootstrap/src/test/java/com/nageoffer/ai/ragent/knowledge/dao/handler/StringListTypeHandlerTest.java` |
+| 生产验证记录 | `docs/evaluation/batch-2-verification.md`（第 2.3 节） |
+
+### 相关图表
+
+```mermaid
+flowchart TD
+    A["jsonb 列读取"] --> B{"值是否存在?"}
+    B -->|SQL NULL / 空白| C["返回 null → 上层认定为「未生成」<br/>→ 调模型、落库"]
+    B -->|合法 JSON 数组| D["返回列表（含空数组=负缓存）"]
+    B -->|非法 JSON| E["warn 日志 + 返回空列表<br/>（不让一行脏数据拖垮整次加载）"]
+```
+
+```mermaid
+flowchart LR
+    A["修复前：NULL 与 [] 压成同一个值"] --> B["generate() 在 cached != null 处短路<br/>28ms 返回 EMPTY，永不落库"]
+    C["修复后：三态可分"] --> D["NULL → 调 FAST 档模型 → SUCCESS/EMPTY 落库<br/>[] → 命中负缓存，不再重复调模型"]
+```
