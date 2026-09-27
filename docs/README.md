@@ -13,7 +13,7 @@ Ragent 的文档按 AI dev template 的“上下文、规则、数据、示例�
 | [`database/`](database/) | 数据库初始化、升级和迁移约定 | 修改表结构、索引或数据脚本 |
 | [`examples/`](examples/) | 可运行或可核对的接口与摄取示例 | 调试文档摄取和接口调用 |
 | [`releases/`](releases/) | 发版记录 | 查阅版本变更 |
-| [`upstream/`](upstream/) | 与上游 `nageoffer/ragent` 的分叉判定、功能差异与落地路线 | 对齐上游能力、补齐缺失功能 |
+| `upstream/`（本地保留，不随仓库发布） | 与上游 `nageoffer/ragent` 的分叉判定、功能差异与落地路线 | 对齐上游能力、补齐缺失功能；该目录已加入 `.gitignore`，新克隆的仓库中不存在 |
 | [`assets/`](assets/) | 文档图示和编辑资源 | 架构图、部署图和 README 媒体 |
 | [`archive/`](archive/) | 已合并或仅保留历史的文档 | 追溯旧方案，不作为当前实现依据 |
 
@@ -24,7 +24,7 @@ Ragent 的文档按 AI dev template 的“上下文、规则、数据、示例�
 - 检索不变量：[`rules/retrieval-invariants.md`](rules/retrieval-invariants.md)
 - 数据库脚本：[`database/README.md`](database/README.md)
 - 文档摄取示例：[`examples/pdf/pdf-ingestion-example.md`](examples/pdf/pdf-ingestion-example.md)
-- 上游对齐入口：[`upstream/README.md`](upstream/README.md)（分叉点 [`upstream/fork-divergence.md`](upstream/fork-divergence.md)、差异清单 [`upstream/feature-gap.md`](upstream/feature-gap.md)、路线图 [`upstream/roadmap.md`](upstream/roadmap.md)）
+- 上游对齐入口（本地保留，不随仓库发布）：`docs/upstream/README.md`（分叉点 `docs/upstream/fork-divergence.md`、差异清单 `docs/upstream/feature-gap.md`、路线图 `docs/upstream/roadmap.md`）
 - 线上排查案例（面试材料）：[`evaluation/case-retrieval-candidate-truncation.md`](evaluation/case-retrieval-candidate-truncation.md)
 - 批次二上线验证报告（8 项大功能逐项验收 + 面试讲法）：[`evaluation/batch-2-verification.md`](evaluation/batch-2-verification.md)
 - 线上事故复盘：升级 Spring Boot 4 后全站 406（JSON 转换器被整体禁用）：[`evaluation/case-spring-boot4-406-json-converter.md`](evaluation/case-spring-boot4-406-json-converter.md)

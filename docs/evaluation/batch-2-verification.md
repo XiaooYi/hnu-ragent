@@ -344,7 +344,7 @@ flowchart LR
 
 | 优先级 | 问题 | 影响 | 建议 |
 | --- | --- | --- | --- |
-| ~~P0~~ **已修复** | `StringListTypeHandler.parse(null)` 返回空列表，破坏推荐追问的三态契约 | 推荐追问**完全不可用**（不调模型、不落库、前端恒显示"暂无推荐问题"） | 已改为"值缺失返回 `null`，仅 JSON 非法才降级为空列表"，TDD 用例 `StringListTypeHandlerTest` 先行失败再转绿；详见 [`up-19-follow-up-questions.md`](../upstream/features/up-19-follow-up-questions.md) |
+| ~~P0~~ **已修复** | `StringListTypeHandler.parse(null)` 返回空列表，破坏推荐追问的三态契约 | 推荐追问**完全不可用**（不调模型、不落库、前端恒显示"暂无推荐问题"） | 已改为"值缺失返回 `null`，仅 JSON 非法才降级为空列表"，TDD 用例 `StringListTypeHandlerTest` 先行失败再转绿；详见 `docs/upstream/features/up-19-follow-up-questions.md`（本地保留，不随仓库发布） |
 | **P1** | `rag.search.evidence.min-rerank-score=0.2` 低于当前 reranker 的分数下限（实测无关问题 0.33~0.46） | 证据闸门装了但不触发，弱相关证据仍进提示词（模型仍会拒答，属成本/鲁棒性问题） | 按"精排分布"重标定到 0.5~0.6；换 reranker 后必须重测 |
 | **P2** | `.md` 的 MIME 是 `text/x-web-markdown`，两个解析器都没接住 → 走 Tika 平文本 | markdown 上传丢失标题结构，UP-13 的提纲边界规则不生效 | 两个解析器补 `text/x-web-markdown`，或做统一 MIME 归一化 |
 | **P2** | 模型调用没有"档位 + 模型"的运行期记录，`trace.extra_data` 为空 | 档位只能间接验证 | 在模型路由 trace 节点写入 `tier` / `modelId` |

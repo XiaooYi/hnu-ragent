@@ -49,3 +49,9 @@ deploy/.env
 .output/
 
 /docs/assets/cvm.md
+
+### Secrets ###
+*.pem
+
+### 本地溯源资料（仅保留在本地，不随仓库发布） ###
+/docs/upstream/
