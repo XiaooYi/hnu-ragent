@@ -75,7 +75,10 @@ public class StringListTypeHandler extends BaseTypeHandler<List<String>> {
 
     private List<String> parse(String raw) {
         if (raw == null || raw.isBlank()) {
-            return List.of();
+            // SQL NULL 必须还原成 null：它与"空数组"表达的是两件事（未设置 vs 已设置为空）。
+            // 压成同一个值会让三态字段在上层退化——例如推荐追问会把"从未生成"读成"已生成且无追问"，
+            // 于是在 cached != null 处直接短路，永远不再调模型、也不再落库。
+            return null;
         }
         try {
             List<String> value = OBJECT_MAPPER.readValue(raw, LIST_TYPE);
