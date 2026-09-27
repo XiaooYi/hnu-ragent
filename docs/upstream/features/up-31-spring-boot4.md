@@ -79,3 +79,23 @@ flowchart TD
   （HEAD 版本中共 56 个源文件仍使用 `com.fasterxml.jackson`，无 `tools.jackson`）。本仓库与其对齐；
   真正迁到 Jackson 3 属独立议题（涉及注解包名、Feature 开关与 ES/MCP 客户端兼容性）。
 - **不上 ES 9 客户端**：上游用 ES 9 客户端；本仓库关键词检索默认关闭，先锁 8.18.8 保证「打开就能用」。
+
+## 上线事故与修复（2026-09-27）
+
+本次升级上线后出现**全站 406（No acceptable representation）**，完整复盘见
+[`docs/evaluation/case-spring-boot4-406-json-converter.md`](../../evaluation/case-spring-boot4-406-json-converter.md)。
+要点：
+
+1. **后果**：所有返回对象的接口（含 `/user/me`）都写不出 JSON，连全局异常处理器自身也失败。
+2. **直接原因**：`bootstrap/.../rag/config/WebConfig.java` 覆写的是 `configureMessageConverters`
+   并往里 `add` 了一个 UTF-8 的 `StringHttpMessageConverter`。Spring MVC 的
+   `WebMvcConfigurationSupport#getMessageConverters()` 只在**列表仍为空**时才调用
+   `addDefaultHttpMessageConverters`，因此 JSON 等默认转换器被整体跳过。
+3. **放大原因**：本次只引入了 `spring-boot-jackson2`（拿到 Jackson 2 的 `ObjectMapper`），
+   但没有声明 `spring.http.converters.preferred-json-mapper=jackson2`。
+   Boot 4 的 Jackson 2 HTTP 转换器由 `@ConditionalOnProperty(havingValue="jackson2")`
+   或「Jackson 3 不存在」二者之一触发，Jackson 3 在场时未声明首选会导致该转换器也不注册。
+4. **修复**：`WebConfig` 改用 `extendMessageConverters` 做**就地替换**；
+   `application.yaml` 显式声明 `spring.http.converters.preferred-json-mapper: jackson2`。
+5. **回归**：新增 `bootstrap/src/test/.../rag/config/WebConfigTest.java`，把
+   「不得向 `configureMessageConverters` 写入任何转换器」固化成用例。
