@@ -250,9 +250,9 @@ RetrievedChunk.id
 ## 9. 关键文件索引
 
 **ragent 侧**：
-- `bootstrap/src/main/java/com/nageoffer/ai/ragent/rag/eval/EvalController.java`
-- `bootstrap/src/main/java/com/nageoffer/ai/ragent/rag/eval/EvalResponse.java`
-- `bootstrap/src/main/java/com/nageoffer/ai/ragent/rag/eval/EvalProperties.java`
+- `bootstrap/src/main/java/com/hnu/ragent/rag/eval/EvalController.java`
+- `bootstrap/src/main/java/com/hnu/ragent/rag/eval/EvalResponse.java`
+- `bootstrap/src/main/java/com/hnu/ragent/rag/eval/EvalProperties.java`
 - `bootstrap/src/main/resources/application.yaml`（`app.eval.enabled`）
 - `docs/evaluation-plan.md`（评测总体规划，与实际实现有出入）
 - `docs/eval-controller-plan.md`（原计划：双轨制 + AOP，**未落地**）

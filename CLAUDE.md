@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ./mvnw clean package
 
 # Run a single test class
-./mvnw test -pl bootstrap -Dtest=com.nageoffer.ai.ragent.rag.core.vector.PgVectorStoreServiceTest
+./mvnw test -pl bootstrap -Dtest=com.hnu.ragent.rag.core.vector.PgVectorStoreServiceTest
 
 # Run a single test method
 ./mvnw test -pl bootstrap -Dtest=YourTestClass#testMethodName

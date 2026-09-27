@@ -1,0 +1,248 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.hnu.ragent.rag.core.retrieve;
+
+import cn.hutool.core.collection.CollUtil;
+import com.hnu.ragent.framework.convention.RetrievedChunk;
+import com.hnu.ragent.framework.trace.RagTraceNode;
+import com.hnu.ragent.rag.config.SearchChannelProperties;
+import com.hnu.ragent.rag.core.retrieve.channel.SearchChannel;
+import com.hnu.ragent.rag.core.retrieve.channel.SearchChannelResult;
+import com.hnu.ragent.rag.core.retrieve.channel.SearchContext;
+import com.hnu.ragent.rag.core.retrieve.channel.RetrievalBudget;
+import com.hnu.ragent.rag.core.retrieve.postprocessor.SearchResultPostProcessor;
+import com.hnu.ragent.rag.dto.SubQuestionIntent;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Service;
+
+import java.util.Comparator;
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
+
+/**
+ * 多通道检索引擎
+ * <p>
+ * 负责协调多个检索通道和后置处理器：
+ * 1. 并行执行所有启用的检索通道
+ * 2. 依次执行后置处理器链
+ * 3. 返回最终的检索结果
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class MultiChannelRetrievalEngine {
+
+    private final List<SearchChannel> searchChannels;
+    private final List<SearchResultPostProcessor> postProcessors;
+    private final Executor ragRetrievalExecutor;
+    private final SearchChannelProperties searchProperties;
+
+    /**
+     * 执行多通道检索（仅 KB 场景）
+     *
+     * @param subIntents 子问题意图列表
+     * @param topK       期望返回的结果数量
+     * @return 检索到的 Chunk 列表
+     */
+    @RagTraceNode(name = "multi-channel-retrieval", type = "RETRIEVE_CHANNEL")
+    public List<RetrievedChunk> retrieveKnowledgeChannels(List<SubQuestionIntent> subIntents, int topK) {
+        // 构建检索上下文
+        SearchContext context = buildSearchContext(subIntents, topK);
+
+        // 【阶段1：多通道并行检索】
+        List<SearchChannelResult> channelResults = executeSearchChannels(context);
+        if (CollUtil.isEmpty(channelResults)) {
+            return List.of();
+        }
+
+        // 【阶段2：后置处理器链】
+        return executePostProcessors(channelResults, context);
+    }
+
+    /**
+     * 执行所有启用的检索通道
+     */
+    private List<SearchChannelResult> executeSearchChannels(SearchContext context) {
+        // 过滤启用的通道
+        List<SearchChannel> enabledChannels = searchChannels.stream()
+                .filter(channel -> channel.isEnabled(context))
+                // 按通道类型枚举序稳定排序：通道并行执行、下游融合与归因均与顺序无关，
+                // 这里排序仅为日志与派发顺序稳定可复现，不承载任何检索优先级语义
+                .sorted(Comparator.comparingInt(channel -> channel.getType().ordinal()))
+                .toList();
+
+        if (enabledChannels.isEmpty()) {
+            return List.of();
+        }
+
+        log.info("启用的检索通道：{}",
+                enabledChannels.stream().map(SearchChannel::getName).toList());
+
+        long channelTimeoutMs = searchProperties.getChannels().getTimeoutMs();
+        List<CompletableFuture<SearchChannelResult>> futures = enabledChannels.stream()
+                .map(channel -> withTimeout(CompletableFuture.supplyAsync(
+                        () -> {
+                            try {
+                                log.info("执行检索通道：{}", channel.getName());
+                                return channel.search(context);
+                            } catch (Exception e) {
+                                log.error("检索通道 {} 执行失败", channel.getName(), e);
+                                return channel.emptyResult(0);
+                            }
+                        },
+                        ragRetrievalExecutor
+                ), channel, channelTimeoutMs))
+                .toList();
+
+        // 等待所有通道完成并统计
+        int successCount = 0;
+        int failureCount = 0;
+        int totalChunks = 0;
+
+        List<SearchChannelResult> results = futures.stream()
+                .map(CompletableFuture::join)
+                .filter(Objects::nonNull)
+                .toList();
+
+        // 打印详细统计信息
+        for (SearchChannelResult result : results) {
+            int chunkCount = result.getChunks().size();
+            totalChunks += chunkCount;
+
+            if (chunkCount > 0) {
+                successCount++;
+                log.info("通道 {} 完成 ✓ - 检索到 {} 个 Chunk，耗时：{}ms",
+                        result.getChannelName(),
+                        chunkCount,
+                        result.getLatencyMs()
+                );
+            } else {
+                failureCount++;
+                log.warn("通道 {} 完成但无结果 - 耗时：{}ms",
+                        result.getChannelName(),
+                        result.getLatencyMs()
+                );
+            }
+        }
+
+        log.info("多通道检索统计 - 总通道数: {}, 有结果: {}, 无结果: {}, Chunk 总数: {}",
+                enabledChannels.size(), successCount, failureCount, totalChunks);
+
+        return results;
+    }
+
+    /**
+     * 执行后置处理器链
+     */
+    private List<RetrievedChunk> executePostProcessors(List<SearchChannelResult> results,
+                                                       SearchContext context) {
+        // 过滤启用的处理器并排序
+        List<SearchResultPostProcessor> enabledProcessors = postProcessors.stream()
+                .filter(processor -> processor.isEnabled(context))
+                .sorted(Comparator.comparingInt(SearchResultPostProcessor::getOrder))
+                .toList();
+
+        if (enabledProcessors.isEmpty()) {
+            log.warn("没有启用的后置处理器，直接返回原始结果");
+            return results.stream()
+                    .flatMap(r -> r.getChunks().stream())
+                    .collect(Collectors.toList());
+        }
+
+        // 初始 Chunk 列表（所有通道的结果合并）
+        List<RetrievedChunk> chunks = results.stream()
+                .flatMap(r -> r.getChunks().stream())
+                .collect(Collectors.toList());
+
+        int initialSize = chunks.size();
+
+        // 依次执行处理器
+        for (SearchResultPostProcessor processor : enabledProcessors) {
+            try {
+                int beforeSize = chunks.size();
+                chunks = processor.process(chunks, results, context);
+                int afterSize = chunks.size();
+
+                log.info("后置处理器 {} 完成 - 输入: {} 个 Chunk, 输出: {} 个 Chunk, 变化: {}",
+                        processor.getName(),
+                        beforeSize,
+                        afterSize,
+                        (afterSize - beforeSize > 0 ? "+" : "") + (afterSize - beforeSize)
+                );
+            } catch (Exception e) {
+                log.error("后置处理器 {} 执行失败，跳过该处理器", processor.getName(), e);
+                // 继续执行下一个处理器，不中断整个链
+            }
+        }
+
+        log.info("后置处理器链执行完成 - 初始: {} 个 Chunk, 最终: {} 个 Chunk",
+                initialSize, chunks.size());
+
+        return chunks;
+    }
+
+    /**
+     * 通道级超时：超过预算的通道按空结果降级，不让最慢一条钳制同一子问题里其余通道的融合
+     * <p>
+     * 只放弃结果、不中断执行，任务仍在池内跑完——阻塞式 IO 无法安全取消，超时值过小等于整路白算
+     */
+    private CompletableFuture<SearchChannelResult> withTimeout(CompletableFuture<SearchChannelResult> future,
+                                                               SearchChannel channel, long timeoutMs) {
+        if (timeoutMs <= 0) {
+            return future;
+        }
+        return future.orTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+                .exceptionally(e -> {
+                    Throwable cause = e instanceof CompletionException && e.getCause() != null ? e.getCause() : e;
+                    if (cause instanceof TimeoutException) {
+                        log.warn("检索通道 {} 超过通道级超时 {}ms，放弃其结果，其余通道照常融合",
+                                channel.getName(), timeoutMs);
+                    } else {
+                        log.error("检索通道 {} 异步执行失败", channel.getName(), cause);
+                    }
+                    return channel.emptyResult(0);
+                });
+    }
+
+    /**
+     * 构建检索上下文
+     */
+    private SearchContext buildSearchContext(List<SubQuestionIntent> subIntents, int topK) {
+        String question = CollUtil.isEmpty(subIntents) ? "" : subIntents.get(0).subQuestion();
+
+        return SearchContext.builder()
+                .originalQuestion(question)
+                .rewrittenQuestion(question)
+                .intents(subIntents)
+                .topK(topK)
+                // 取数深度与最终条数分开：通道只读 budget，不再各自乘倍数
+                .budget(new RetrievalBudget(
+                        Math.max(1, topK),
+                        searchProperties.getScope().resolveRecallBudget(
+                                searchProperties.getFusion().getRerankCandidateLimit())))
+                .build();
+    }
+}

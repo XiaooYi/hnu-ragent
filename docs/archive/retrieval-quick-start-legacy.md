@@ -8,7 +8,7 @@
 
 ### 1. 核心接口（`channel` 包）
 ```
-bootstrap/src/main/java/com/nageoffer/ai/ragent/rag/core/retrieve/channel/
+bootstrap/src/main/java/com/hnu/ragent/rag/core/retrieve/channel/
 ├── SearchChannel.java              # 检索通道接口
 ├── SearchChannelType.java          # 通道类型枚举
 ├── SearchContext.java              # 检索上下文
@@ -17,14 +17,14 @@ bootstrap/src/main/java/com/nageoffer/ai/ragent/rag/core/retrieve/channel/
 
 ### 2. 检索通道实现（`channel/impl` 包）
 ```
-bootstrap/src/main/java/com/nageoffer/ai/ragent/rag/core/retrieve/channel/impl/
+bootstrap/src/main/java/com/hnu/ragent/rag/core/retrieve/channel/impl/
 ├── VectorGlobalSearchChannel.java      # 向量全局检索
 └── IntentDirectedSearchChannel.java    # 意图定向检索
 ```
 
 ### 3. 后置处理器（`postprocessor` 包）
 ```
-bootstrap/src/main/java/com/nageoffer/ai/ragent/rag/core/retrieve/postprocessor/
+bootstrap/src/main/java/com/hnu/ragent/rag/core/retrieve/postprocessor/
 ├── SearchResultPostProcessor.java      # 后置处理器接口
 └── impl/
     ├── DeduplicationPostProcessor.java # 去重处理器
@@ -33,7 +33,7 @@ bootstrap/src/main/java/com/nageoffer/ai/ragent/rag/core/retrieve/postprocessor/
 
 ### 4. 多通道检索引擎
 ```
-bootstrap/src/main/java/com/nageoffer/ai/ragent/rag/core/retrieve/
+bootstrap/src/main/java/com/hnu/ragent/rag/core/retrieve/
 └── MultiChannelRetrievalEngine.java    # 多通道检索引擎
 ```
 

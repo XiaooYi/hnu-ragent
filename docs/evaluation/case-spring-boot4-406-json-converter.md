@@ -159,7 +159,7 @@ flowchart TD
 
 | # | 改动 | 位置 |
 | --- | --- | --- |
-| 1 | `configureMessageConverters` → `extendMessageConverters`：**就地替换**默认的 `StringHttpMessageConverter` 为 UTF-8 版本（找不到时才插到首位），不再清空默认链 | `bootstrap/src/main/java/com/nageoffer/ai/ragent/rag/config/WebConfig.java` |
+| 1 | `configureMessageConverters` → `extendMessageConverters`：**就地替换**默认的 `StringHttpMessageConverter` 为 UTF-8 版本（找不到时才插到首位），不再清空默认链 | `bootstrap/src/main/java/com/hnu/ragent/rag/config/WebConfig.java` |
 | 2 | 显式声明 JSON 实现首选 Jackson 2，与项目既有 Jackson 2 代码、注解保持一致 | `bootstrap/src/main/resources/application.yaml` |
 
 ```yaml
@@ -212,10 +212,10 @@ curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: $TOKEN" \
 
 | 作用 | 位置 |
 | --- | --- |
-| 事故代码与修复 | `bootstrap/src/main/java/com/nageoffer/ai/ragent/rag/config/WebConfig.java` |
+| 事故代码与修复 | `bootstrap/src/main/java/com/hnu/ragent/rag/config/WebConfig.java` |
 | JSON 实现首选 | `bootstrap/src/main/resources/application.yaml`（`spring.http.converters.preferred-json-mapper`） |
 | Jackson 2 自动配置引入 | `framework/pom.xml`（`spring-boot-jackson2`） |
-| 回归测试 | `bootstrap/src/test/java/com/nageoffer/ai/ragent/rag/config/WebConfigTest.java` |
+| 回归测试 | `bootstrap/src/test/java/com/hnu/ragent/rag/config/WebConfigTest.java` |
 | 升级背景 | `docs/upstream/features/up-31-spring-boot4.md` |
 
 ## 7. 面试讲法

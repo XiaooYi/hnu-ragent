@@ -4,8 +4,8 @@
 
 | 需求 | 优先参考位置 | 说明 |
 | --- | --- | --- |
-| Spring Boot 启动与模块装配 | `bootstrap/src/main/java/com/nageoffer/ai/ragent/RagentApplication.java` | Ragent 的应用入口 |
-| 统一 HTTP 异常 | `framework/src/main/java/com/nageoffer/ai/ragent/framework/web/GlobalExceptionHandler.java` | 已有统一异常边界 |
+| Spring Boot 启动与模块装配 | `bootstrap/src/main/java/com/hnu/ragent/RagentApplication.java` | Ragent 的应用入口 |
+| 统一 HTTP 异常 | `framework/src/main/java/com/hnu/ragent/framework/web/GlobalExceptionHandler.java` | 已有统一异常边界 |
 | 配置绑定 | `infra-ai/.../config/AIModelProperties.java`、`bootstrap/.../rag/config/` | 使用 `@ConfigurationProperties` 绑定 `ai.*`、`rag.*` |
 | 检索扩展 | `bootstrap/.../rag/core/retrieve/channel/` 与 `postprocessor/` | `SearchChannel` 和 `SearchResultPostProcessor` 的真实扩展点 |
 | 模型接入 | `infra-ai/.../chat/ChatClient.java`、Embedding/Rerank 路由实现 | 客户端接口、候选优先级、熔断和降级 |

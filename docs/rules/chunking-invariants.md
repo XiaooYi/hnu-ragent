@@ -26,7 +26,7 @@
 ## 配置与验证
 
 - 体量参数：`minChars` / `targetChars` / `maxChars`（见 `BlockChunkConfig`，管理端「分块配置」与 `ChunkingOptionsValidationTest` 共同约束 `0 < minChars <= targetChars <= maxChars`）。
-- 验收用例：`bootstrap/src/test/java/com/nageoffer/ai/ragent/core/chunk/blockaware/StructuredChunkAggregatorTest.java`
+- 验收用例：`bootstrap/src/test/java/com/hnu/ragent/core/chunk/blockaware/StructuredChunkAggregatorTest.java`
   - 同提纲段落合并并累加来源；
   - 不跨提纲/原子边界（`[A:p1] [B:p2] [B:code] [B:p3]` → 4 块）；
   - 有描述与无描述图片都可并入相邻段落并保留资产。

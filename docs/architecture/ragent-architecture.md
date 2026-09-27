@@ -10,7 +10,7 @@
 
 | 项目 | 说明 |
 |------|------|
-| Group/Artifact | `com.nageoffer.ai:ragent` v0.0.1-SNAPSHOT |
+| Group/Artifact | `com.hnu:ragent` v0.0.1-SNAPSHOT |
 | Java | 17 |
 | 框架 | Spring Boot 3.5.7 |
 | 向量数据库 | Milvus 2.6.6 / PostgreSQL pgvector |
@@ -33,7 +33,7 @@ ragent/
 ### 1.3 bootstrap 模块核心包结构
 
 ```
-bootstrap/src/main/java/com/nageoffer/ai/ragent/
+bootstrap/src/main/java/com/hnu/ragent/
 ├── core/            # 文档解析、分块
 ├── knowledge/       # 知识库管理（CRUD、调度、MQ 消费）
 ├── ingestion/       # 文档摄取管道（DAG 引擎、Fetcher/Parser/Chunker/Enhancer/Enricher/Indexer 6 节点）
