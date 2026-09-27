@@ -2,6 +2,10 @@
   <img src="assets/ragent-ai-banner.png" alt="Ragent" />
 </p>
 
+# 快速体验
+http://146.56.241.229/chat
+账号：test 密码：test
+
 # Ragent
 
 Ragent 是一个面向企业知识库与智能问答场景的 RAG / Agent 平台，提供从文档上传、异步解析、分块与向量化，到检索、模型生成和流式回答的完整链路。
