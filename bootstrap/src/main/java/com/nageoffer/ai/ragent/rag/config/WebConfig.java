@@ -45,23 +45,41 @@ public class WebConfig implements WebMvcConfigurer {
      * 自定义消息转换器配置
      *
      * <p>
-     * 这里通过往转换器列表的首位插入一个 UTF-8 的 {@link StringHttpMessageConverter}，
+     * 这里通过把默认的 {@link StringHttpMessageConverter} 就地换成 UTF-8 版本，
      * 来覆盖默认的 String 类型消息转换行为
      * </p>
      *
-     * @param converters Spring MVC 默认注册的消息转换器列表
+     * <p>
+     * 必须用 {@code extendMessageConverters} 而不是 {@code configureMessageConverters}：
+     * Spring MVC 组装转换器链的顺序是「配置器填充 → 列表仍为空才注册默认转换器 → 扩展」，
+     * 只要在 {@code configureMessageConverters} 里放入任何转换器，JSON 等默认转换器就再也不会被注册，
+     * 所有返回对象的接口都会 406（No acceptable representation）。
+     * </p>
+     *
+     * @param converters Spring MVC 已注册的消息转换器列表（含默认转换器）
      */
     @Override
-    public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
-        // 使用 UTF-8 作为字符串响应的默认编码
-        StringHttpMessageConverter stringConverter = new StringHttpMessageConverter(StandardCharsets.UTF_8);
+    public void extendMessageConverters(List<HttpMessageConverter<?>> converters) {
+        StringHttpMessageConverter utf8Converter = utf8StringConverter();
+        for (int i = 0; i < converters.size(); i++) {
+            // 就地替换：保持原有位置与其它转换器不变，只把编码换成 UTF-8
+            if (converters.get(i) instanceof StringHttpMessageConverter) {
+                converters.set(i, utf8Converter);
+                return;
+            }
+        }
+        converters.add(0, utf8Converter);
+    }
 
-        // 避免在响应的 Content-Type 头中自动添加 "charset" 列表（accept-charset），
-        // 防止某些客户端或中间件对该头部解析不兼容
-        stringConverter.setWriteAcceptCharset(false);
-
-        // 将自定义的 String 消息转换器放在列表首位，提高其匹配优先级
-        converters.add(0, stringConverter);
+    /**
+     * 使用 UTF-8 作为字符串响应的默认编码
+     * <p>
+     * 同时关闭响应头里的 accept-charset 列表，避免某些客户端或中间件对该头部解析不兼容
+     */
+    private StringHttpMessageConverter utf8StringConverter() {
+        StringHttpMessageConverter converter = new StringHttpMessageConverter(StandardCharsets.UTF_8);
+        converter.setWriteAcceptCharset(false);
+        return converter;
     }
 
     @Override

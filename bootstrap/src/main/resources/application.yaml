@@ -7,6 +7,14 @@ spring:
   application:
     name: ragent${unique-name:}-service
 
+  # Boot 4 默认 JSON 实现换成了 Jackson 3，而本项目（含依赖的 mcp/ES 客户端）仍基于 Jackson 2。
+  # framework 里已引入 spring-boot-jackson2，但 Boot 4 的 HTTP 转换器只在「显式首选 jackson2」或
+  # 「Jackson 3 不存在」时才会注册 MappingJackson2HttpMessageConverter；不声明首选会导致容器里
+  # 没有任何 JSON 转换器，所有返回对象的接口都 406（No acceptable representation）。
+  http:
+    converters:
+      preferred-json-mapper: jackson2
+
   servlet:
     multipart:
       max-file-size: 50MB
