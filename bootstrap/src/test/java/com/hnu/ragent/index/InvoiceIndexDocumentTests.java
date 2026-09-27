@@ -35,6 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.tika.Tika;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -50,8 +51,14 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+/**
+ * 依赖真实 Milvus 实例（需要 {@code rag.vector.type=milvus}）与真实 Embedding 服务，属手动执行用例。
+ * 默认构建通过 surefire 的 {@code excludedGroups} 排除；需要执行时用
+ * {@code ./mvnw test -pl bootstrap -Dtest.excludedGroups= -Dtest=InvoiceIndexDocumentTests}。
+ */
 @Slf4j
 @SpringBootTest
+@Tag("milvus")
 @RequiredArgsConstructor(onConstructor = @__(@Autowired))
 public class InvoiceIndexDocumentTests {
 

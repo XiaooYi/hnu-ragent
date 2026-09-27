@@ -34,6 +34,8 @@
         <spotless-maven-plugin.version>2.22.1</spotless-maven-plugin.version>
         <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
         <maven.surefire.plugin.version>3.2.5</maven.surefire.plugin.version>
+        <!-- 默认排除标记为 milvus 的手动用例；执行时传 -Dtest.excludedGroups= 覆盖 -->
+        <test.excludedGroups>milvus</test.excludedGroups>
     </properties>
 
     <modules>
@@ -278,6 +280,7 @@
                 <version>${maven.surefire.plugin.version}</version>
                 <configuration>
                     <argLine>-javaagent:${org.mockito:mockito-core:jar}</argLine>
+                    <excludedGroups>${test.excludedGroups}</excludedGroups>
                 </configuration>
             </plugin>
 

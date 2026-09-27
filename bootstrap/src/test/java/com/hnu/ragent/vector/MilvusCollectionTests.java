@@ -25,6 +25,7 @@ import io.milvus.v2.service.collection.request.CreateCollectionReq;
 import io.milvus.v2.service.collection.request.HasCollectionReq;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -33,8 +34,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 依赖真实 Milvus 实例（需要 {@code rag.vector.type=milvus}），属手动执行用例。
+ * 默认构建通过 surefire 的 {@code excludedGroups} 排除；需要执行时用
+ * {@code ./mvnw test -pl bootstrap -Dtest.excludedGroups= -Dtest=MilvusCollectionTests}。
+ */
 @Slf4j
 @SpringBootTest
+@Tag("milvus")
 @RequiredArgsConstructor(onConstructor = @__(@Autowired))
 public class MilvusCollectionTests {
 
