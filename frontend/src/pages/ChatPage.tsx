@@ -72,11 +72,23 @@ export function ChatPage() {
     navigate
   ]);
 
+  // 流式 meta 解析出新会话后同步地址栏。
+  // 不用「对比 currentSessionId 与 sessionId 再 navigate」的 effect：它与上面的会话加载
+  // effect 会在同一轮提交里各拿各的旧值互相纠偏，形成两个会话间 ~45 次/秒的导航死循环
+  // （表现为新对话不停闪烁）。订阅只在 currentSessionId 真正变化时触发一次导航，
+  // URL 已是目标会话时短路，不会与 selectSession 形成环。
   React.useEffect(() => {
-    if (currentSessionId && currentSessionId !== sessionId) {
-      navigate(`/chat/${currentSessionId}`, { replace: true });
-    }
-  }, [currentSessionId, sessionId, navigate]);
+    return useChatStore.subscribe((state, prevState) => {
+      const nextId = state.currentSessionId;
+      if (!nextId || nextId === prevState.currentSessionId) {
+        return;
+      }
+      if (window.location.pathname === `/chat/${nextId}`) {
+        return;
+      }
+      navigate(`/chat/${nextId}`, { replace: true });
+    });
+  }, [navigate]);
 
   return (
     <MainLayout>

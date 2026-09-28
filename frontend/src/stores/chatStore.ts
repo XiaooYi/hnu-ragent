@@ -470,13 +470,28 @@ export const useChatStore = create<ChatState>((set, get) => ({
       handlers.onError?.(error as Error);
     } finally {
       if (get().streamingMessageId === assistantId) {
-        set({
+        // 流结束但没收到 finish/done/cancel（例如代理超时静默断开）：
+        // 兜底标记失败，避免气泡永远停在“思考中”动画
+        set((state) => ({
           isStreaming: false,
+          thinkingStartAt: null,
           streamTaskId: null,
           streamAbort: null,
           streamingMessageId: null,
-          cancelRequested: false
-        });
+          cancelRequested: false,
+          messages: state.messages.map((message) =>
+            message.id === assistantId && message.status === "streaming"
+              ? {
+                  ...message,
+                  status: "error",
+                  errorMessage: "连接中断，请稍后重试",
+                  isThinking: false,
+                  thinkingDuration:
+                    message.thinkingDuration ?? computeThinkingDuration(state.thinkingStartAt)
+                }
+              : message
+          )
+        }));
       }
     }
   },

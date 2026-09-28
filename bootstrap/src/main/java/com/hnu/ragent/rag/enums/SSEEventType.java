@@ -53,7 +53,12 @@ public enum SSEEventType {
     /**
      * 拒绝事件
      */
-    REJECT("reject");
+    REJECT("reject"),
+
+    /**
+     * 生成失败事件（连接保持到事件下发完毕，避免客户端把断流当网络抖动）
+     */
+    ERROR("error");
 
     private final String value;
 

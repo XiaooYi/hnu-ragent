@@ -20,7 +20,10 @@ package com.hnu.ragent.rag.service.impl;
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
 import com.hnu.ragent.framework.context.UserContext;
+import com.hnu.ragent.framework.web.SseEmitterSender;
 import com.hnu.ragent.infra.chat.StreamCallback;
+import com.hnu.ragent.rag.dto.ErrorPayload;
+import com.hnu.ragent.rag.enums.SSEEventType;
 import com.hnu.ragent.rag.service.ratelimit.ChatQueueLimiter;
 import com.hnu.ragent.rag.service.RAGChatService;
 import com.hnu.ragent.rag.service.handler.StreamCallbackFactory;
@@ -51,20 +54,47 @@ public class RAGChatServiceImpl implements RAGChatService {
     public void streamChat(String question, String conversationId, Boolean deepThinking, SseEmitter emitter) {
         String actualConversationId = StrUtil.isBlank(conversationId) ? IdUtil.getSnowflakeNextIdStr() : conversationId;
         String taskId = IdUtil.getSnowflakeNextIdStr();
-        StreamCallback callback = callbackFactory.createChatEventHandler(emitter, actualConversationId, taskId);
+        StreamCallback callback;
+        try {
+            callback = callbackFactory.createChatEventHandler(emitter, actualConversationId, taskId);
+        } catch (Exception ex) {
+            // 事件处理器初始化失败（meta 可能尚未发出）：直接以 SSE error 事件收尾
+            log.error("对话事件处理器初始化失败，conversationId：{}", actualConversationId, ex);
+            completeWithErrorEvent(emitter);
+            return;
+        }
 
         chatQueueLimiter.enqueue(question, actualConversationId, emitter,
-                () -> traceRunner.run(question, actualConversationId, taskId, callback, traceAware -> {
-                    StreamChatContext ctx = StreamChatContext.builder()
-                            .question(question)
-                            .conversationId(actualConversationId)
-                            .taskId(taskId)
-                            .deepThinking(Boolean.TRUE.equals(deepThinking))
-                            .userId(UserContext.getUserId())
-                            .callback(traceAware)
-                            .build();
-                    chatPipeline.execute(ctx);
-                }));
+                () -> {
+                    try {
+                        traceRunner.run(question, actualConversationId, taskId, callback, traceAware -> {
+                            StreamChatContext ctx = StreamChatContext.builder()
+                                    .question(question)
+                                    .conversationId(actualConversationId)
+                                    .taskId(taskId)
+                                    .deepThinking(Boolean.TRUE.equals(deepThinking))
+                                    .userId(UserContext.getUserId())
+                                    .callback(traceAware)
+                                    .build();
+                            chatPipeline.execute(ctx);
+                        });
+                    } catch (Exception ex) {
+                        // 管线在执行线程内同步抛错时任务会静默消失、连接悬挂直到超时；
+                        // 统一交给事件处理器下发 error 终态事件并正常关闭连接
+                        log.error("对话管线执行失败，conversationId：{}", actualConversationId, ex);
+                        callback.onError(ex);
+                    }
+                });
+    }
+
+    /**
+     * 事件处理器不可用时的兜底：尽力补发 error 事件并关闭连接
+     */
+    private void completeWithErrorEvent(SseEmitter emitter) {
+        SseEmitterSender sender = new SseEmitterSender(emitter);
+        sender.sendEvent(SSEEventType.ERROR.value(), new ErrorPayload("回答生成失败，请稍后重试"));
+        sender.sendEvent(SSEEventType.DONE.value(), "[DONE]");
+        sender.complete();
     }
 
     @Override

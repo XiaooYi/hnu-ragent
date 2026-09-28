@@ -18,8 +18,10 @@
 package com.hnu.ragent.rag.service.handler;
 
 import cn.hutool.core.util.StrUtil;
+import com.hnu.ragent.framework.exception.AbstractException;
 import com.hnu.ragent.rag.dao.entity.ConversationDO;
 import com.hnu.ragent.rag.dto.CompletionPayload;
+import com.hnu.ragent.rag.dto.ErrorPayload;
 import com.hnu.ragent.rag.dto.MessageDelta;
 import com.hnu.ragent.rag.dto.MetaPayload;
 import com.hnu.ragent.rag.enums.SSEEventType;
@@ -222,7 +224,23 @@ public class StreamChatEventHandler implements StreamCallback {
             return;
         }
         taskManager.unregister(taskId);
-        sender.fail(t);
+        log.error("对话流式处理异常，conversationId：{}", conversationId, t);
+        // 显式下发 error 事件并正常收尾：completeWithError 会在响应已提交时直接掐断连接，
+        // 客户端收不到任何终态事件，会把业务失败误判为网络抖动
+        sender.sendEvent(SSEEventType.ERROR.value(), new ErrorPayload(resolveClientErrorMessage(t)));
+        sender.sendEvent(SSEEventType.DONE.value(), "[DONE]");
+        sender.complete();
+    }
+
+    /**
+     * 提取可展示给用户的失败原因；非业务异常不透传原始堆栈信息
+     */
+    private String resolveClientErrorMessage(Throwable t) {
+        if (t instanceof AbstractException abstractException
+                && StrUtil.isNotBlank(abstractException.getErrorMessage())) {
+            return abstractException.getErrorMessage();
+        }
+        return "回答生成失败，请稍后重试";
     }
 
     private void sendChunked(String type, String content) {

@@ -30,7 +30,12 @@ function parseData(raw: string): unknown {
   }
 }
 
-async function readSseStream(response: Response, handlers: StreamHandlers, signal?: AbortSignal) {
+async function readSseStream(
+  response: Response,
+  handlers: StreamHandlers,
+  signal?: AbortSignal,
+  onFirstEvent?: () => void
+) {
   if (!response.body) {
     throw new Error("流式响应为空");
   }
@@ -46,6 +51,7 @@ async function readSseStream(response: Response, handlers: StreamHandlers, signa
       eventName = "message";
       return;
     }
+    onFirstEvent?.();
     const raw = dataLines.join("\n");
     const payload = parseData(raw);
     handlers.onEvent?.(eventName, payload);
@@ -129,6 +135,12 @@ async function streamWithRetry(
   const retryCount = options.retryCount ?? 2;
   const retryDelayMs = options.retryDelayMs ?? 600;
 
+  // 收到过任意 SSE 事件后不再重试：对话请求重放会让后端再开一个新会话
+  let receivedAnyEvent = false;
+  const markFirstEvent = () => {
+    receivedAnyEvent = true;
+  };
+
   let attempt = 0;
   while (attempt <= retryCount) {
     try {
@@ -145,14 +157,14 @@ async function streamWithRetry(
         throw new Error(`SSE 请求失败（${response.status}）`);
       }
 
-      await readSseStream(response, handlers, signal);
+      await readSseStream(response, handlers, signal, markFirstEvent);
       return;
     } catch (error) {
       const err = error as Error;
       if (signal?.aborted) {
         throw err;
       }
-      if (attempt >= retryCount) {
+      if (attempt >= retryCount || receivedAnyEvent) {
         throw err;
       }
       await new Promise((resolve) => setTimeout(resolve, retryDelayMs * Math.pow(2, attempt)));
