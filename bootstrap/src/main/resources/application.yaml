@@ -241,7 +241,8 @@ ai:
         embedding: /v1/embeddings
     bailian:
       url: https://dashscope.aliyuncs.com
-      api-key: sk-ws-H.RYXEYMP.e8JH.MEUCIFP8iCvcKiAKaJ9gdOIjvHhDB64375YSFhvwlRMlnEEHAiEAjpo34waqzk9hWwRR9wBKVG1dYPym9CbHAd-JKgMuh8o
+      # 禁止把真实 key 写进仓库：本地通过环境变量注入，服务器由 compose 注入
+      api-key: ${BAILIAN_API_KEY:}
       endpoints:
         chat: /compatible-mode/v1/chat/completions
         embedding: /compatible-mode/v1/embeddings
@@ -254,7 +255,8 @@ ai:
         embedding: /v1/embeddings
     siliconflow:
       url: https://api.siliconflow.cn
-      api-key: sk-uiewylrvhdhvbxzrptealdjgitakaqanscgrcnwxpljjnhtr
+      # 禁止把真实 key 写进仓库：本地通过环境变量注入，服务器由 compose 注入
+      api-key: ${SILICONFLOW_API_KEY:}
       endpoints:
         chat: /v1/chat/completions
         embedding: /v1/embeddings
@@ -287,7 +289,7 @@ ai:
         candidates: [ qwen3-max, qwen-plus, qwen3-local ]  # 首位放能力最强的模型，其余为降级候选
         timeout-ms: 120000
       deep:
-        candidates: [ qwen3-max, glm-4.7 ]
+        candidates: [ qwen3-max, glm-5.3 ]
         timeout-ms: 180000
     candidates:
       - id: qwen-plus
@@ -303,9 +305,10 @@ ai:
         model: qwen3-max
         supports-thinking: true
         priority: 3
-      - id: glm-4.7
+      # GLM-4.7 已从硅基流动模型目录下架，改用同系列在售模型
+      - id: glm-5.3
         provider: siliconflow
-        model: Pro/zai-org/GLM-4.7
+        model: zai-org/GLM-5.3
         supports-thinking: true
         priority: 4
       - id: gpt-5.4
@@ -373,7 +376,8 @@ rustfs:
 # MinerU SaaS API 配置（PDF / Word / PPT 走 MinerU 解析）
 mineru:
   api-url: https://mineru.net/api/v4
-  api-key: eyJ0eXBlIjoiSldUIiwiYWxnIjoiSFM1MTIifQ.eyJqdGkiOiI2MzUwMDcyOSIsInJvbCI6IlJPTEVfUkVHSVNURVIiLCJpc3MiOiJPcGVuWExhYiIsImlhdCI6MTc4MzE4NjQ4MSwiY2xpZW50SWQiOiJsa3pkeDU3bnZ5MjJqa3BxOXgydyIsInBob25lIjoiIiwib3BlbklkIjpudWxsLCJ1dWlkIjoiNzk5MDkxNzgtM2EyMC00YzcyLTg5MTgtODk3Y2Q0MGY0NDVkIiwiZW1haWwiOiIiLCJleHAiOjE3OTA5NjI0ODF9.Ue9o435pVcTRGR3dEMV9ResUM6cCiP0kGUCyYNeSqg6XCj4umN5Vi8fv935cprFgzxE6Qp6ozi2cfS06BhZKBQ
+  # 禁止把真实 key 写进仓库：本地通过环境变量注入，服务器由 compose 注入
+  api-key: ${MINERU_API_KEY:}
   poll-interval-seconds: 5
   timeout-seconds: 300
   enable-table: true

@@ -53,6 +53,13 @@ function mapVoteToFeedback(vote?: number | null): FeedbackValue {
   return null;
 }
 
+/** 会话标题由模型生成；模型不可用时用首个问题兜底，避免侧栏只显示“新对话” */
+function buildFallbackTitle(question: string) {
+  const normalized = question.replace(/\s+/g, " ").trim();
+  if (!normalized) return "新对话";
+  return normalized.length > 20 ? `${normalized.slice(0, 20)}…` : normalized;
+}
+
 function upsertSession(sessions: Session[], next: Session) {
   const index = sessions.findIndex((session) => session.id === next.id);
   const updated = [...sessions];
@@ -283,13 +290,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
         if (!nextId) return;
         const lastTime = new Date().toISOString();
         const existing = get().sessions.find((session) => session.id === nextId);
+        const title =
+          existing?.title && existing.title !== "新对话"
+            ? existing.title
+            : buildFallbackTitle(trimmed);
         set((state) => ({
           currentSessionId: nextId,
           isCreatingNew: false,
           streamTaskId: payload.taskId,
           sessions: upsertSession(state.sessions, {
             id: nextId,
-            title: existing?.title || "新对话",
+            title,
             lastTime
           })
         }));
@@ -415,6 +426,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       },
       onError: (error: Error) => {
         if (get().streamingMessageId !== assistantId) return;
+        const reason = error?.message?.trim() || "未知错误";
         set((state) => ({
           isStreaming: false,
           thinkingStartAt: null,
@@ -426,6 +438,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
               ? {
                   ...message,
                   status: "error",
+                  errorMessage: reason,
                   isThinking: false,
                   thinkingDuration:
                     message.thinkingDuration ?? computeThinkingDuration(state.thinkingStartAt)
@@ -433,7 +446,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
               : message
           )
         }));
-        toast.error(error.message || "生成失败");
+        toast.error(reason);
       }
     };
 

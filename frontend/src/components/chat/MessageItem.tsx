@@ -93,7 +93,14 @@ export const MessageItem = React.memo(function MessageItem({ message, isLast }: 
           ) : null}
           {hasContent ? <MarkdownRenderer content={message.content} sources={message.sources} /> : null}
           {message.status === "error" ? (
-            <p className="text-xs text-rose-500">生成已中断。</p>
+            <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs leading-relaxed text-rose-600">
+              <p className="font-medium">
+                回答生成失败{message.errorMessage ? `：${message.errorMessage}` : ""}
+              </p>
+              <p className="mt-1 text-rose-500">
+                通常是模型服务暂时不可用，请稍后重新提问；本次提问已保存在左侧会话里。
+              </p>
+            </div>
           ) : null}
           <SourcesPanel sources={message.sources} />
           {showRecommendations ? (

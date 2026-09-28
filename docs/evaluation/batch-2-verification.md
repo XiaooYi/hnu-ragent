@@ -257,6 +257,8 @@ t_knowledge_document.deleted = 1
 | `standard` | `qwen3-max`, `qwen-plus`, `qwen3-local` | 120000 |
 | `deep` | `qwen3-max`, `glm-4.7` | 180000 |
 
+> 上表是本次验证时的配置快照。`deep` 档的 `glm-4.7` 之后已从硅基流动模型目录下架，现替换为 `glm-5.3`（`zai-org/GLM-5.3`）。
+
 行为验证：`deepThinking=true`（`deep-thinking-tier: deep`）
 
 ```text

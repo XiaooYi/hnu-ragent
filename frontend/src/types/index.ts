@@ -39,6 +39,8 @@ export interface Message {
   recommendedOpen?: boolean;
   /** 消息结束状态：NORMAL / INTERRUPTED / REJECTED */
   messageStatus?: string | null;
+  /** 生成失败的原因，用于在气泡内直接提示用户 */
+  errorMessage?: string;
 }
 
 /**
